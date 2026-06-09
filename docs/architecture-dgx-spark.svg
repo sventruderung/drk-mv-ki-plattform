@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2E75B6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A7A1A"/>
+    </marker>
+    <marker id="arrow-gold" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#B8860B"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000033"/>
+    </filter>
+    <linearGradient id="nvGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#76B900"/>
+      <stop offset="100%" style="stop-color:#1A5C00"/>
+    </linearGradient>
+    <linearGradient id="memGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90D9"/>
+      <stop offset="100%" style="stop-color:#1F4E79"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="#F0F4F8"/>
+
+  <!-- Title -->
+  <text x="600" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#1F4E79">DRK MV KI-Plattform — Hardware-Profil: NVIDIA DGX Spark (GB10)</text>
+  <text x="600" y="56" text-anchor="middle" font-size="12" fill="#888">ST COMPUTER GmbH · Mono-Installation mit P02 + P03 · Performance-Analyse</text>
+  <line x1="60" y1="66" x2="1140" y2="66" stroke="#76B900" stroke-width="2"/>
+
+  <!-- ── DGX SPARK HARDWARE BOX ── -->
+  <rect x="60" y="80" width="500" height="380" rx="12" fill="#1A1A2E" stroke="#76B900" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="60" y="80" width="500" height="44" rx="12" fill="url(#nvGrad)"/>
+  <rect x="60" y="112" width="500" height="12" fill="url(#nvGrad)"/>
+  <text x="310" y="108" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">NVIDIA DGX Spark — GB10 Grace Blackwell</text>
+
+  <!-- GPU Core -->
+  <rect x="80" y="140" width="220" height="140" rx="8" fill="#0D0D1A" stroke="#76B900" stroke-width="2"/>
+  <text x="190" y="162" text-anchor="middle" font-size="11" font-weight="bold" fill="#76B900">Blackwell GPU (B10)</text>
+  <text x="190" y="180" text-anchor="middle" font-size="10" fill="#aaa">1 PFLOPS FP4</text>
+  <text x="190" y="196" text-anchor="middle" font-size="10" fill="#aaa">500 TOPS FP8</text>
+  <text x="190" y="212" text-anchor="middle" font-size="10" fill="#aaa">200 TFLOPS BF16</text>
+  <text x="190" y="232" text-anchor="middle" font-size="11" font-weight="bold" fill="#76B900">CUDA · Tensor Cores</text>
+  <text x="190" y="250" text-anchor="middle" font-size="10" fill="#aaa">5th Gen NVLink</text>
+  <text x="190" y="266" text-anchor="middle" font-size="10" fill="#aaa">Native FP8 Inference</text>
+
+  <!-- CPU Core -->
+  <rect x="320" y="140" width="220" height="140" rx="8" fill="#0D0D1A" stroke="#4A90D9" stroke-width="2"/>
+  <text x="430" y="162" text-anchor="middle" font-size="11" font-weight="bold" fill="#4A90D9">Grace CPU (ARM)</text>
+  <text x="430" y="180" text-anchor="middle" font-size="10" fill="#aaa">Neoverse V2</text>
+  <text x="430" y="196" text-anchor="middle" font-size="10" fill="#aaa">20 Cores · 3.1 GHz</text>
+  <text x="430" y="212" text-anchor="middle" font-size="10" fill="#aaa">Docker Compose</text>
+  <text x="430" y="228" text-anchor="middle" font-size="10" fill="#aaa">FastAPI Services</text>
+  <text x="430" y="244" text-anchor="middle" font-size="10" fill="#aaa">PostgreSQL + pgvector</text>
+  <text x="430" y="260" text-anchor="middle" font-size="10" fill="#aaa">Keycloak · MinIO</text>
+
+  <!-- Unified Memory Bar -->
+  <rect x="80" y="294" width="460" height="56" rx="8" fill="url(#memGrad)" stroke="#4A90D9" stroke-width="2"/>
+  <text x="310" y="318" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">128 GB Unified Memory — LPDDR5X</text>
+  <text x="310" y="338" text-anchor="middle" font-size="11" fill="#AED6F1">CPU + GPU teilen denselben Speicher · Kein VRAM-Engpass</text>
+
+  <!-- Memory Bandwidth -->
+  <rect x="80" y="362" width="460" height="36" rx="6" fill="#0D2040" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="310" y="376" text-anchor="middle" font-size="10" fill="#76B900" font-weight="bold">Memory Bandwidth: 273 GB/s</text>
+  <text x="310" y="390" text-anchor="middle" font-size="10" fill="#aaa">4 TB NVMe SSD · NVIDIA DGX OS (Ubuntu) · Ollama + CUDA nativ</text>
+
+  <!-- Key stat -->
+  <rect x="80" y="410" width="460" height="36" rx="6" fill="#003300" stroke="#76B900" stroke-width="1.5"/>
+  <text x="310" y="424" text-anchor="middle" font-size="10" fill="#76B900" font-weight="bold">Preis: ca. 3.500–4.500 € · Verbrauch: ~60–100 W Idle · 300 W Peak</text>
+  <text x="310" y="440" text-anchor="middle" font-size="10" fill="#aaa">Kompaktes Mini-Formfaktor · Kein Rack erforderlich · Bürobetrieb möglich</text>
+
+  <!-- ── MODELL-VERGLEICH ── -->
+  <rect x="600" y="80" width="560" height="380" rx="12" fill="#fff" stroke="#2E75B6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="600" y="80" width="560" height="36" rx="12" fill="#1F4E79"/>
+  <rect x="600" y="104" width="560" height="12" fill="#1F4E79"/>
+  <text x="880" y="104" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">Modell-Fit auf 128 GB Unified Memory</text>
+
+  <!-- Model bars -->
+  <!-- Qwen3 30B -->
+  <rect x="620" y="128" width="520" height="44" rx="6" fill="#E8F5E9" stroke="#1A5C1A" stroke-width="1.5"/>
+  <text x="636" y="147" font-size="11" font-weight="bold" fill="#1A5C1A">Qwen3 30B-A3B Q4 (MoE)</text>
+  <text x="636" y="163" font-size="10" fill="#555">18 GB · Aktuell geplant · passt locker</text>
+  <rect x="950" y="134" width="60" height="26" rx="4" fill="#1A5C1A"/>
+  <text x="980" y="151" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~18 GB</text>
+  <rect x="1015" y="134" width="80" height="26" rx="4" fill="#76B900"/>
+  <text x="1055" y="151" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~40 tok/s</text>
+
+  <!-- Qwen3 72B — empfohlen -->
+  <rect x="620" y="180" width="520" height="44" rx="6" fill="#FFF9C4" stroke="#F9A825" stroke-width="2.5"/>
+  <text x="636" y="199" font-size="11" font-weight="bold" fill="#E65100">⭐ Qwen3 72B Q4 — EMPFOHLEN</text>
+  <text x="636" y="215" font-size="10" fill="#555">42 GB · Beste Qualität Deutsch · passt komfortabel</text>
+  <rect x="950" y="186" width="60" height="26" rx="4" fill="#E65100"/>
+  <text x="980" y="203" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~42 GB</text>
+  <rect x="1015" y="186" width="80" height="26" rx="4" fill="#76B900"/>
+  <text x="1055" y="203" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~15 tok/s</text>
+
+  <!-- Llama 3.3 70B -->
+  <rect x="620" y="232" width="520" height="44" rx="6" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="636" y="251" font-size="11" font-weight="bold" fill="#1565C0">Llama 3.3 70B Q4</text>
+  <text x="636" y="267" font-size="10" fill="#555">40 GB · Alternative · Deutsche Sprachkompetenz gut</text>
+  <rect x="950" y="238" width="60" height="26" rx="4" fill="#1565C0"/>
+  <text x="980" y="255" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~40 GB</text>
+  <rect x="1015" y="238" width="80" height="26" rx="4" fill="#76B900"/>
+  <text x="1055" y="255" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~15 tok/s</text>
+
+  <!-- Qwen3 235B MoE -->
+  <rect x="620" y="284" width="520" height="44" rx="6" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"/>
+  <text x="636" y="303" font-size="11" font-weight="bold" fill="#7B1FA2">Qwen3 235B-A22B Q4 (MoE)</text>
+  <text x="636" y="319" font-size="10" fill="#555">~130 GB · Experimentell · knapper Fit · höchste Qualität</text>
+  <rect x="950" y="290" width="60" height="26" rx="4" fill="#7B1FA2"/>
+  <text x="980" y="307" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~130 GB</text>
+  <rect x="1015" y="290" width="80" height="26" rx="4" fill="#888"/>
+  <text x="1055" y="307" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">~6 tok/s</text>
+
+  <!-- Memory bar visualization -->
+  <rect x="620" y="344" width="520" height="28" rx="4" fill="#E8EAF6" stroke="#CCCCCC" stroke-width="1"/>
+  <text x="628" y="362" font-size="9" fill="#888">0 GB</text>
+  <!-- 128 GB scale -->
+  <!-- Qwen3 72B: 42/128 = 33% -->
+  <rect x="648" y="348" width="168" height="16" rx="3" fill="#F9A825" opacity="0.8"/>
+  <text x="732" y="360" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">72B: 42 GB</text>
+  <!-- Remaining for services: ~30GB -->
+  <rect x="816" y="348" width="120" height="16" rx="3" fill="#4A90D9" opacity="0.7"/>
+  <text x="876" y="360" text-anchor="middle" font-size="8" fill="#fff">Services: ~30 GB</text>
+  <!-- Free -->
+  <rect x="936" y="348" width="196" height="16" rx="3" fill="#E8F5E9" stroke="#1A5C1A" stroke-width="1"/>
+  <text x="1034" y="360" text-anchor="middle" font-size="8" fill="#1A5C1A">Frei: ~56 GB</text>
+  <text x="1128" y="362" font-size="9" fill="#888">128 GB</text>
+
+  <!-- ── TTFT COMPARISON ── -->
+  <rect x="60" y="478" width="1080" height="200" rx="12" fill="#fff" stroke="#2E75B6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="60" y="478" width="1080" height="36" rx="12" fill="#1F4E79"/>
+  <rect x="60" y="502" width="1080" height="12" fill="#1F4E79"/>
+  <text x="600" y="502" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">Performance-Vergleich: TTFT und Durchsatz</text>
+
+  <!-- Header row -->
+  <text x="160" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Hardware</text>
+  <text x="360" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Modell</text>
+  <text x="530" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">TTFT</text>
+  <text x="660" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">1 User tok/s</text>
+  <text x="800" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">5 User parallel</text>
+  <text x="960" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Preis-Bereich</text>
+  <text x="1090" y="534" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Fazit</text>
+  <line x1="80" y1="540" x2="1120" y2="540" stroke="#DDDDDD" stroke-width="1"/>
+
+  <!-- Row 1: Intel Arc -->
+  <rect x="80" y="544" width="1060" height="30" rx="0" fill="#F8F8F8"/>
+  <text x="160" y="564" text-anchor="middle" font-size="10" fill="#555">Intel Arc 140V (Mono)</text>
+  <text x="360" y="564" text-anchor="middle" font-size="10" fill="#555">Qwen2.5 7B Q4</text>
+  <rect x="490" y="549" width="90" height="20" rx="4" fill="#FADBD8"/>
+  <text x="535" y="563" text-anchor="middle" font-size="10" fill="#C0392B" font-weight="bold">1,5–2,0 s</text>
+  <text x="660" y="564" text-anchor="middle" font-size="10" fill="#555">8–12 tok/s</text>
+  <text x="800" y="564" text-anchor="middle" font-size="10" fill="#C0392B">2–3 User (grenzwertig)</text>
+  <text x="960" y="564" text-anchor="middle" font-size="10" fill="#555">~1.500 €</text>
+  <text x="1090" y="564" text-anchor="middle" font-size="10" fill="#C0392B">Knapp</text>
+
+  <!-- Row 2: RTX 4090 -->
+  <rect x="80" y="574" width="1060" height="30" rx="0" fill="#fff"/>
+  <text x="160" y="594" text-anchor="middle" font-size="10" fill="#555">RTX 4090 (Mono B)</text>
+  <text x="360" y="594" text-anchor="middle" font-size="10" fill="#555">Qwen3 30B Q4</text>
+  <rect x="490" y="579" width="90" height="20" rx="4" fill="#FEF9E7"/>
+  <text x="535" y="593" text-anchor="middle" font-size="10" fill="#D35400" font-weight="bold">0,8–1,2 s</text>
+  <text x="660" y="594" text-anchor="middle" font-size="10" fill="#555">20–30 tok/s</text>
+  <text x="800" y="594" text-anchor="middle" font-size="10" fill="#555">5–8 User</text>
+  <text x="960" y="594" text-anchor="middle" font-size="10" fill="#555">~10.000 €</text>
+  <text x="1090" y="594" text-anchor="middle" font-size="10" fill="#D35400">Gut</text>
+
+  <!-- Row 3: DGX Spark — highlighted -->
+  <rect x="80" y="604" width="1060" height="34" rx="4" fill="#E8F5E9" stroke="#76B900" stroke-width="1.5"/>
+  <text x="160" y="626" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">DGX Spark GB10 ★</text>
+  <text x="360" y="626" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">Qwen3 72B Q4</text>
+  <rect x="490" y="609" width="90" height="22" rx="4" fill="#1A5C1A"/>
+  <text x="535" y="624" text-anchor="middle" font-size="11" fill="#fff" font-weight="bold">&lt; 0,5 s</text>
+  <text x="660" y="626" text-anchor="middle" font-size="11" fill="#1A5C1A" font-weight="bold">15–18 tok/s</text>
+  <text x="800" y="626" text-anchor="middle" font-size="11" fill="#1A5C1A" font-weight="bold">10–15 User</text>
+  <text x="960" y="626" text-anchor="middle" font-size="11" fill="#1A5C1A" font-weight="bold">~3.500–4.500 €</text>
+  <text x="1090" y="626" text-anchor="middle" font-size="11" fill="#1A5C1A" font-weight="bold">Optimal</text>
+
+  <!-- Lastenheft-Linie -->
+  <line x1="490" y1="545" x2="490" y2="640" stroke="#C0392B" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="580" y1="545" x2="580" y2="640" stroke="#C0392B" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="535" y="652" text-anchor="middle" font-size="9" fill="#C0392B">Lastenheft-Grenze: 2 s</text>
+
+  <!-- ── SOFTWARE-STACK ── -->
+  <rect x="60" y="694" width="1080" height="168" rx="12" fill="#fff" stroke="#76B900" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="60" y="694" width="1080" height="36" rx="12" fill="#003300"/>
+  <rect x="60" y="718" width="1080" height="12" fill="#003300"/>
+  <text x="600" y="718" text-anchor="middle" font-size="14" font-weight="bold" fill="#76B900">Software-Stack auf DGX Spark (DGX OS / Ubuntu)</text>
+
+  <!-- Stack boxes -->
+  <!-- Open WebUI -->
+  <rect x="80" y="730" width="160" height="116" rx="8" fill="#F8F9FA" stroke="#1F4E79" stroke-width="1.5"/>
+  <text x="160" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Open WebUI</text>
+  <text x="160" y="766" text-anchor="middle" font-size="9" fill="#555">Chat Interface</text>
+  <text x="160" y="780" text-anchor="middle" font-size="9" fill="#555">Prompt-Templates</text>
+  <text x="160" y="794" text-anchor="middle" font-size="9" fill="#555">P02 Social Media</text>
+  <text x="160" y="808" text-anchor="middle" font-size="9" fill="#555">Dokument-Upload</text>
+  <text x="160" y="822" text-anchor="middle" font-size="9" fill="#555">Port 3000</text>
+  <text x="160" y="836" text-anchor="middle" font-size="9" fill="#888">Docker Container</text>
+
+  <!-- Services -->
+  <rect x="258" y="730" width="170" height="116" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="343" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Microservices</text>
+  <text x="343" y="766" text-anchor="middle" font-size="9" fill="#555">API-Gateway :8000</text>
+  <text x="343" y="780" text-anchor="middle" font-size="9" fill="#555">RAG-Service :8001</text>
+  <text x="343" y="794" text-anchor="middle" font-size="9" fill="#555">LLM-Service :8002</text>
+  <text x="343" y="808" text-anchor="middle" font-size="9" fill="#555">Content-Svc :8005 (P02)</text>
+  <text x="343" y="822" text-anchor="middle" font-size="9" fill="#555">Integration-Svc :8004 (P03)</text>
+  <text x="343" y="836" text-anchor="middle" font-size="9" fill="#888">FastAPI · Python 3.12</text>
+
+  <!-- Ollama -->
+  <rect x="446" y="730" width="160" height="116" rx="8" fill="#E8F5E9" stroke="#1A5C1A" stroke-width="2"/>
+  <text x="526" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">Ollama + CUDA</text>
+  <text x="526" y="766" text-anchor="middle" font-size="9" fill="#1A5C1A" font-weight="bold">Qwen3 72B Q4 ★</text>
+  <text x="526" y="780" text-anchor="middle" font-size="9" fill="#555">Blackwell FP8-Kernel</text>
+  <text x="526" y="794" text-anchor="middle" font-size="9" fill="#555">Native CUDA 12.x</text>
+  <text x="526" y="808" text-anchor="middle" font-size="9" fill="#555">SSE Streaming</text>
+  <text x="526" y="822" text-anchor="middle" font-size="9" fill="#555">keep_alive: 24h</text>
+  <text x="526" y="836" text-anchor="middle" font-size="9" fill="#888">Port 11434</text>
+
+  <!-- PostgreSQL -->
+  <rect x="624" y="730" width="160" height="116" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="704" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">PostgreSQL 16</text>
+  <text x="704" y="766" text-anchor="middle" font-size="9" fill="#555">+ pgvector</text>
+  <text x="704" y="780" text-anchor="middle" font-size="9" fill="#555">ACL-gefilterter RAG</text>
+  <text x="704" y="794" text-anchor="middle" font-size="9" fill="#555">Single-Schema (Mono)</text>
+  <text x="704" y="808" text-anchor="middle" font-size="9" fill="#555">4 TB NVMe SSD</text>
+  <text x="704" y="822" text-anchor="middle" font-size="9" fill="#555">pg_dump täglich</text>
+  <text x="704" y="836" text-anchor="middle" font-size="9" fill="#888">Port 5432</text>
+
+  <!-- Keycloak -->
+  <rect x="802" y="730" width="160" height="116" rx="8" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"/>
+  <text x="882" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#7B1FA2">Keycloak 24</text>
+  <text x="882" y="766" text-anchor="middle" font-size="9" fill="#555">Single Realm: KV</text>
+  <text x="882" y="780" text-anchor="middle" font-size="9" fill="#555">OIDC / OAuth2</text>
+  <text x="882" y="794" text-anchor="middle" font-size="9" fill="#555">AD-Integration</text>
+  <text x="882" y="808" text-anchor="middle" font-size="9" fill="#555">MFA (TOTP)</text>
+  <text x="882" y="822" text-anchor="middle" font-size="9" fill="#555">4 Rollen</text>
+  <text x="882" y="836" text-anchor="middle" font-size="9" fill="#888">Port 8080</text>
+
+  <!-- MinIO -->
+  <rect x="980" y="730" width="140" height="116" rx="8" fill="#FFF8E1" stroke="#F57F17" stroke-width="1.5"/>
+  <text x="1050" y="750" text-anchor="middle" font-size="11" font-weight="bold" fill="#E65100">MinIO</text>
+  <text x="1050" y="766" text-anchor="middle" font-size="9" fill="#555">Dokument-Store</text>
+  <text x="1050" y="780" text-anchor="middle" font-size="9" fill="#555">CI-Assets (P02)</text>
+  <text x="1050" y="794" text-anchor="middle" font-size="9" fill="#555">S3-kompatibel</text>
+  <text x="1050" y="808" text-anchor="middle" font-size="9" fill="#555">Local NVMe</text>
+  <text x="1050" y="822" text-anchor="middle" font-size="9" fill="#555">4 TB verfügbar</text>
+  <text x="1050" y="836" text-anchor="middle" font-size="9" fill="#888">Port 9000</text>
+</svg>
