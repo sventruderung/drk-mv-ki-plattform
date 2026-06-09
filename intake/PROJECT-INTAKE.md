@@ -170,7 +170,7 @@ addons_triggered:
 ### C7 — Verantwortlichkeiten / Go-Live
 
 #### int-C7.1 — Ansprechpartner
-- **Antwort:** Auftraggeber: DRK Landesverband MV e.V. // Entwickler/Dienstleister: ST Computer GmbH (Sven Truderung, st@stc.de)
+- **Antwort:** Auftraggeber: DRK Landesverband MV e.V. // Entwickler/Dienstleister: ST COMPUTER GmbH (Sven Truderung, st@stc.de)
 - **Konfidenz:** explizit
 
 #### int-C7.5 — SLAs
@@ -182,7 +182,7 @@ addons_triggered:
 - **Konfidenz:** abgeleitet
 
 #### int-C7.8 — Betrieb nach Go-Live
-- **Antwort:** Geteilt — ST Computer GmbH (Wartung, Updates, Modell-Upgrades) + DRK LV MV (Super-Admin, Mandantenverwaltung)
+- **Antwort:** Geteilt — ST COMPUTER GmbH (Wartung, Updates, Modell-Upgrades) + DRK LV MV (Super-Admin, Mandantenverwaltung)
 - **Konfidenz:** abgeleitet
 
 #### int-C7.2 / C7.3 / C7.4 / C7.7

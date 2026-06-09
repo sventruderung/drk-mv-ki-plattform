@@ -151,7 +151,7 @@ const doc = new Document({
       default: new Footer({
         children: [new Paragraph({
           children: [
-            new TextRun({ text: "ST Computer GmbH  –  Vertraulich  –  Seite ", font: "Arial", size: 18, color: "888888" }),
+            new TextRun({ text: "ST COMPUTER GmbH  –  Vertraulich  –  Seite ", font: "Arial", size: 18, color: "888888" }),
             new TextRun({ children: [PageNumber.CURRENT], font: "Arial", size: 18, color: "888888" }),
           ],
           border: { top: { style: BorderStyle.SINGLE, size: 4, color: LBLUE, space: 1 } },

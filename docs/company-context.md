@@ -26,7 +26,7 @@ Sozialdaten unterliegen dem besonderen gesetzlichen Sozialgeheimnis. Weitergabe 
 **ADV nach Art. 28 DSGVO**
 Auftragsverarbeitungsvertrag zwischen:
 - DRK Kreisverbände ↔ DRK Landesverband MV e.V.
-- DRK Landesverband MV e.V. ↔ ST Computer GmbH
+- DRK Landesverband MV e.V. ↔ ST COMPUTER GmbH
 
 Muss vor Go-Live unterzeichnet sein.
 
@@ -73,4 +73,4 @@ EU-AI-Act-Dokumentation wird durch dpo-Skill bei Bootstrap-Phase 4.4n erzeugt:
 
 ## Referenz-Produkt
 
-kvbrain.stc.de ist das bestehende Single-Tenant-Produkt von ST Computer GmbH für Wohlfahrtsorganisationen. Es dient als Architektur-Referenz, wird aber **nicht** geforkt. Die DRK-Plattform ist ein kompletter Neubau mit Mandantenfähigkeit von Grund auf.
+kvbrain.stc.de ist das bestehende Single-Tenant-Produkt von ST COMPUTER GmbH für Wohlfahrtsorganisationen. Es dient als Architektur-Referenz, wird aber **nicht** geforkt. Die DRK-Plattform ist ein kompletter Neubau mit Mandantenfähigkeit von Grund auf.

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **DRK MV KI-Plattform** — Mandantenfähige, lokal gehostete KI-Plattform (Neubau) für die 15 DRK-Kreisverbände in Mecklenburg-Vorpommern. Textassistenz und RAG mit isolierten Wissensdatenbanken pro Kreisverband. Kein Byte verlässt den jeweiligen Mandanten.
 
 - **Auftraggeber:** DRK Landesverband Mecklenburg-Vorpommern e.V.
-- **Dienstleister:** ST Computer GmbH (Sven Truderung, st@stc.de)
+- **Dienstleister:** ST COMPUTER GmbH (Sven Truderung, st@stc.de)
 - **Kein Fork** von kvbrain — kompletter Neubau mit Mandantenfähigkeit von Grund auf.
 - Vollständiger Compliance-Kontext: [`docs/company-context.md`](docs/company-context.md)
 
