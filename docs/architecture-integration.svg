@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 820" width="1060" height="820" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2E75B6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1E6B2E"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#C05000"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#888"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <rect width="1060" height="820" fill="#F7F9FC"/>
+
+  <!-- Title -->
+  <text x="530" y="34" text-anchor="middle" font-size="20" font-weight="bold" fill="#1F4E79">DRK MV KI-Plattform — API-Integration mit Fremdsystemen</text>
+  <text x="530" y="54" text-anchor="middle" font-size="12" fill="#888">ST COMPUTER GmbH · Architektur-Erweiterung Integration-Service · Version 0.1.0</text>
+  <line x1="60" y1="64" x2="1000" y2="64" stroke="#2E75B6" stroke-width="2"/>
+
+  <!-- ── LAYER 1: Nutzer ── -->
+  <rect x="280" y="76" width="500" height="48" rx="8" fill="#D6E4F0" filter="url(#shadow)"/>
+  <text x="530" y="97" text-anchor="middle" font-size="13" font-weight="bold" fill="#1F4E79">Nutzer — DRK-Mitarbeitende</text>
+  <text x="530" y="114" text-anchor="middle" font-size="11" fill="#555">Browser / Tablet  ·  lokales Netz oder VPN</text>
+
+  <!-- Arrow down -->
+  <line x1="530" y1="124" x2="530" y2="152" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ── Open WebUI ── -->
+  <rect x="300" y="152" width="460" height="40" rx="8" fill="#1F4E79" filter="url(#shadow)"/>
+  <text x="530" y="168" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">Open WebUI</text>
+  <text x="530" y="183" text-anchor="middle" font-size="10" fill="#AED6F1">Chat · Dokument-Upload · Prompt-Templates</text>
+
+  <!-- Arrow down -->
+  <line x1="530" y1="192" x2="530" y2="218" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ── API-Gateway ── -->
+  <rect x="180" y="218" width="700" height="46" rx="8" fill="#2E75B6" filter="url(#shadow)"/>
+  <text x="530" y="238" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">API-Gateway  (Port 8000)</text>
+  <text x="530" y="254" text-anchor="middle" font-size="11" fill="#D6E4F0">JWT-Validierung · Tenant-Isolation · Routing · Streaming</text>
+
+  <!-- Arrows to services -->
+  <line x1="320" y1="264" x2="200" y2="310" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="460" y1="264" x2="430" y2="310" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="600" y1="264" x2="630" y2="310" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="740" y1="264" x2="860" y2="310" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- ── LAYER 3: 4 Microservices ── -->
+  <!-- RAG -->
+  <rect x="60"  y="310" width="240" height="66" rx="7" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="180" y="331" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">RAG-Service  :8001</text>
+  <text x="180" y="348" text-anchor="middle" font-size="10" fill="#444">Dokument-Ingest</text>
+  <text x="180" y="363" text-anchor="middle" font-size="10" fill="#444">Vektor-Suche · Zitierung</text>
+
+  <!-- LLM -->
+  <rect x="320" y="310" width="240" height="66" rx="7" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="440" y="331" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">LLM-Service  :8002</text>
+  <text x="440" y="348" text-anchor="middle" font-size="10" fill="#444">Inferenz · Streaming</text>
+  <text x="440" y="363" text-anchor="middle" font-size="10" fill="#444">Tool-Call-Dispatch ➜</text>
+
+  <!-- Admin -->
+  <rect x="580" y="310" width="200" height="66" rx="7" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="680" y="331" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Admin  :8003</text>
+  <text x="680" y="348" text-anchor="middle" font-size="10" fill="#444">Tenant-Verwaltung</text>
+  <text x="680" y="363" text-anchor="middle" font-size="10" fill="#444">Audit-Log</text>
+
+  <!-- Integration Service — NEU, hervorgehoben -->
+  <rect x="790" y="302" width="230" height="82" rx="7" fill="#FFF8E1" stroke="#F9A825" stroke-width="2.5" filter="url(#shadow)"/>
+  <rect x="790" y="302" width="230" height="24" rx="7" fill="#F9A825"/>
+  <rect x="790" y="316" width="230" height="10" fill="#F9A825"/>
+  <text x="905" y="319" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Integration-Service  :8004</text>
+  <text x="905" y="338" text-anchor="middle" font-size="10" fill="#555" font-weight="bold">NEU</text>
+  <text x="905" y="352" text-anchor="middle" font-size="10" fill="#444">Tool-Registry · Connector-Pool</text>
+  <text x="905" y="367" text-anchor="middle" font-size="10" fill="#444">Circuit Breaker · Secrets-Proxy</text>
+
+  <!-- Arrow LLM -> Integration -->
+  <line x1="560" y1="344" x2="788" y2="344" stroke="#F9A825" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arrow-orange)"/>
+  <text x="674" y="337" text-anchor="middle" font-size="9" fill="#C05000">Tool-Call</text>
+
+  <!-- Arrow RAG <- Integration (Webhook) -->
+  <line x1="790" y1="330" x2="302" y2="330" stroke="#1E6B2E" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrow-green)"/>
+  <text x="548" y="322" text-anchor="middle" font-size="9" fill="#1E6B2E">Webhook → RAG-Ingest</text>
+
+  <!-- ── LAYER 4: Infra ── -->
+  <rect x="60" y="398" width="700" height="116" rx="8" fill="#F0F4F8" stroke="#BBBBBB" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="410" y="419" text-anchor="middle" font-size="12" font-weight="bold" fill="#444">Infrastruktur  (On-Premise · Deutschland)</text>
+
+  <!-- PG -->
+  <rect x="80"  y="428" width="200" height="76" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="80"  y="428" width="200" height="22" rx="6" fill="#2E75B6"/>
+  <rect x="80"  y="440" width="200" height="10"  fill="#2E75B6"/>
+  <text x="180" y="442" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">PostgreSQL + pgvector</text>
+  <text x="180" y="461" text-anchor="middle" font-size="9" fill="#333">RLS · Tenant-Isolation</text>
+  <text x="180" y="475" text-anchor="middle" font-size="9" fill="#E74C3C">DSGVO Art. 9 · §35 SGB I</text>
+  <text x="180" y="490" text-anchor="middle" font-size="9" fill="#555">WAL-Backup</text>
+
+  <!-- Ollama -->
+  <rect x="300" y="428" width="200" height="76" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="300" y="428" width="200" height="22" rx="6" fill="#2E75B6"/>
+  <rect x="300" y="440" width="200" height="10"  fill="#2E75B6"/>
+  <text x="400" y="442" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Ollama · lokale LLMs</text>
+  <text x="400" y="461" text-anchor="middle" font-size="9" fill="#333">Qwen2.5 32B Q4</text>
+  <text x="400" y="475" text-anchor="middle" font-size="9" fill="#E74C3C">Zero-Data-Leak</text>
+  <text x="400" y="490" text-anchor="middle" font-size="9" fill="#555">Function Calling</text>
+
+  <!-- Keycloak -->
+  <rect x="520" y="428" width="220" height="76" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="520" y="428" width="220" height="22" rx="6" fill="#2E75B6"/>
+  <rect x="520" y="440" width="220" height="10"  fill="#2E75B6"/>
+  <text x="630" y="442" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Keycloak 24</text>
+  <text x="630" y="461" text-anchor="middle" font-size="9" fill="#333">OIDC · OAuth2 · AD</text>
+  <text x="630" y="475" text-anchor="middle" font-size="9" fill="#333">Tenant-ID in JWT</text>
+  <text x="630" y="490" text-anchor="middle" font-size="9" fill="#555">SSO</text>
+
+  <!-- Secrets Store -->
+  <rect x="790" y="398" width="230" height="116" rx="8" fill="#FFF8E1" stroke="#F9A825" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="790" y="398" width="230" height="22" rx="8" fill="#F9A825"/>
+  <rect x="790" y="410" width="230" height="10"  fill="#F9A825"/>
+  <text x="905" y="412" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Secrets-Store  (NEU)</text>
+  <text x="905" y="433" text-anchor="middle" font-size="10" fill="#444">HashiCorp Vault</text>
+  <text x="905" y="448" text-anchor="middle" font-size="10" fill="#444">oder Docker Secrets</text>
+  <text x="905" y="465" text-anchor="middle" font-size="9" fill="#555">API-Keys pro Tenant</text>
+  <text x="905" y="480" text-anchor="middle" font-size="9" fill="#555">OAuth2-Tokens</text>
+  <text x="905" y="495" text-anchor="middle" font-size="9" fill="#E74C3C" font-weight="bold">Rotation-Plan Pflicht</text>
+
+  <!-- Arrow Integration -> Secrets -->
+  <line x1="905" y1="384" x2="905" y2="396" stroke="#F9A825" stroke-width="1.8" marker-end="url(#arrow-orange)"/>
+
+  <!-- Arrows infra down -->
+  <line x1="180" y1="376" x2="180" y2="426" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <line x1="400" y1="376" x2="400" y2="426" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <line x1="630" y1="376" x2="630" y2="426" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+  <!-- ── COMPLIANCE BOUNDARY ── -->
+  <rect x="60" y="530" width="960" height="14" rx="0" fill="none"/>
+  <line x1="60" y1="537" x2="1000" y2="537" stroke="#E74C3C" stroke-width="2" stroke-dasharray="10 4"/>
+  <text x="530" y="552" text-anchor="middle" font-size="10" fill="#E74C3C" font-weight="bold">── COMPLIANCE-GRENZE: Alles oberhalb bleibt in der Organisation ──</text>
+
+  <!-- ── LAYER 5: Externe Systeme ── -->
+  <text x="530" y="574" text-anchor="middle" font-size="13" font-weight="bold" fill="#444">Externe Anwendungssysteme  (Fremdsysteme)</text>
+
+  <!-- Muster-Badges -->
+  <rect x="60"  y="582" width="90" height="18" rx="4" fill="#F9A825"/>
+  <text x="105" y="594" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Tool-Calling</text>
+  <rect x="160" y="582" width="70" height="18" rx="4" fill="#1E6B2E"/>
+  <text x="195" y="594" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Webhook</text>
+  <rect x="240" y="582" width="110" height="18" rx="4" fill="#5B4CC0"/>
+  <text x="295" y="594" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">Scheduled Sync</text>
+
+  <!-- Ext System 1: Dienstplan -->
+  <rect x="60"  y="606" width="170" height="80" rx="7" fill="#fff" stroke="#F9A825" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="60"  y="606" width="170" height="22" rx="7" fill="#F9A825"/>
+  <rect x="60"  y="618" width="170" height="10"  fill="#F9A825"/>
+  <text x="145" y="620" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Dienstplan-Software</text>
+  <text x="145" y="641" text-anchor="middle" font-size="9" fill="#555">REST-API</text>
+  <text x="145" y="655" text-anchor="middle" font-size="9" fill="#555">OAuth2 Client Creds</text>
+  <text x="145" y="670" text-anchor="middle" font-size="9" fill="#555">z.B. Dienstplan24, Vivendi</text>
+
+  <!-- Ext System 2: DMS -->
+  <rect x="250" y="606" width="170" height="80" rx="7" fill="#fff" stroke="#F9A825" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="250" y="606" width="170" height="22" rx="7" fill="#F9A825"/>
+  <rect x="250" y="618" width="170" height="10"  fill="#F9A825"/>
+  <text x="335" y="620" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">DMS / SharePoint</text>
+  <text x="335" y="641" text-anchor="middle" font-size="9" fill="#555">REST / Graph API</text>
+  <text x="335" y="655" text-anchor="middle" font-size="9" fill="#555">Webhook (neue Docs)</text>
+  <text x="335" y="670" text-anchor="middle" font-size="9" fill="#555">→ auto RAG-Ingest</text>
+
+  <!-- Ext System 3: HR -->
+  <rect x="440" y="606" width="170" height="80" rx="7" fill="#fff" stroke="#5B4CC0" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="440" y="606" width="170" height="22" rx="7" fill="#5B4CC0"/>
+  <rect x="440" y="618" width="170" height="10"  fill="#5B4CC0"/>
+  <text x="525" y="620" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">HR-System</text>
+  <text x="525" y="641" text-anchor="middle" font-size="9" fill="#555">REST / SOAP</text>
+  <text x="525" y="655" text-anchor="middle" font-size="9" fill="#555">Nachtlauf (Sync)</text>
+  <text x="525" y="670" text-anchor="middle" font-size="9" fill="#555">Stammdaten → RAG</text>
+
+  <!-- Ext System 4: Datenbank -->
+  <rect x="630" y="606" width="170" height="80" rx="7" fill="#fff" stroke="#5B4CC0" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="630" y="606" width="170" height="22" rx="7" fill="#5B4CC0"/>
+  <rect x="630" y="618" width="170" height="10"  fill="#5B4CC0"/>
+  <text x="715" y="620" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Fachanwendung / DB</text>
+  <text x="715" y="641" text-anchor="middle" font-size="9" fill="#555">JDBC / REST</text>
+  <text x="715" y="655" text-anchor="middle" font-size="9" fill="#555">Read-Only-Zugriff</text>
+  <text x="715" y="670" text-anchor="middle" font-size="9" fill="#555">z.B. Sozial-Software</text>
+
+  <!-- Ext System 5: Custom -->
+  <rect x="820" y="606" width="180" height="80" rx="7" fill="#fff" stroke="#BBBBBB" stroke-width="1.5" stroke-dasharray="6 3" filter="url(#shadow)"/>
+  <text x="910" y="633" text-anchor="middle" font-size="10" fill="#aaa" font-weight="bold">Weiteres System</text>
+  <text x="910" y="651" text-anchor="middle" font-size="9" fill="#aaa">Custom Connector</text>
+  <text x="910" y="668" text-anchor="middle" font-size="9" fill="#aaa">erweiterbar</text>
+
+  <!-- Arrows Integration-Service -> External Systems -->
+  <line x1="870" y1="384" x2="145" y2="604" stroke="#F9A825" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <line x1="890" y1="384" x2="335" y2="604" stroke="#F9A825" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <line x1="910" y1="384" x2="525" y2="604" stroke="#5B4CC0" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <line x1="930" y1="384" x2="715" y2="604" stroke="#5B4CC0" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <line x1="950" y1="450" x2="910" y2="604" stroke="#BBBBBB" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#arrow-gray)"/>
+
+  <!-- Compliance footer -->
+  <rect x="60" y="700" width="960" height="40" rx="6" fill="#FFF3CD" stroke="#FFC107" stroke-width="1.2"/>
+  <text x="80" y="716" font-size="10" fill="#856404"><tspan font-weight="bold">Compliance: </tspan>Integration-Service ist einziger Ausgangs-/Eingangspunkt · Kein direkter DB-Zugriff durch Fremdsysteme · Secrets nie im Code</text>
+  <text x="80" y="731" font-size="10" fill="#856404"><tspan font-weight="bold">Datenschutz: </tspan>Kein Logging von Prompt-Inhalten oder Antworten · Sozialdaten verlassen die Plattform nur mit expliziter Rechtsgrundlage · DSGVO Art. 9 · § 35 SGB I</text>
+
+  <!-- Legend -->
+  <rect x="60" y="750" width="960" height="58" rx="6" fill="#F2F2F2" stroke="#CCCCCC" stroke-width="1"/>
+  <text x="80" y="767" font-size="10" font-weight="bold" fill="#444">Legende:</text>
+  <line x1="140" y1="763" x2="185" y2="763" stroke="#F9A825" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="192" y="767" font-size="9" fill="#444">Tool-Calling (LLM ruft Tool auf)</text>
+  <line x1="360" y1="763" x2="405" y2="763" stroke="#1E6B2E" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="412" y="767" font-size="9" fill="#444">Webhook (Fremdsystem pusht)</text>
+  <line x1="580" y1="763" x2="625" y2="763" stroke="#5B4CC0" stroke-width="2"/>
+  <text x="632" y="767" font-size="9" fill="#444">Scheduled Sync (Nachtlauf)</text>
+  <line x1="780" y1="763" x2="825" y2="763" stroke="#BBBBBB" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="832" y="767" font-size="9" fill="#aaa">geplant / optional</text>
+  <rect x="140" y="776" width="14" height="10" rx="2" fill="#FFF8E1" stroke="#F9A825" stroke-width="1.5"/>
+  <text x="162" y="785" font-size="9" fill="#444">Neue Komponente</text>
+  <rect x="340" y="776" width="14" height="10" rx="2" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="362" y="785" font-size="9" fill="#444">Bestehende Komponente</text>
+  <text x="580" y="785" font-size="9" fill="#E74C3C" font-weight="bold">— — —   Compliance-Grenze (rot)</text>
+</svg>
