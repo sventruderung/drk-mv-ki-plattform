@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" width="960" height="660" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2E75B6"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#888"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="660" fill="#F7F9FC"/>
+
+  <!-- Title -->
+  <text x="480" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#1F4E79">DRK KV-Einzelinstanz — Funktionsschaubild (Mono)</text>
+  <text x="480" y="56" text-anchor="middle" font-size="12" fill="#888">ST COMPUTER GmbH · Vereinfachte Architektur für einen Kreisverband · Version 0.1.0</text>
+  <line x1="60" y1="66" x2="900" y2="66" stroke="#2E75B6" stroke-width="2"/>
+
+  <!-- ── LAYER 1: Nutzer ── -->
+  <rect x="260" y="80" width="440" height="56" rx="8" fill="#D6E4F0" filter="url(#shadow)"/>
+  <text x="480" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#1F4E79">Mitarbeitende — KV Parchim</text>
+  <text x="480" y="120" text-anchor="middle" font-size="11" fill="#555">Browser / Tablet  ·  lokales Netz oder VPN</text>
+
+  <!-- Arrow down -->
+  <line x1="480" y1="136" x2="480" y2="166" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="510" y="156" font-size="10" fill="#555">HTTPS</text>
+
+  <!-- ── LAYER 2: Open WebUI ── -->
+  <rect x="260" y="166" width="440" height="44" rx="8" fill="#1F4E79" filter="url(#shadow)"/>
+  <text x="480" y="185" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">Open WebUI</text>
+  <text x="480" y="201" text-anchor="middle" font-size="11" fill="#AED6F1">Chat · Dokument-Upload · Prompt-Templates</text>
+
+  <!-- Arrow down -->
+  <line x1="480" y1="210" x2="480" y2="240" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="510" y="230" font-size="10" fill="#555">REST · JWT</text>
+
+  <!-- ── LAYER 3: API Gateway (vereinfacht) ── -->
+  <rect x="160" y="240" width="640" height="52" rx="8" fill="#2E75B6" filter="url(#shadow)"/>
+  <text x="480" y="261" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">API-Gateway  (Port 8000)</text>
+  <text x="480" y="279" text-anchor="middle" font-size="11" fill="#D6E4F0">JWT-Validierung · Routing · Streaming  —  keine Tenant-Logik</text>
+
+  <!-- Arrows down to 2 services (no admin-service, simplified) -->
+  <line x1="340" y1="292" x2="280" y2="344" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="620" y1="292" x2="680" y2="344" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- ── LAYER 4: Nur 2 Services ── -->
+  <!-- RAG Service -->
+  <rect x="80" y="344" width="360" height="72" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="260" y="366" text-anchor="middle" font-size="12" font-weight="bold" fill="#1F4E79">RAG-Service  (Port 8001)</text>
+  <text x="260" y="383" text-anchor="middle" font-size="10" fill="#444">Dokument-Ingest · Embedding · Vektor-Suche</text>
+  <text x="260" y="398" text-anchor="middle" font-size="10" fill="#444">Zitierungspflicht · lokales Filesystem für Docs</text>
+
+  <!-- LLM Service -->
+  <rect x="520" y="344" width="360" height="72" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="700" y="366" text-anchor="middle" font-size="12" font-weight="bold" fill="#1F4E79">LLM-Service  (Port 8002)</text>
+  <text x="700" y="383" text-anchor="middle" font-size="10" fill="#444">Inferenz-Proxy · Streaming</text>
+  <text x="700" y="398" text-anchor="middle" font-size="10" fill="#444">Modell-Routing · Timeout-Handling</text>
+
+  <!-- Entfällt-Box Admin -->
+  <rect x="380" y="352" width="160" height="56" rx="6" fill="#F8F8F8" stroke="#CCCCCC" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <text x="460" y="374" text-anchor="middle" font-size="10" fill="#aaa">Admin-Service</text>
+  <text x="460" y="389" text-anchor="middle" font-size="10" fill="#aaa">entfällt /</text>
+  <text x="460" y="402" text-anchor="middle" font-size="10" fill="#aaa">stark vereinfacht</text>
+
+  <!-- Arrows down to infra -->
+  <line x1="260" y1="416" x2="220" y2="462" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <line x1="700" y1="416" x2="700" y2="462" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+  <!-- ── LAYER 5: Infrastruktur (vereinfacht) ── -->
+  <rect x="60" y="462" width="840" height="148" rx="8" fill="#F0F4F8" stroke="#BBBBBB" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="480" y="484" text-anchor="middle" font-size="13" font-weight="bold" fill="#444">Infrastruktur — 1 Server · Docker Compose · On-Premise KV</text>
+
+  <!-- PostgreSQL (kein RLS) -->
+  <rect x="80" y="494" width="240" height="100" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="80" y="494" width="240" height="28" rx="6" fill="#2E75B6"/>
+  <rect x="80" y="512" width="240" height="10" fill="#2E75B6"/>
+  <text x="200" y="512" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">PostgreSQL 16 + pgvector</text>
+  <text x="200" y="536" text-anchor="middle" font-size="10" fill="#333">Kein RLS erforderlich</text>
+  <text x="200" y="551" text-anchor="middle" font-size="10" fill="#333">Einfaches Single-Schema</text>
+  <text x="200" y="566" text-anchor="middle" font-size="10" fill="#E74C3C" font-weight="bold">DSGVO Art. 9 · § 35 SGB I</text>
+  <text x="200" y="581" text-anchor="middle" font-size="10" fill="#555">Backup: pg_dump täglich</text>
+
+  <!-- Ollama (kleineres Modell) -->
+  <rect x="360" y="494" width="240" height="100" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="360" y="494" width="240" height="28" rx="6" fill="#2E75B6"/>
+  <rect x="360" y="512" width="240" height="10" fill="#2E75B6"/>
+  <text x="480" y="512" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Ollama + lokales LLM</text>
+  <text x="480" y="536" text-anchor="middle" font-size="10" fill="#333">Qwen2.5 7B–14B Q4 (~6–9 GB VRAM)</text>
+  <text x="480" y="551" text-anchor="middle" font-size="10" fill="#228B22" font-weight="bold">Option: kein dedizierter GPU-Server</text>
+  <text x="480" y="566" text-anchor="middle" font-size="10" fill="#333">keep_alive: Modell im RAM</text>
+  <text x="480" y="581" text-anchor="middle" font-size="10" fill="#E74C3C" font-weight="bold">Zero-Data-Leak · kein ext. API</text>
+
+  <!-- Keycloak (vereinfacht) -->
+  <rect x="640" y="494" width="240" height="100" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="640" y="494" width="240" height="28" rx="6" fill="#2E75B6"/>
+  <rect x="640" y="512" width="240" height="10" fill="#2E75B6"/>
+  <text x="760" y="512" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Keycloak 24</text>
+  <text x="760" y="536" text-anchor="middle" font-size="10" fill="#333">Single-Realm: drk-kv-parchim</text>
+  <text x="760" y="551" text-anchor="middle" font-size="10" fill="#333">OIDC · OAuth2 · AD-Integration</text>
+  <text x="760" y="566" text-anchor="middle" font-size="10" fill="#228B22" font-weight="bold">Kein Multi-Tenant-Setup</text>
+  <text x="760" y="581" text-anchor="middle" font-size="10" fill="#555">Optional: durch Simple-Auth ersetzbar</text>
+
+  <!-- Compliance Box -->
+  <rect x="60" y="622" width="840" height="26" rx="6" fill="#FFF3CD" stroke="#FFC107" stroke-width="1.2"/>
+  <text x="80" y="639" font-size="10" fill="#856404"><tspan font-weight="bold">Vereinfachungen: </tspan>Kein RLS · kein tenant_id · kein Admin-Service · kein Kubernetes · kein MinIO · kleineres LLM möglich  |  <tspan font-weight="bold">Compliance bleibt:</tspan> DSGVO Art. 9 · § 35 SGB I · Zero-Data-Leak · kein Prompt-Logging</text>
+</svg>
