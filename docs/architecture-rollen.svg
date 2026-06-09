@@ -1,0 +1,253 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 980" width="1200" height="980" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2E75B6"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#C0392B"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A7A1A"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#888"/>
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="980" fill="#F7F9FC"/>
+
+  <!-- Title -->
+  <text x="600" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#1F4E79">DRK MV KI-Plattform — Rollen-, Rechte- und Zugriffskonzept (§4)</text>
+  <text x="600" y="56" text-anchor="middle" font-size="12" fill="#888">ST COMPUTER GmbH · Lastenheft §4.1 + §4.2 · Version 0.1.0</text>
+  <line x1="60" y1="66" x2="1140" y2="66" stroke="#2E75B6" stroke-width="2"/>
+
+  <!-- ═══════════════════════════════════════════════════
+       EBENE 1: SYSTEM (LV MV / Super-Admin)
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="78" width="1080" height="20" rx="4" fill="#1F4E79"/>
+  <text x="600" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">EBENE 1 — System (DRK Landesverband MV)</text>
+
+  <rect x="380" y="104" width="440" height="86" rx="10" fill="#FADBD8" stroke="#C0392B" stroke-width="2.5" filter="url(#shadow)"/>
+  <rect x="380" y="104" width="440" height="28" rx="10" fill="#C0392B"/>
+  <rect x="380" y="122" width="440" height="10" fill="#C0392B"/>
+  <text x="600" y="122" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">Super-Administrator</text>
+  <text x="440" y="148" font-size="10" fill="#7B241C">✔  Neue Mandanten (KV) anlegen / deaktivieren</text>
+  <text x="440" y="163" font-size="10" fill="#7B241C">✔  Systemressourcen überwachen · LLM-Modelle aktualisieren</text>
+  <text x="440" y="178" font-size="10" fill="#C0392B" font-weight="bold">✘  Kein automatischer Einblick in Mandanten-Dokumente</text>
+
+  <!-- Keycloak label -->
+  <rect x="880" y="110" width="230" height="72" rx="6" fill="#fff" stroke="#C0392B" stroke-width="1.5"/>
+  <text x="995" y="129" text-anchor="middle" font-size="11" font-weight="bold" fill="#C0392B">Keycloak 24</text>
+  <text x="995" y="146" text-anchor="middle" font-size="10" fill="#555">Realm: drk-system</text>
+  <text x="995" y="161" text-anchor="middle" font-size="10" fill="#555">Rolle: super-admin</text>
+  <text x="995" y="176" text-anchor="middle" font-size="10" fill="#555">SSO · OAuth2 / OIDC</text>
+
+  <!-- Arrow: Super-Admin → Mandate -->
+  <line x1="600" y1="190" x2="600" y2="218" stroke="#C0392B" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="610" y="210" font-size="10" fill="#C0392B">anlegen</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       EBENE 2: MANDANTEN (KV-Ebene)
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="222" width="1080" height="20" rx="4" fill="#2E75B6"/>
+  <text x="600" y="237" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">EBENE 2 — Mandanten (DRK-Kreisverbände) · Strikte Isolation zwischen allen KV</text>
+
+  <!-- KV Parchim -->
+  <rect x="70" y="248" width="330" height="130" rx="10" fill="#EAF2FB" stroke="#2E75B6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="70" y="248" width="330" height="26" rx="10" fill="#2E75B6"/>
+  <rect x="70" y="264" width="330" height="10" fill="#2E75B6"/>
+  <text x="235" y="265" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">Mandant: KV Parchim</text>
+  <rect x="90" y="284" width="290" height="82" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1"/>
+  <text x="235" y="300" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Mandanten-Administrator</text>
+  <text x="100" y="316" font-size="10" fill="#333">✔  Nutzer anlegen / deaktivieren</text>
+  <text x="100" y="330" font-size="10" fill="#333">✔  Rechtegruppen definieren</text>
+  <text x="100" y="344" font-size="10" fill="#333">✔  Dokumentenordner verwalten</text>
+  <text x="100" y="358" font-size="10" fill="#333">✔  Prompt-Vorlagen anlegen (No-Code)</text>
+
+  <!-- KV Rostock -->
+  <rect x="435" y="248" width="330" height="130" rx="10" fill="#EAF2FB" stroke="#2E75B6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="435" y="248" width="330" height="26" rx="10" fill="#2E75B6"/>
+  <rect x="435" y="264" width="330" height="10" fill="#2E75B6"/>
+  <text x="600" y="265" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">Mandant: KV Rostock</text>
+  <rect x="455" y="284" width="290" height="82" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1"/>
+  <text x="600" y="300" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Mandanten-Administrator</text>
+  <text x="465" y="316" font-size="10" fill="#333">✔  Nutzer anlegen / deaktivieren</text>
+  <text x="465" y="330" font-size="10" fill="#333">✔  Rechtegruppen definieren</text>
+  <text x="465" y="344" font-size="10" fill="#333">✔  Dokumentenordner verwalten</text>
+  <text x="465" y="358" font-size="10" fill="#333">✔  Prompt-Vorlagen anlegen (No-Code)</text>
+
+  <!-- weitere KV (gestrichelt) -->
+  <rect x="800" y="248" width="330" height="130" rx="10" fill="#F8F8F8" stroke="#BBBBBB" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="965" y="268" text-anchor="middle" font-size="12" font-weight="bold" fill="#aaa">13 weitere KV</text>
+  <text x="965" y="290" text-anchor="middle" font-size="10" fill="#bbb">KV Stralsund · KV Greifswald</text>
+  <text x="965" y="306" text-anchor="middle" font-size="10" fill="#bbb">KV Schwerin · KV Neubrandenburg</text>
+  <text x="965" y="322" text-anchor="middle" font-size="10" fill="#bbb">KV Güstrow · KV Demmin · ...</text>
+  <text x="965" y="344" text-anchor="middle" font-size="11" fill="#C0392B" font-weight="bold">Vollständig isoliert</text>
+  <text x="965" y="360" text-anchor="middle" font-size="10" fill="#bbb">PostgreSQL RLS · tenant_id</text>
+  <text x="965" y="372" text-anchor="middle" font-size="10" fill="#bbb">aus JWT-Claims</text>
+
+  <!-- Trennung-Pfeile -->
+  <line x1="400" y1="313" x2="435" y2="313" stroke="#C0392B" stroke-width="2" stroke-dasharray="4 3"/>
+  <line x1="765" y1="313" x2="800" y2="313" stroke="#C0392B" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="417" y="308" text-anchor="middle" font-size="9" fill="#C0392B">ISOLIERT</text>
+  <text x="782" y="308" text-anchor="middle" font-size="9" fill="#C0392B">ISOLIERT</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       EBENE 3: NUTZER & RECHTEGRUPPEN (KV Parchim detail)
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="392" width="1080" height="20" rx="4" fill="#1A5C1A"/>
+  <text x="600" y="407" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">EBENE 3 — Nutzer &amp; Rechtegruppen (Beispiel: KV Parchim · Lastenheft §4.2)</text>
+
+  <!-- Nutzer-Gruppe 1: Vorstand -->
+  <rect x="70" y="418" width="230" height="120" rx="8" fill="#FADBD8" stroke="#C0392B" stroke-width="1.8" filter="url(#shadow)"/>
+  <rect x="70" y="418" width="230" height="24" rx="8" fill="#C0392B"/>
+  <rect x="70" y="432" width="230" height="10" fill="#C0392B"/>
+  <text x="185" y="432" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Gruppe: KV-Vorstand</text>
+  <text x="185" y="456" text-anchor="middle" font-size="10" fill="#7B241C">Vorsitzende · Stellvertreter</text>
+  <text x="185" y="470" text-anchor="middle" font-size="9" fill="#555">Dokument-Zugriff:</text>
+  <text x="185" y="484" text-anchor="middle" font-size="10" fill="#C0392B" font-weight="bold">Alle Dokumente inkl. vertraulich</text>
+  <text x="185" y="498" text-anchor="middle" font-size="9" fill="#333">Finanzen · Strategie · Personal</text>
+  <text x="185" y="514" text-anchor="middle" font-size="9" fill="#333">Alle KI-Funktionen</text>
+  <text x="185" y="530" text-anchor="middle" font-size="9" fill="#888">Keycloak-Rolle: kv-vorstand</text>
+
+  <!-- Nutzer-Gruppe 2: Pflege -->
+  <rect x="320" y="418" width="230" height="120" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.8" filter="url(#shadow)"/>
+  <rect x="320" y="418" width="230" height="24" rx="8" fill="#2E75B6"/>
+  <rect x="320" y="432" width="230" height="10" fill="#2E75B6"/>
+  <text x="435" y="432" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Gruppe: Fachbereich Pflege</text>
+  <text x="435" y="456" text-anchor="middle" font-size="10" fill="#1F4E79">Pflegedienstleitungen · Pflegekräfte</text>
+  <text x="435" y="470" text-anchor="middle" font-size="9" fill="#555">Dokument-Zugriff:</text>
+  <text x="435" y="484" text-anchor="middle" font-size="10" fill="#2E75B6" font-weight="bold">Pflege-Dokumente · Pflegestandards</text>
+  <text x="435" y="498" text-anchor="middle" font-size="9" fill="#333">Dienstpläne · Fallberichte</text>
+  <text x="435" y="512" text-anchor="middle" font-size="9" fill="#C0392B">✘ Kein Zugriff: Finanzen, Personal</text>
+  <text x="435" y="528" text-anchor="middle" font-size="9" fill="#888">Keycloak-Rolle: kv-pflege</text>
+
+  <!-- Nutzer-Gruppe 3: Rettungsdienst -->
+  <rect x="570" y="418" width="230" height="120" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.8" filter="url(#shadow)"/>
+  <rect x="570" y="418" width="230" height="24" rx="8" fill="#2E75B6"/>
+  <rect x="570" y="432" width="230" height="10" fill="#2E75B6"/>
+  <text x="685" y="432" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Gruppe: Bereichsl. Rettungsdienst</text>
+  <text x="685" y="456" text-anchor="middle" font-size="10" fill="#1F4E79">Rettungsdienstleitung · Disponenten</text>
+  <text x="685" y="470" text-anchor="middle" font-size="9" fill="#555">Dokument-Zugriff:</text>
+  <text x="685" y="484" text-anchor="middle" font-size="10" fill="#2E75B6" font-weight="bold">RD-Handbücher · Einsatzprotokolle</text>
+  <text x="685" y="498" text-anchor="middle" font-size="9" fill="#333">Alarmierungspläne · Standards</text>
+  <text x="685" y="512" text-anchor="middle" font-size="9" fill="#C0392B">✘ Kein Zugriff: Pflege, Finanzen</text>
+  <text x="685" y="528" text-anchor="middle" font-size="9" fill="#888">Keycloak-Rolle: kv-rettungsdienst</text>
+
+  <!-- Nutzer-Gruppe 4: Alle Mitarbeitenden -->
+  <rect x="820" y="418" width="230" height="120" rx="8" fill="#D5F5E3" stroke="#1A5C1A" stroke-width="1.8" filter="url(#shadow)"/>
+  <rect x="820" y="418" width="230" height="24" rx="8" fill="#1A5C1A"/>
+  <rect x="820" y="432" width="230" height="10" fill="#1A5C1A"/>
+  <text x="935" y="432" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Gruppe: Alle Mitarbeitenden</text>
+  <text x="935" y="456" text-anchor="middle" font-size="10" fill="#1A5C1A">Haupt- und Ehrenamtliche</text>
+  <text x="935" y="470" text-anchor="middle" font-size="9" fill="#555">Dokument-Zugriff:</text>
+  <text x="935" y="484" text-anchor="middle" font-size="10" fill="#1A5C1A" font-weight="bold">Offen freigegebene Dokumente</text>
+  <text x="935" y="498" text-anchor="middle" font-size="9" fill="#333">Interne Mitteilungen · Formulare</text>
+  <text x="935" y="512" text-anchor="middle" font-size="9" fill="#C0392B">✘ Keine vertraulichen Bereiche</text>
+  <text x="935" y="528" text-anchor="middle" font-size="9" fill="#888">Keycloak-Rolle: kv-standard</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       EBENE 4: RECHTEGEPRÜFTE RAG-ANFRAGE
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="552" width="1080" height="20" rx="4" fill="#7D3C98"/>
+  <text x="600" y="567" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">EBENE 4 — Rechtegeprüfte RAG-Anfrage (Lastenheft §4.2 · §7 Abnahmekriterium)</text>
+
+  <!-- Nutzer schickt Anfrage -->
+  <rect x="70" y="580" width="190" height="60" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="165" y="602" text-anchor="middle" font-size="11" font-weight="bold" fill="#1F4E79">Nutzer (Pflege)</text>
+  <text x="165" y="617" text-anchor="middle" font-size="10" fill="#333">stellt RAG-Anfrage</text>
+  <text x="165" y="630" text-anchor="middle" font-size="10" fill="#555">"Was steht im Handbuch?"</text>
+
+  <line x1="260" y1="610" x2="300" y2="610" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- JWT-Check -->
+  <rect x="300" y="580" width="170" height="60" rx="8" fill="#FEF9E7" stroke="#E67E22" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="385" y="600" text-anchor="middle" font-size="11" font-weight="bold" fill="#D35400">JWT-Prüfung</text>
+  <text x="385" y="615" text-anchor="middle" font-size="9" fill="#7D6608">tenant_id aus Token</text>
+  <text x="385" y="629" text-anchor="middle" font-size="9" fill="#7D6608">Rollen aus Token</text>
+
+  <line x1="470" y1="610" x2="510" y2="610" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Rechte-Filter -->
+  <rect x="510" y="580" width="200" height="60" rx="8" fill="#FADBD8" stroke="#C0392B" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="610" y="599" text-anchor="middle" font-size="11" font-weight="bold" fill="#C0392B">ACL-Filter</text>
+  <text x="610" y="614" text-anchor="middle" font-size="9" fill="#7B241C">Nur Docs mit Rolle kv-pflege</text>
+  <text x="610" y="628" text-anchor="middle" font-size="9" fill="#7B241C">PostgreSQL RLS + pgvector</text>
+
+  <line x1="710" y1="610" x2="750" y2="610" stroke="#1A7A1A" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- Gefilterte Vektor-Suche -->
+  <rect x="750" y="580" width="200" height="60" rx="8" fill="#D5F5E3" stroke="#1A5C1A" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="850" y="599" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">Gefilterte Suche</text>
+  <text x="850" y="614" text-anchor="middle" font-size="9" fill="#1A5C1A">Nur freigegebene Docs</text>
+  <text x="850" y="628" text-anchor="middle" font-size="9" fill="#555">Quelle + Seite + Absatz</text>
+
+  <line x1="950" y1="610" x2="990" y2="610" stroke="#1A7A1A" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- Antwort mit Zitat -->
+  <rect x="990" y="580" width="150" height="60" rx="8" fill="#D5F5E3" stroke="#1A5C1A" stroke-width="1.8" filter="url(#shadow)"/>
+  <text x="1065" y="599" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">Antwort</text>
+  <text x="1065" y="614" text-anchor="middle" font-size="9" fill="#1A5C1A">Text + Quellenangabe</text>
+  <text x="1065" y="628" text-anchor="middle" font-size="9" fill="#555">Dok · Seite · Absatz</text>
+
+  <!-- Blockiert-Pfeil für vertrauliche Docs -->
+  <rect x="510" y="652" width="200" height="44" rx="6" fill="#FADBD8" stroke="#C0392B" stroke-width="1.5"/>
+  <text x="610" y="670" text-anchor="middle" font-size="10" font-weight="bold" fill="#C0392B">Blockiert:</text>
+  <text x="610" y="685" text-anchor="middle" font-size="9" fill="#7B241C">Finanzen · Personal · Vorstand-Docs</text>
+  <line x1="610" y1="640" x2="610" y2="652" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-red)"/>
+
+  <!-- ═══════════════════════════════════════════════════
+       EBENE 5: DOKUMENT-KLASSIFIZIERUNG
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="710" width="1080" height="20" rx="4" fill="#444444"/>
+  <text x="600" y="725" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">EBENE 5 — Dokument-Klassifizierung (Beispiel: Wissensbasis KV Parchim)</text>
+
+  <!-- Doc-Klasse 1 -->
+  <rect x="70" y="736" width="230" height="76" rx="6" fill="#FADBD8" stroke="#C0392B" stroke-width="1.5"/>
+  <text x="185" y="756" text-anchor="middle" font-size="11" font-weight="bold" fill="#C0392B">Vertraulich — Vorstand</text>
+  <text x="185" y="773" text-anchor="middle" font-size="10" fill="#333">Finanzdaten · Personalakten</text>
+  <text x="185" y="787" text-anchor="middle" font-size="10" fill="#333">Strategiepapiere</text>
+  <text x="185" y="802" text-anchor="middle" font-size="9" fill="#888">ACL: kv-vorstand, kv-admin</text>
+
+  <!-- Doc-Klasse 2 -->
+  <rect x="320" y="736" width="230" height="76" rx="6" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="435" y="756" text-anchor="middle" font-size="11" font-weight="bold" fill="#2E75B6">Fachbereich Pflege</text>
+  <text x="435" y="773" text-anchor="middle" font-size="10" fill="#333">Pflegestandards · Fallberichte</text>
+  <text x="435" y="787" text-anchor="middle" font-size="10" fill="#333">Dienstpläne Pflege</text>
+  <text x="435" y="802" text-anchor="middle" font-size="9" fill="#888">ACL: kv-pflege, kv-admin, kv-vorstand</text>
+
+  <!-- Doc-Klasse 3 -->
+  <rect x="570" y="736" width="230" height="76" rx="6" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="685" y="756" text-anchor="middle" font-size="11" font-weight="bold" fill="#2E75B6">Bereichsl. Rettungsdienst</text>
+  <text x="685" y="773" text-anchor="middle" font-size="10" fill="#333">RD-Handbücher · Protokolle</text>
+  <text x="685" y="787" text-anchor="middle" font-size="10" fill="#333">Alarmierungspläne</text>
+  <text x="685" y="802" text-anchor="middle" font-size="9" fill="#888">ACL: kv-rettungsdienst, kv-admin, kv-vorstand</text>
+
+  <!-- Doc-Klasse 4 -->
+  <rect x="820" y="736" width="230" height="76" rx="6" fill="#D5F5E3" stroke="#1A5C1A" stroke-width="1.5"/>
+  <text x="935" y="756" text-anchor="middle" font-size="11" font-weight="bold" fill="#1A5C1A">Offen — Alle Mitarbeitenden</text>
+  <text x="935" y="773" text-anchor="middle" font-size="10" fill="#333">Interne Mitteilungen · Formulare</text>
+  <text x="935" y="787" text-anchor="middle" font-size="10" fill="#333">Organigramm · Veranstaltungen</text>
+  <text x="935" y="802" text-anchor="middle" font-size="9" fill="#888">ACL: kv-standard (alle)</text>
+
+  <!-- ═══════════════════════════════════════════════════
+       FOOTER: COMPLIANCE
+       ═══════════════════════════════════════════════════ -->
+  <rect x="60" y="826" width="1080" height="56" rx="6" fill="#FFF3CD" stroke="#FFC107" stroke-width="1.2"/>
+  <text x="80" y="846" font-size="10.5" fill="#7D6608">
+    <tspan font-weight="bold">Technische Umsetzung: </tspan>
+    <tspan>Keycloak 24 (JWT · OIDC · OAuth2 · AD-Integration) · PostgreSQL RLS (tenant_id + doc_acl) · pgvector-Filter bei jeder Suche</tspan>
+  </text>
+  <text x="80" y="862" font-size="10.5" fill="#7D6608">
+    <tspan font-weight="bold">Compliance: </tspan>
+    <tspan>DSGVO Art. 9 · §35 SGB I · Kein Prompt-Logging · Audit-Log für Rechtevergabe · Pentest-Pflicht (Abnahme §7)</tspan>
+  </text>
+  <text x="80" y="878" font-size="10.5" fill="#C0392B">
+    <tspan font-weight="bold">Abnahmekriterium §7: </tspan>
+    <tspan>Pentest belegt Mandantentrennung · RAG-Rechtetest: Nutzer ohne Berechtigung erhält keine geschützten Inhalte</tspan>
+  </text>
+</svg>
