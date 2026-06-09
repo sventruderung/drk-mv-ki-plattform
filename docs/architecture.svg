@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" width="960" height="720" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2E75B6"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#888"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="720" fill="#F7F9FC"/>
+
+  <!-- Title -->
+  <text x="480" y="38" text-anchor="middle" font-size="20" font-weight="bold" fill="#1F4E79">DRK MV KI-Plattform — Funktionsschaubild</text>
+  <text x="480" y="58" text-anchor="middle" font-size="12" fill="#888">ST Computer GmbH · Version 0.1.0 · Juni 2026</text>
+  <line x1="60" y1="68" x2="900" y2="68" stroke="#2E75B6" stroke-width="2"/>
+
+  <!-- ── LAYER 1: Nutzer ── -->
+  <rect x="60" y="82" width="840" height="72" rx="8" fill="#D6E4F0" filter="url(#shadow)"/>
+  <text x="480" y="106" text-anchor="middle" font-size="13" font-weight="bold" fill="#1F4E79">Nutzer-Ebene</text>
+
+  <!-- KV boxes -->
+  <rect x="80"  y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="145" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Rostock</text>
+
+  <rect x="225" y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="290" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Schwerin</text>
+
+  <rect x="370" y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="435" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Neustrelitz</text>
+
+  <text x="570" y="134" text-anchor="middle" font-size="20" fill="#2E75B6">···</text>
+
+  <rect x="640" y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <text x="705" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Greifswald</text>
+
+  <rect x="785" y="114" width="110" height="32" rx="5" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="840" y="130" text-anchor="middle" font-size="10" fill="#555">+11 weitere KV</text>
+  <text x="840" y="143" text-anchor="middle" font-size="9" fill="#888">Rollout-Phase 2</text>
+
+  <!-- Arrow down: Nutzer → Gateway -->
+  <line x1="480" y1="154" x2="480" y2="188" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="510" y="176" font-size="10" fill="#555">HTTPS · OIDC</text>
+
+  <!-- ── LAYER 2: Open WebUI ── -->
+  <rect x="260" y="188" width="440" height="44" rx="8" fill="#1F4E79" filter="url(#shadow)"/>
+  <text x="480" y="207" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">Open WebUI</text>
+  <text x="480" y="223" text-anchor="middle" font-size="11" fill="#AED6F1">Chat-Interface · Dokument-Upload · Prompt-Templates (No-Code)</text>
+
+  <!-- Arrow down -->
+  <line x1="480" y1="232" x2="480" y2="266" stroke="#2E75B6" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="510" y="254" font-size="10" fill="#555">REST · JWT</text>
+
+  <!-- ── LAYER 3: API Gateway ── -->
+  <rect x="160" y="266" width="640" height="52" rx="8" fill="#2E75B6" filter="url(#shadow)"/>
+  <text x="480" y="287" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">API-Gateway  (Port 8000)</text>
+  <text x="480" y="305" text-anchor="middle" font-size="11" fill="#D6E4F0">JWT-Validierung · Tenant-Isolation · Request-Routing · Streaming (SSE)</text>
+
+  <!-- Arrows down from Gateway to 3 services -->
+  <line x1="280" y1="318" x2="240" y2="374" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="480" y1="318" x2="480" y2="374" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="680" y1="318" x2="720" y2="374" stroke="#2E75B6" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- ── LAYER 4: Microservices ── -->
+  <!-- RAG Service -->
+  <rect x="60"  y="374" width="320" height="72" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="220" y="396" text-anchor="middle" font-size="12" font-weight="bold" fill="#1F4E79">RAG-Service  (Port 8001)</text>
+  <text x="220" y="413" text-anchor="middle" font-size="10" fill="#444">Dokument-Ingest · Embedding</text>
+  <text x="220" y="428" text-anchor="middle" font-size="10" fill="#444">Vektor-Suche · Zitierungspflicht</text>
+  <rect x="80" y="436" width="280" height="4" rx="2" fill="#2E75B6" opacity="0.15"/>
+
+  <!-- LLM Service -->
+  <rect x="320" y="374" width="320" height="72" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="480" y="396" text-anchor="middle" font-size="12" font-weight="bold" fill="#1F4E79">LLM-Service  (Port 8002)</text>
+  <text x="480" y="413" text-anchor="middle" font-size="10" fill="#444">Inferenz-Proxy · Streaming</text>
+  <text x="480" y="428" text-anchor="middle" font-size="10" fill="#444">Modell-Routing · Timeout-Handling</text>
+
+  <!-- Admin Service -->
+  <rect x="580" y="374" width="320" height="72" rx="8" fill="#EAF2FB" stroke="#2E75B6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="740" y="396" text-anchor="middle" font-size="12" font-weight="bold" fill="#1F4E79">Admin-Service  (Port 8003)</text>
+  <text x="740" y="413" text-anchor="middle" font-size="10" fill="#444">Tenant-Verwaltung · Nutzerverwaltung</text>
+  <text x="740" y="428" text-anchor="middle" font-size="10" fill="#444">Keycloak-Provisionierung · Audit-Log</text>
+
+  <!-- Arrows down to infra -->
+  <line x1="220" y1="446" x2="220" y2="490" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <line x1="480" y1="446" x2="480" y2="490" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <line x1="740" y1="446" x2="740" y2="490" stroke="#888" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+
+  <!-- ── LAYER 5: Infrastruktur ── -->
+  <rect x="60" y="490" width="840" height="160" rx="8" fill="#F0F4F8" stroke="#BBBBBB" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="480" y="512" text-anchor="middle" font-size="13" font-weight="bold" fill="#444">Infrastruktur-Layer  (lokal / On-Premise Deutschland)</text>
+
+  <!-- PostgreSQL -->
+  <rect x="80"  y="522" width="220" height="112" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="80"  y="522" width="220" height="28"  rx="6" fill="#2E75B6"/>
+  <rect x="80"  y="540" width="220" height="10"  fill="#2E75B6"/>
+  <text x="190" y="540" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">PostgreSQL 16 + pgvector</text>
+  <text x="190" y="562" text-anchor="middle" font-size="10" fill="#333">Row-Level Security (RLS)</text>
+  <text x="190" y="577" text-anchor="middle" font-size="10" fill="#333">Mandantengetrennte Vektoren</text>
+  <text x="190" y="592" text-anchor="middle" font-size="10" fill="#333">Sozialdaten streng vertraulich</text>
+  <text x="190" y="607" text-anchor="middle" font-size="10" fill="#E74C3C" font-weight="bold">DSGVO Art. 9 · § 35 SGB I</text>
+  <text x="190" y="623" text-anchor="middle" font-size="10" fill="#555">Backup: WAL + pgBackRest</text>
+
+  <!-- Ollama -->
+  <rect x="320" y="522" width="220" height="112" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="320" y="522" width="220" height="28"  rx="6" fill="#2E75B6"/>
+  <rect x="320" y="540" width="220" height="10"  fill="#2E75B6"/>
+  <text x="430" y="540" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Ollama + lokale LLMs</text>
+  <text x="430" y="562" text-anchor="middle" font-size="10" fill="#333">Qwen2.5 32B Q4 (~18 GB VRAM)</text>
+  <text x="430" y="577" text-anchor="middle" font-size="10" fill="#333">Embedding-Modell (lokal)</text>
+  <text x="430" y="592" text-anchor="middle" font-size="10" fill="#333">keep_alive: Modell im VRAM</text>
+  <text x="430" y="607" text-anchor="middle" font-size="10" fill="#E74C3C" font-weight="bold">Zero-Data-Leak · kein ext. API</text>
+  <text x="430" y="623" text-anchor="middle" font-size="10" fill="#555">GPU: NVIDIA A10G / A100</text>
+
+  <!-- Keycloak -->
+  <rect x="560" y="522" width="220" height="112" rx="6" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
+  <rect x="560" y="522" width="220" height="28"  rx="6" fill="#2E75B6"/>
+  <rect x="560" y="540" width="220" height="10"  fill="#2E75B6"/>
+  <text x="670" y="540" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Keycloak 24</text>
+  <text x="670" y="562" text-anchor="middle" font-size="10" fill="#333">OpenID Connect · OAuth2</text>
+  <text x="670" y="577" text-anchor="middle" font-size="10" fill="#333">Active Directory Integration</text>
+  <text x="670" y="592" text-anchor="middle" font-size="10" fill="#333">Tenant-ID in JWT-Claims</text>
+  <text x="670" y="607" text-anchor="middle" font-size="10" fill="#333">SSO für alle Kreisverbände</text>
+  <text x="670" y="623" text-anchor="middle" font-size="10" fill="#555">Realm: drk-mv</text>
+
+  <!-- MinIO placeholder -->
+  <rect x="790" y="522" width="98" height="112" rx="6" fill="#fff" stroke="#BBBBBB" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="839" y="555" text-anchor="middle" font-size="10" fill="#888">MinIO</text>
+  <text x="839" y="570" text-anchor="middle" font-size="10" fill="#888">Dokument-</text>
+  <text x="839" y="583" text-anchor="middle" font-size="10" fill="#888">Storage</text>
+  <text x="839" y="600" text-anchor="middle" font-size="9" fill="#aaa">(Szenario B/C)</text>
+
+  <!-- ── Legend / Compliance Box ── -->
+  <rect x="60" y="662" width="840" height="46" rx="6" fill="#FFF3CD" stroke="#FFC107" stroke-width="1.2"/>
+  <text x="80" y="681" font-size="11" font-weight="bold" fill="#856404">Compliance-Hinweise:</text>
+  <text x="80" y="698" font-size="10" fill="#856404">Kein Prompt-Logging  ·  Mandantentrennung auf allen Ebenen  ·  Alle LLMs lokal (Zero-Data-Leak)  ·  Audit-Log nur für Admin-Aktionen  ·  Pentest vor Go-Live (Lastenheft §7)</text>
+</svg>

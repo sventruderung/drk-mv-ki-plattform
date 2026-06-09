@@ -1,7 +1,7 @@
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   Header, Footer, AlignmentType, HeadingLevel, BorderStyle, WidthType,
-  ShadingType, VerticalAlign, PageNumber, LevelFormat, PageBreak
+  ShadingType, VerticalAlign, PageNumber, LevelFormat, PageBreak, ImageRun
 } = require("docx");
 const fs = require("fs");
 
@@ -198,6 +198,21 @@ const doc = new Document({
 
       // ── 1. Architektur-Überblick ──────────────────────────────────────────
       h1("1  Architektur-Überblick"),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 120, after: 80 },
+        children: [new ImageRun({
+          type: "png",
+          data: fs.readFileSync("C:\\Projekte\\drk-mv-ki-plattform\\docs\\architecture.png"),
+          transformation: { width: 620, height: 465 },
+          altText: { title: "Funktionsschaubild", description: "Systemarchitektur DRK MV KI-Plattform", name: "architecture" },
+        })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+        children: [new TextRun({ text: "Abbildung 1: Funktionsschaubild DRK MV KI-Plattform", font: "Arial", size: 18, italics: true, color: "555555" })],
+      }),
       p("Die DRK MV KI-Plattform ist als mandantenfähige, vollständig lokal betriebene KI-Lösung für die 15 DRK-Kreisverbände in Mecklenburg-Vorpommern konzipiert. Alle Datenverarbeitungskomponenten laufen on-premise oder in einer DSGVO-konformen Private Cloud ausschließlich in Deutschland. Kein Datenbyte verlässt die jeweilige Mandantengrenze ohne explizite technische und rechtliche Freigabe."),
       spacer(),
 
