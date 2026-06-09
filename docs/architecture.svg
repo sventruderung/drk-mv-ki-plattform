@@ -25,10 +25,10 @@
 
   <!-- KV boxes -->
   <rect x="80"  y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
-  <text x="145" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Rostock</text>
+  <text x="145" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Parchim</text>
 
   <rect x="225" y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
-  <text x="290" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Schwerin</text>
+  <text x="290" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">LV MV</text>
 
   <rect x="370" y="114" width="130" height="32" rx="5" fill="#fff" stroke="#2E75B6" stroke-width="1.5"/>
   <text x="435" y="134" text-anchor="middle" font-size="11" fill="#1F4E79">KV Neustrelitz</text>

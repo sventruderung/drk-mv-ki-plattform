@@ -5,8 +5,8 @@
 ```mermaid
 flowchart TB
     subgraph KV["Nutzer-Ebene (15 DRK-Kreisverbände MV)"]
-        KV1["KV Rostock"]
-        KV2["KV Schwerin"]
+        KV1["KV Parchim"]
+        KV2["LV MV"]
         KV3["KV Neustrelitz"]
         KVN["... +12 weitere KV"]
     end
