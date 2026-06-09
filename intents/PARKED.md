@@ -1,6 +1,7 @@
 ---
 generated_by: intent-chat
 last_updated: 2026-06-09
+p02_resolved: 2026-06-09 → docs/Systemuebersicht-DRK-Social-Media.docx
 ---
 
 # Geparkte Intent-Kandidaten
@@ -14,13 +15,6 @@ last_updated: 2026-06-09
 
 - **Quelle:** Lastenheft DRK LV MV, Abschnitt 5.1 (Agiles Entwicklungsmodell & Release-Zyklen)
 - **Kurz:** Der DRK-KI-Workshop-Prozess soll neue Anforderungen in kurzen, stabilen Zyklen in die Plattform überführen. Der Systemhersteller verpflichtet sich zu regelmäßiger Teilnahme und gemeinsamem Product Backlog. Dieser Intent adressiert die Partnerschaft und den Governance-Prozess, nicht das Endnutzer-Outcome.
-- **Erkannt in Lauf:** INTENT-01
-- **Status:** parked
-
-## P-02 — Social-Media-Modul
-
-- **Quelle:** Lastenheft DRK LV MV, Abschnitt 5.2 (Modulare Microservice-Architektur)
-- **Kurz:** Ein eigenständiges Modul für Social-Media-Inhalte (z.B. DRK-Pressemitteilungen, Öffentlichkeitsarbeit) ist im Lastenheft erwähnt, aber nicht ausformuliert. Eigener Intent erforderlich sobald Scope klar ist.
 - **Erkannt in Lauf:** INTENT-01
 - **Status:** parked
 
