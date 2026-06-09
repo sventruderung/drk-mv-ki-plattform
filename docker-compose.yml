@@ -1,0 +1,124 @@
+services:
+
+  # ---------------------------------------------------------------------------
+  # Infrastruktur
+  # ---------------------------------------------------------------------------
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./infra/keycloak/config:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    # COMPLIANCE: Kein externes Netz-Routing — Modelle bleiben lokal
+
+  # ---------------------------------------------------------------------------
+  # Applikations-Services
+  # ---------------------------------------------------------------------------
+
+  api-gateway:
+    build: ./services/api-gateway
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      RAG_SERVICE_URL: http://rag-service:${RAG_SERVICE_PORT}
+      LLM_SERVICE_URL: http://llm-service:${LLM_SERVICE_PORT}
+      ADMIN_SERVICE_URL: http://admin-service:${ADMIN_SERVICE_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${API_GATEWAY_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  rag-service:
+    build: ./services/rag-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${RAG_SERVICE_PORT:-8001}:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  llm-service:
+    build: ./services/llm-service
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${LLM_SERVICE_PORT:-8002}:8002"
+    depends_on:
+      - ollama
+
+  admin-service:
+    build: ./services/admin-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8003}:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  ollama_data:

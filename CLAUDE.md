@@ -11,18 +11,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Kein Fork** von kvbrain — kompletter Neubau mit Mandantenfähigkeit von Grund auf.
 - Vollständiger Compliance-Kontext: [`docs/company-context.md`](docs/company-context.md)
 
-## Stack (wird bei /bootstrap festgelegt)
+## Stack
 
-Orientierungspunkte bis zur Entscheidung:
+| Komponente | Entscheidung |
+|---|---|
+| Backend | Python 3.12 + FastAPI (je Service eigenständige FastAPI-App) |
+| Datenbank | PostgreSQL 16 + pgvector + Row-Level Security |
+| Vector DB | pgvector (Start) → Qdrant bei Skalierungsbedarf |
+| LLM-Gateway | Ollama + LiteLLM (lokal, kein externer API-Aufruf) |
+| Auth | Keycloak 24 (OIDC + OAuth2 + AD) |
+| Frontend | Open WebUI (angepasst) |
+| Container | Docker Compose (Dev/Pilot) → K3s (Produktion ≥ 3 KV) |
+| Shared Lib | `packages/shared` (`drk-shared`) — Tenant-Isolation, Auth, Logging |
 
-- **Backend:** Python + FastAPI (LLM-Ökosystem, Microservice-Pflicht aus Lastenheft §5.2)
-- **Datenbank:** PostgreSQL mit Row-Level-Security (Multi-Tenancy)
-- **LLM:** Ollama / LiteLLM / vLLM — lokal, kein externer API-Aufruf
-- **Vector DB:** Qdrant / Weaviate / pgvector
-- **Frontend:** TBD (OpenWebUI als Referenz im Lastenheft)
-- **Container:** Docker/Compose (Minimum) → Kubernetes bei ≥ 3 Kreisverbänden zentral
-
-Nach Stack-Entscheidung: `.claude/rules/code-style-guide.md` §1 mit konkreten Versionen befüllen.
+Services: `api-gateway` (8000) · `rag-service` (8001) · `llm-service` (8002) · `admin-service` (8003)
 
 ## Architektur-Constraints (nicht verhandelbar)
 
