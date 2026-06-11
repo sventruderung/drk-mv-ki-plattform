@@ -3,7 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from jose import jwt, JWTError
 import httpx
 
-from drk_shared.tenant import set_tenant_id
+from drk_shared.tenant import set_roles, set_tenant_id
 from drk_shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -35,9 +35,14 @@ class JWTMiddleware(BaseHTTPMiddleware):
         if not tenant_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kein Tenant im Token")
 
+        # ACL (§4.2): Rollen aus realm_access.roles — Basis für die rechtegeprüfte RAG-Suche
+        roles = claims.get("realm_access", {}).get("roles", [])
+
         set_tenant_id(tenant_id)
+        set_roles(roles)
         request.state.tenant_id = tenant_id
         request.state.user_id = claims.get("sub")
+        request.state.roles = roles
 
         return await call_next(request)
 

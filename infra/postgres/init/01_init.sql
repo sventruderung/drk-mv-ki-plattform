@@ -1,7 +1,7 @@
 -- DRK MV KI-Plattform — PostgreSQL Initialisierung
 -- TENANT-ISOLATION: Row-Level Security für alle Tabellen mit tenant_id Pflicht
 
-CREATE EXTENSION IF NOT EXISTS pgvector;
+CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Anwendungsbenutzer mit eingeschränkten Rechten

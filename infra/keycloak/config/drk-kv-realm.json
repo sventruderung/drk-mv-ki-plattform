@@ -1,0 +1,69 @@
+{
+  "realm": "drk-kv",
+  "enabled": true,
+  "displayName": "DRK Kreisverband",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "sslRequired": "external",
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "kv-admin", "description": "Mandanten-Administrator (§4.1): Nutzer- und Rechteverwaltung, Dokumentenordner" },
+      { "name": "kv-vorstand", "description": "ACL-Gruppe: Nur Kreisverbands-Vorstand (§4.2)" },
+      { "name": "kv-pflege", "description": "ACL-Gruppe: Fachbereich Pflege (§4.2)" },
+      { "name": "kv-rettungsdienst", "description": "ACL-Gruppe: Bereichsleitung Rettungsdienst (§4.2)" },
+      { "name": "kv-alle", "description": "ACL-Gruppe: Offen für alle Mitarbeitenden (§4.2)" }
+    ]
+  },
+  "defaultRoles": ["kv-alle"],
+  "clients": [
+    {
+      "clientId": "drk-platform",
+      "name": "DRK KI-Plattform",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "CHANGE_ME_VIA_ADMIN_UI",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:8000/*"],
+      "webOrigins": ["+"],
+      "protocolMappers": [
+        {
+          "name": "tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "tenant_id",
+            "claim.value": "kv-CHANGE_ME",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "drk-platform",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

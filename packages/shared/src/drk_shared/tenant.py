@@ -2,6 +2,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 
 _tenant_id_var: ContextVar[str | None] = ContextVar("tenant_id", default=None)
+_roles_var: ContextVar[list[str] | None] = ContextVar("roles", default=None)
 
 
 @dataclass(frozen=True)
@@ -21,3 +22,15 @@ def get_tenant_id() -> str:
 
 def set_tenant_id(tenant_id: str) -> None:
     _tenant_id_var.set(tenant_id)
+
+
+def get_roles() -> list[str]:
+    # ACL: Rollen kommen ausschließlich aus JWT-Claims (realm_access.roles)
+    roles = _roles_var.get()
+    if roles is None:
+        raise RuntimeError("Rollen nicht gesetzt — JWT-Middleware nicht aktiv?")
+    return roles
+
+
+def set_roles(roles: list[str]) -> None:
+    _roles_var.set(roles)

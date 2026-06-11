@@ -46,13 +46,59 @@ services:
     ports:
       - "11434:11434"
     # COMPLIANCE: Kein externes Netz-Routing — Modelle bleiben lokal
+    # DGX Spark: GPU-Zugriff fürs GB10 (NVIDIA Container Toolkit vorinstalliert)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    environment:
+      # Open WebUI spricht direkt mit Ollama; Auth via Keycloak (OIDC)
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_AUTH: "true"
+      ENABLE_OAUTH_SIGNUP: "true"
+      OAUTH_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      OPENID_PROVIDER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
+      OAUTH_PROVIDER_NAME: "DRK Login"
+    volumes:
+      - open_webui_data:/app/backend/data
+    ports:
+      - "3000:8080"
+    depends_on:
+      - ollama
+      - keycloak
 
   # ---------------------------------------------------------------------------
   # Applikations-Services
   # ---------------------------------------------------------------------------
 
   api-gateway:
-    build: ./services/api-gateway
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -76,7 +122,9 @@ services:
         condition: service_started
 
   rag-service:
-    build: ./services/rag-service
+    build:
+      context: .
+      dockerfile: services/rag-service/Dockerfile
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -84,15 +132,24 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${RAG_SERVICE_PORT:-8001}:8001"
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
   llm-service:
-    build: ./services/llm-service
+    build:
+      context: .
+      dockerfile: services/llm-service/Dockerfile
     environment:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL}
@@ -103,7 +160,9 @@ services:
       - ollama
 
   admin-service:
-    build: ./services/admin-service
+    build:
+      context: .
+      dockerfile: services/admin-service/Dockerfile
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -122,3 +181,5 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  minio_data:
+  open_webui_data:

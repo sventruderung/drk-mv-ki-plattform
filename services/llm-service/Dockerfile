@@ -1,6 +1,9 @@
+# Build-Kontext: Repo-Root (drk-shared muss mit ins Image)
 FROM python:3.12-slim
 WORKDIR /app
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev]"
-COPY src/ ./src/
+COPY packages/shared /packages/shared
+RUN pip install --no-cache-dir /packages/shared
+COPY services/llm-service/pyproject.toml .
+COPY services/llm-service/src ./src
+RUN pip install --no-cache-dir .
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]
