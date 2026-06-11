@@ -8,7 +8,7 @@ from drk_shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-SKIP_PATHS = {"/api/v1/health", "/api/v1/tls/check"}
+SKIP_PATHS = {"/api/v1/health", "/api/v1/tls/check", "/api/v1/models/public"}
 # Statisches Admin-UI: HTML/JS ohne Token ausliefern — alle API-Aufrufe
 # aus dem UI heraus laufen weiterhin durch die JWT-Prüfung.
 SKIP_PREFIXES = ("/admin",)

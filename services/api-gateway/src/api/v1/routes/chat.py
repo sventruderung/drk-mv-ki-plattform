@@ -13,6 +13,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
+    model: str | None = None  # None = lokales Standardmodell
 
 
 @router.post("/")
@@ -20,6 +21,16 @@ async def chat(body: ChatRequest, request: Request) -> StreamingResponse:
     tenant_id = get_tenant_id()
     # COMPLIANCE: message wird nicht geloggt — nur Metadaten
     logger.info("chat.request", tenant_id=tenant_id, conversation_id=body.conversation_id)
+
+    # Modell-Freigabe prüfen (externe Modelle nur für berechtigte Nutzer)
+    if body.model:
+        from .models import user_may_use
+
+        if not await user_may_use(request.state.user_id, body.model):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Modell '{body.model}' ist für Sie nicht freigegeben.",
+            )
 
     llm_url = request.app.state.settings.llm_service_url if hasattr(request.app.state, "settings") else "http://llm-service:8002"
 
@@ -32,6 +43,7 @@ async def chat(body: ChatRequest, request: Request) -> StreamingResponse:
                     "message": body.message,
                     "tenant_id": tenant_id,
                     "conversation_id": body.conversation_id,
+                    "model": body.model,
                 },
                 headers={"X-Tenant-ID": tenant_id},
             ) as resp:

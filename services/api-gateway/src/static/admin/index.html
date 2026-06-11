@@ -154,6 +154,37 @@
   <!-- ================= Einstellungen ================= -->
   <section id="view-settings" class="hidden">
     <div class="card">
+      <h2>KI-Modelle</h2>
+      <div class="msg err" style="margin-bottom:14px">
+        ⚠️ <strong>Externe Modelle</strong> (OpenAI, Anthropic) übertragen
+        Nutzereingaben an Drittanbieter außerhalb dieser Plattform. Aktivierung
+        nur nach Freigabe durch den Datenschutzbeauftragten! Die Wissensbasis
+        (RAG) und Social-Media-Texte nutzen immer das lokale Modell —
+        Dokumenteninhalte verlassen das System nie.
+      </div>
+      <table><thead><tr><th>Modell</th><th>Anbieter</th><th>Aktiv</th><th>Für alle Nutzer</th></tr></thead>
+      <tbody id="modellist"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>API-Keys externer Anbieter</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Keys werden verschlüsselt auf diesem Server gespeichert und nie wieder
+        angezeigt. Leer lassen = unverändert.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px">
+        <div>
+          <label class="muted">OpenAI <span id="openai-status"></span></label>
+          <input type="password" id="key-openai" placeholder="sk-…"
+                 style="width:100%; padding:9px 12px; border:1px solid var(--rand); border-radius:5px">
+        </div>
+        <div>
+          <label class="muted">Anthropic (Claude) <span id="anthropic-status"></span></label>
+          <input type="password" id="key-anthropic" placeholder="sk-ant-…"
+                 style="width:100%; padding:9px 12px; border:1px solid var(--rand); border-radius:5px">
+        </div>
+      </div>
+      <button class="primary" id="savekeys" style="margin-top:12px">API-Keys speichern</button>
+    </div>
+    <div class="card">
       <h2 style="display:flex; justify-content:space-between; align-items:center">
         Systemstatus
         <button class="small" onclick="loadStatus()">Aktualisieren</button>
@@ -184,6 +215,20 @@
   </section>
 </main>
 <footer id="buildinfo"></footer>
+
+<!-- Modal: Nutzer-Modelle -->
+<div class="overlay hidden" id="umodelsmodal">
+  <div class="modal">
+    <h3 id="umodels-title">Modelle freigeben</h3>
+    <p class="muted" style="margin-bottom:10px">
+      Zusätzlich zu den für alle freigegebenen Modellen.</p>
+    <div class="acl-row" id="umodels-checks" style="flex-direction:column; gap:8px"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
+      <button class="small" onclick="closeUModels()">Abbrechen</button>
+      <button class="primary" id="umodels-save">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Nutzer-Rollen -->
 <div class="overlay hidden" id="rolesmodal">
@@ -241,7 +286,10 @@ function init() {
         document.getElementById("tab-settings").style.display = "none";
       }
       loadDocs(); loadDrafts();
-      if (hasRole("kv-admin")) { loadUsers(); loadAudit(); loadHostname(); loadStatus(); }
+      if (hasRole("kv-admin")) {
+        loadUsers(); loadAudit(); loadHostname(); loadStatus();
+        loadModels(); loadKeyStatus();
+      }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
 }
@@ -472,6 +520,7 @@ async function loadUsers() {
       <td>${u.enabled ? '<span class="badge b-freigegeben">aktiv</span>' : '<span class="badge b-abgelehnt">deaktiviert</span>'}</td>
       <td>
         <button class="small" onclick='openRoles("${u.id}", ${JSON.stringify(u.roles)}, "${esc(u.username)}")'>Rollen</button>
+        <button class="small" onclick='openUModels("${u.id}", "${esc(u.username)}")'>Modelle</button>
         ${u.federated
           ? '<span class="muted" title="Konto und Passwort werden im Active Directory verwaltet">via AD verwaltet</span>'
           : `<button class="small" onclick='resetPw("${u.id}", "${esc(u.username)}")'>Passwort</button>
@@ -569,6 +618,100 @@ document.getElementById("savehost").onclick = async () => {
       : "Hostname entfernt — HTTPS-Zertifikate werden nicht mehr ausgestellt.");
     loadAudit();
   } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+};
+
+// ---------- KI-Modelle ----------
+async function loadModels() {
+  try {
+    const models = await api("/api/v1/models/admin");
+    document.getElementById("modellist").innerHTML = models.map(m => `<tr>
+      <td>${esc(m.display_name)}</td>
+      <td>${m.provider === "local"
+        ? '<span class="badge b-freigegeben">lokal</span>'
+        : `<span class="badge b-abgelehnt">extern: ${esc(m.provider)}</span>`}</td>
+      <td><input type="checkbox" ${m.enabled ? "checked" : ""}
+           onchange='setModel("${m.id}", this.checked, ${m.default_allowed})'></td>
+      <td><input type="checkbox" ${m.default_allowed ? "checked" : ""}
+           onchange='setModel("${m.id}", ${m.enabled}, this.checked)'></td>
+    </tr>`).join("");
+  } catch (e) { msg("Modelle laden fehlgeschlagen: " + e.message, true); }
+}
+
+async function setModel(id, enabled, defaultAllowed) {
+  try {
+    await api("/api/v1/models/" + id, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled, default_allowed: defaultAllowed }),
+    });
+    msg(`Modell ${id}: ${enabled ? "aktiviert" : "deaktiviert"}` +
+        (defaultAllowed ? " (für alle Nutzer)" : ""));
+    loadModels(); loadAudit();
+  } catch (e) { msg(e.message, true); loadModels(); }
+}
+
+async function loadKeyStatus() {
+  try {
+    const s = await api("/api/v1/settings/apikeys");
+    document.getElementById("openai-status").textContent =
+      s.openai_api_key ? "✅ hinterlegt" : "— nicht hinterlegt";
+    document.getElementById("anthropic-status").textContent =
+      s.anthropic_api_key ? "✅ hinterlegt" : "— nicht hinterlegt";
+  } catch (e) { msg(e.message, true); }
+}
+
+document.getElementById("savekeys").onclick = async () => {
+  const openai = document.getElementById("key-openai").value.trim();
+  const anthropic = document.getElementById("key-anthropic").value.trim();
+  if (!openai && !anthropic) return msg("Keine Eingabe — nichts geändert.", true);
+  try {
+    await api("/api/v1/settings/apikeys", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        openai_api_key: openai || null,
+        anthropic_api_key: anthropic || null,
+      }),
+    });
+    document.getElementById("key-openai").value = "";
+    document.getElementById("key-anthropic").value = "";
+    msg("✅ API-Keys gespeichert.");
+    loadKeyStatus(); loadAudit();
+  } catch (e) { msg(e.message, true); }
+};
+
+// ---------- Nutzer-Modelle ----------
+let uModelsUserId = null;
+
+async function openUModels(id, username) {
+  uModelsUserId = id;
+  document.getElementById("umodels-title").textContent = `Modelle freigeben: ${username}`;
+  try {
+    const [all, granted] = await Promise.all([
+      api("/api/v1/models/admin"),
+      api(`/api/v1/users/${id}/models`),
+    ]);
+    const eligible = all.filter(m => m.enabled && !m.default_allowed);
+    document.getElementById("umodels-checks").innerHTML = eligible.length
+      ? eligible.map(m => `<label>
+          <input type="checkbox" value="${m.id}" ${granted.includes(m.id) ? "checked" : ""}>
+          ${esc(m.display_name)}</label>`).join("")
+      : `<span class="muted">Keine individuell freigebbaren Modelle —
+         erst unter ⚙️ Einstellungen ein Modell aktivieren (ohne „für alle").</span>`;
+    document.getElementById("umodelsmodal").classList.remove("hidden");
+  } catch (e) { msg(e.message, true); }
+}
+
+function closeUModels() { document.getElementById("umodelsmodal").classList.add("hidden"); }
+
+document.getElementById("umodels-save").onclick = async () => {
+  const models = [...document.querySelectorAll("#umodels-checks input:checked")].map(c => c.value);
+  try {
+    await api(`/api/v1/users/${uModelsUserId}/models`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ models }),
+    });
+    closeUModels(); msg("✅ Modell-Freigaben gespeichert.");
+    loadAudit();
+  } catch (e) { msg(e.message, true); }
 };
 
 // ---------- Systemstatus ----------

@@ -76,6 +76,59 @@ async def set_hostname(body: HostnameRequest, request: Request):
     return {"hostname": hostname}
 
 
+class ApiKeysRequest(BaseModel):
+    openai_api_key: str | None = None      # None = unverändert lassen
+    anthropic_api_key: str | None = None
+
+
+@router.get("/settings/apikeys")
+async def get_apikey_status(request: Request):
+    """Nur Konfigurations-Status — Keys werden NIE zurückgegeben."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value <> '' AS configured FROM system_settings "
+            "WHERE key IN ('openai_api_key', 'anthropic_api_key')"
+        )
+    return {r["key"]: r["configured"] for r in rows}
+
+
+@router.put("/settings/apikeys")
+async def set_apikeys(body: ApiKeysRequest, request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    updated = []
+    async with plain_connection() as conn:
+        for key, value in (
+            ("openai_api_key", body.openai_api_key),
+            ("anthropic_api_key", body.anthropic_api_key),
+        ):
+            if value is not None:
+                await conn.execute(
+                    """
+                    INSERT INTO system_settings (key, value, updated_at, updated_by)
+                    VALUES ($1, $2, now(), $3)
+                    ON CONFLICT (key) DO UPDATE
+                    SET value = $2, updated_at = now(), updated_by = $3
+                    """,
+                    key, value.strip(), request.state.user_id or "",
+                )
+                updated.append(key)
+    if updated:
+        # AUDIT: nur DASS ein Key geändert wurde — niemals den Key selbst
+        async with tenant_connection(request.state.tenant_id) as conn:
+            await conn.execute(
+                """
+                INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+                VALUES ($1, $2, 'settings.apikeys', 'settings', 'apikeys', $3)
+                """,
+                request.state.tenant_id, request.state.user_id or "",
+                f"Geändert: {', '.join(updated)}",
+            )
+    return {"updated": updated}
+
+
 @router.get("/tls/check")
 async def tls_check(domain: str = "") -> Response:
     """Caddy On-Demand-TLS 'ask': 200 = Zertifikat ausstellen, 403 = ablehnen."""
