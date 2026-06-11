@@ -142,7 +142,11 @@
     </div>
     <div class="card">
       <h2>Nutzer dieses Kreisverbands</h2>
-      <table><thead><tr><th>Benutzername</th><th>Name</th><th>Rollen</th><th>Status</th><th>Aktionen</th></tr></thead>
+      <p class="muted" style="margin-bottom:12px">
+        Bei aktiver LDAP/AD-Anbindung erscheinen Verzeichnis-Konten automatisch
+        nach dem ersten Login (Quelle „AD"). Konto und Passwort werden dann im
+        Active Directory gepflegt — die Rollenvergabe erfolgt immer hier.</p>
+      <table><thead><tr><th>Benutzername</th><th>Name</th><th>Quelle</th><th>Rollen</th><th>Status</th><th>Aktionen</th></tr></thead>
       <tbody id="userlist"></tbody></table>
     </div>
   </section>
@@ -454,15 +458,18 @@ async function loadUsers() {
     document.getElementById("userlist").innerHTML = users.map(u => `<tr>
       <td>${esc(u.username)}</td>
       <td>${esc((u.firstName + " " + u.lastName).trim())}<br><span class="muted">${esc(u.email)}</span></td>
+      <td>${u.federated ? '<span class="badge b-zur_freigabe">AD</span>' : '<span class="badge b-entwurf">Lokal</span>'}</td>
       <td>${u.roles.map(r => `<span class="badge b-entwurf">${esc(r)}</span>`).join(" ")}</td>
       <td>${u.enabled ? '<span class="badge b-freigegeben">aktiv</span>' : '<span class="badge b-abgelehnt">deaktiviert</span>'}</td>
       <td>
         <button class="small" onclick='openRoles("${u.id}", ${JSON.stringify(u.roles)}, "${esc(u.username)}")'>Rollen</button>
-        <button class="small" onclick='resetPw("${u.id}", "${esc(u.username)}")'>Passwort</button>
-        <button class="small ${u.enabled ? "no" : "ok"}" onclick='toggleUser("${u.id}", ${!u.enabled}, "${esc(u.username)}")'>
-          ${u.enabled ? "Deaktivieren" : "Aktivieren"}</button>
+        ${u.federated
+          ? '<span class="muted" title="Konto und Passwort werden im Active Directory verwaltet">via AD verwaltet</span>'
+          : `<button class="small" onclick='resetPw("${u.id}", "${esc(u.username)}")'>Passwort</button>
+             <button class="small ${u.enabled ? "no" : "ok"}" onclick='toggleUser("${u.id}", ${!u.enabled}, "${esc(u.username)}")'>
+               ${u.enabled ? "Deaktivieren" : "Aktivieren"}</button>`}
       </td>
-    </tr>`).join("") || `<tr><td colspan="5" class="muted">Keine Nutzer gefunden.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="6" class="muted">Keine Nutzer gefunden.</td></tr>`;
   } catch (e) { msg("Nutzer laden fehlgeschlagen: " + e.message, true); }
 }
 

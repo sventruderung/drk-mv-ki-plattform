@@ -102,8 +102,16 @@ class KeycloakAdmin:
                 "lastName": u.get("lastName", ""),
                 "enabled": u.get("enabled", False),
                 "roles": roles,
+                # LDAP/AD-Föderation: Konto + Passwort werden im Verzeichnis-
+                # dienst verwaltet — hier nur Rollen steuerbar
+                "federated": bool(u.get("federationLink")),
             })
         return users
+
+    async def is_federated(self, user_id: str) -> bool:
+        resp = await self._request("GET", f"/users/{user_id}")
+        resp.raise_for_status()
+        return bool(resp.json().get("federationLink"))
 
     async def get_user_roles(self, user_id: str) -> list[str]:
         resp = await self._request("GET", f"/users/{user_id}/role-mappings/realm")

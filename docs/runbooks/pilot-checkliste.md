@@ -20,6 +20,9 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
       Nutzer-Tab im Verwaltungs-UI funktioniert
 - [ ] Admin-Konto für den Mandanten-Admin anlegen, Rolle `kv-admin`
       (in Keycloak — alle weiteren Nutzer dann bequem im Verwaltungs-UI)
+- [ ] Optional AD-Anbindung: siehe `ldap-ad-anbindung.md` — Nutzer kommen
+      dann aus dem AD, nur Rollen werden im Verwaltungs-UI vergeben.
+      Mindestens ein lokales kv-admin-Konto behalten (Break-Glass)
 - [ ] 2–3 Pilot-Nutzer im Verwaltungs-UI (Tab 👥 Nutzer) anlegen:
   - Redaktion: `content-editor` (+ `kv-alle`)
   - Führungskraft: `content-approver`, ggf. `kv-vorstand`

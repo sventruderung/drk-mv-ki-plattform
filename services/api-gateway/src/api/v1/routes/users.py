@@ -109,12 +109,24 @@ async def set_roles(user_id: str, body: RolesRequest, request: Request):
     return {"id": user_id, "roles": sorted(set(body.roles) & set(ALLOWED_ROLES))}
 
 
+FEDERATED_MSG = (
+    "Dieses Konto wird über LDAP/Active Directory verwaltet. "
+    "{was} bitte im Verzeichnisdienst durchführen — die Rollenvergabe "
+    "bleibt hier möglich."
+)
+
+
 @router.patch("/{user_id}")
 async def set_enabled(user_id: str, body: EnabledRequest, request: Request):
     require_kv_admin(request)
     if user_id == request.state.user_id:
         raise HTTPException(status_code=409, detail="Das eigene Konto kann nicht deaktiviert werden.")
     try:
+        if await get_admin(request).is_federated(user_id):
+            raise HTTPException(
+                status_code=409,
+                detail=FEDERATED_MSG.format(was="Aktivierung/Deaktivierung"),
+            )
         await get_admin(request).set_enabled(user_id, body.enabled)
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
@@ -126,6 +138,11 @@ async def set_enabled(user_id: str, body: EnabledRequest, request: Request):
 async def reset_password(user_id: str, body: PasswordRequest, request: Request):
     require_kv_admin(request)
     try:
+        if await get_admin(request).is_federated(user_id):
+            raise HTTPException(
+                status_code=409,
+                detail=FEDERATED_MSG.format(was="Passwort-Änderungen"),
+            )
         await get_admin(request).reset_password(user_id, body.password)
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
