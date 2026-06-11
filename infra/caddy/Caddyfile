@@ -1,0 +1,45 @@
+# DRK MV KI-Plattform — HTTPS-Reverse-Proxy (Let's Encrypt automatisch)
+#
+# On-Demand-TLS: Caddy fragt vor jeder Zertifikats-Ausstellung beim Gateway an,
+# ob der Hostname erlaubt ist. Der Hostname wird im Admin-UI gepflegt
+# (Tab Einstellungen) — Änderung wirkt OHNE Neustart.
+#
+# Voraussetzungen für Let's Encrypt:
+# - DNS-Eintrag des Hostnamens zeigt auf diesen Server
+# - Ports 80 + 443 aus dem Internet erreichbar (HTTP-01-Challenge)
+# Im rein internen Netz stattdessen: 'acme_ca internal' aktivieren (siehe unten).
+
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://api-gateway:8000/api/v1/tls/check
+	}
+	# Für interne Netze ohne Internet-Zugang (selbstsignierte Caddy-CA):
+	# local_certs
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+
+	# API + Verwaltungs-UI → Gateway
+	handle /api/* {
+		reverse_proxy api-gateway:8000
+	}
+	handle /admin* {
+		reverse_proxy api-gateway:8000
+	}
+
+	# Keycloak unter /auth
+	handle /auth* {
+		reverse_proxy keycloak:8080
+	}
+
+	# Alles andere → Open WebUI (Chat)
+	handle {
+		reverse_proxy open-webui:8080
+	}
+}
+
+# HTTP nur für ACME-Challenge + Redirect auf HTTPS (macht Caddy automatisch)

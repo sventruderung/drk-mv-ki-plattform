@@ -4,6 +4,21 @@ services:
   # Infrastruktur
   # ---------------------------------------------------------------------------
 
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.org}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api-gateway
+      - open-webui
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -31,6 +46,10 @@ services:
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Hinter Caddy unter /auth erreichbar (HTTPS terminiert am Proxy)
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
     ports:
@@ -208,3 +227,5 @@ volumes:
   ollama_data:
   minio_data:
   open_webui_data:
+  caddy_data:
+  caddy_config:

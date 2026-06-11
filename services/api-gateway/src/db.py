@@ -29,6 +29,15 @@ async def close_pool() -> None:
 
 
 @asynccontextmanager
+async def plain_connection() -> AsyncIterator[asyncpg.Connection]:
+    """Für globale Tabellen ohne tenant_id (system_settings)."""
+    if _pool is None:
+        raise RuntimeError("DB-Pool nicht initialisiert")
+    async with _pool.acquire() as conn:
+        yield conn
+
+
+@asynccontextmanager
 async def tenant_connection(tenant_id: str) -> AsyncIterator[asyncpg.Connection]:
     if _pool is None:
         raise RuntimeError("DB-Pool nicht initialisiert")

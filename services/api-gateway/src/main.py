@@ -10,7 +10,7 @@ from drk_shared.logging import configure_logging, get_logger
 from .config import Settings
 from . import db
 from .middleware.auth import JWTMiddleware
-from .api.v1.routes import audit, chat, content, health, rag
+from .api.v1.routes import audit, chat, content, health, rag, settings_routes
 
 settings = Settings()
 configure_logging(level=settings.log_level, service_name="api-gateway")
@@ -51,6 +51,7 @@ app.include_router(chat.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
+app.include_router(settings_routes.router, prefix="/api/v1")
 
 
 def _build_date() -> str:

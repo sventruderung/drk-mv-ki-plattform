@@ -59,6 +59,7 @@
   <button id="tab-docs" class="active" onclick="show('docs')">📄 Dokumente</button>
   <button id="tab-drafts" onclick="show('drafts')">📣 Social-Media-Freigaben</button>
   <button id="tab-audit" onclick="show('audit')">📋 Protokoll</button>
+  <button id="tab-settings" onclick="show('settings')">⚙️ Einstellungen</button>
 </nav>
 <main>
   <div id="message" class="hidden"></div>
@@ -117,6 +118,28 @@
       <tbody id="auditlist"></tbody></table>
     </div>
   </section>
+  <!-- ================= Einstellungen ================= -->
+  <section id="view-settings" class="hidden">
+    <div class="card">
+      <h2>HTTPS / Öffentlicher Hostname</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Unter diesem Hostnamen ist die Plattform per HTTPS erreichbar.
+        Das Zertifikat wird automatisch über Let's Encrypt ausgestellt und
+        erneuert — die Änderung wirkt ohne Neustart.</p>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <input type="text" id="hostname" placeholder="z.B. ki.kv-name.drk.de"
+               style="flex:1; min-width:260px; padding:9px 12px; border:1px solid var(--rand); border-radius:5px; font-size:.95rem">
+        <button class="primary" id="savehost">Speichern</button>
+      </div>
+      <p class="muted" style="margin-top:14px">
+        Voraussetzungen für das Zertifikat:<br>
+        1. DNS-Eintrag des Hostnamens zeigt auf diesen Server.<br>
+        2. Ports 80 und 443 sind aus dem Internet erreichbar.<br>
+        3. In Keycloak muss <code>https://&lt;hostname&gt;/admin/*</code> als
+           Redirect-URI des Clients <code>drk-admin-ui</code> eingetragen sein.<br>
+        Hostname-Änderungen werden im Protokoll vermerkt.</p>
+    </div>
+  </section>
 </main>
 <footer id="buildinfo"></footer>
 
@@ -141,9 +164,12 @@ function init() {
     .then(() => {
       document.getElementById("username").textContent =
         kc.tokenParsed.preferred_username || kc.tokenParsed.sub;
-      if (!hasRole("kv-admin")) document.getElementById("tab-audit").style.display = "none";
+      if (!hasRole("kv-admin")) {
+        document.getElementById("tab-audit").style.display = "none";
+        document.getElementById("tab-settings").style.display = "none";
+      }
       loadDocs(); loadDrafts();
-      if (hasRole("kv-admin")) loadAudit();
+      if (hasRole("kv-admin")) { loadAudit(); loadHostname(); }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
 }
@@ -171,7 +197,7 @@ function msg(text, isError) {
 }
 
 function show(view) {
-  for (const v of ["docs", "drafts", "audit"]) {
+  for (const v of ["docs", "drafts", "audit", "settings"]) {
     document.getElementById("view-" + v).classList.toggle("hidden", v !== view);
     document.getElementById("tab-" + v).classList.toggle("active", v === view);
   }
@@ -287,6 +313,28 @@ function addAction(container, id, target) {
   };
   container.appendChild(b);
 }
+
+// ---------- Einstellungen ----------
+async function loadHostname() {
+  try {
+    const r = await api("/api/v1/settings/hostname");
+    document.getElementById("hostname").value = r.hostname || "";
+  } catch (e) { msg("Einstellungen laden fehlgeschlagen: " + e.message, true); }
+}
+
+document.getElementById("savehost").onclick = async () => {
+  const hostname = document.getElementById("hostname").value.trim();
+  try {
+    await api("/api/v1/settings/hostname", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hostname }),
+    });
+    msg(hostname
+      ? `✅ Hostname gespeichert: ${hostname} — Zertifikat wird beim ersten HTTPS-Aufruf ausgestellt.`
+      : "Hostname entfernt — HTTPS-Zertifikate werden nicht mehr ausgestellt.");
+    loadAudit();
+  } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+};
 
 // ---------- Audit ----------
 async function loadAudit() {

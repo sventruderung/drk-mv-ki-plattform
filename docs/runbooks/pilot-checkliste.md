@@ -52,6 +52,15 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - [ ] **TC-Audit-Zugriff**: Nutzer ohne `kv-admin` sieht den Protokoll-Tab nicht
       und erhält bei direktem API-Aufruf HTTP 403
 
+## E2. HTTPS aktivieren (siehe `https-setup.md`)
+
+- [ ] DNS-Eintrag zeigt auf den Server, Ports 80/443 offen
+- [ ] `ACME_EMAIL` und `KEYCLOAK_PUBLIC_URL` in `.env` gesetzt
+- [ ] Hostname im Admin-UI eingetragen (⚙️ Einstellungen)
+- [ ] Keycloak-Redirect-URIs um HTTPS-Adressen ergänzt
+- [ ] `https://<hostname>` lädt mit gültigem Zertifikat; HTTP leitet um
+- [ ] Interne Ports (8000, 3000, 8080) in der Firewall geschlossen
+
 ## F. Pilot-Start
 
 - [ ] Kurzeinweisung der Pilot-Nutzer (30 Min: Login, Chat, Wissensbasis, Social Media)
@@ -63,5 +72,4 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - Pentest + DSB-Freigabe (Go-Live-Kriterien §7 — blocking für Produktivbetrieb)
 - P03 Drittsystem-Integrationen
 - No-Code-Prompt-Management (admin-service, §5.2)
-- TLS/HTTPS via Reverse Proxy (für Pilot im internen Netz; vor Produktivbetrieb Pflicht)
 - Automatisches Social-Media-Publishing (Phase 4, erfordert DSB-Freigabe)
