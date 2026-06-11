@@ -53,7 +53,8 @@
             "claim.name": "realm_access.roles",
             "multivalued": "true",
             "jsonType.label": "String",
-            "access.token.claim": "true"
+            "access.token.claim": "true",
+            "id.token.claim": "true"
           }
         },
         {
@@ -62,7 +63,8 @@
           "protocolMapper": "oidc-audience-mapper",
           "config": {
             "included.client.audience": "drk-platform",
-            "access.token.claim": "true"
+            "access.token.claim": "true",
+            "id.token.claim": "true"
           }
         }
       ]
