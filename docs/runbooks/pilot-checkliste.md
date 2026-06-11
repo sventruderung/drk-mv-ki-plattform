@@ -9,17 +9,14 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - [ ] Repo geklont, `bash scripts/setup_dgx.sh` durchgelaufen
 - [ ] `python3 scripts/smoke_test.py` — alle Checks grün
 
-## B. Keycloak konfigurieren (Admin UI, Port 8080)
+## B. Keycloak konfigurieren (automatisiert)
 
-- [ ] Realm `drk-kv` wurde automatisch importiert (Login-Seite zeigt "DRK Kreisverband")
-- [ ] Client `drk-platform`: **neues Client-Secret generieren** → in `.env` eintragen → `docker compose up -d`
-- [ ] tenant_id-Mapper: Wert `kv-CHANGE_ME` durch echten KV-Namen ersetzen (z.B. `kv-parchim`)
-- [ ] Nutzerverwaltung freischalten: Client `drk-platform` → Tab
-      **Service accounts roles** → Rollen `view-users` und `manage-users`
-      (Client `realm-management`) zuweisen — einmalig nötig, damit der
-      Nutzer-Tab im Verwaltungs-UI funktioniert
-- [ ] Admin-Konto für den Mandanten-Admin anlegen, Rolle `kv-admin`
-      (in Keycloak — alle weiteren Nutzer dann bequem im Verwaltungs-UI)
+- [ ] `python3 scripts/setup_keycloak.py` ausführen — fragt KV-Name,
+      optional Hostname und das erste Admin-Konto ab; erledigt
+      Client-Secret, tenant_id-Mapper, Service-Account-Rollen und
+      Redirect-URIs in einem Lauf
+- [ ] `docker compose up -d` (Services laden das neue Client-Secret)
+- [ ] Verwaltungs-UI → ⚙️ Einstellungen → **Systemstatus**: alle Checks grün
 - [ ] Optional AD-Anbindung: siehe `ldap-ad-anbindung.md` — Nutzer kommen
       dann aus dem AD, nur Rollen werden im Verwaltungs-UI vergeben.
       Mindestens ein lokales kv-admin-Konto behalten (Break-Glass)

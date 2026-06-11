@@ -23,5 +23,7 @@ class Settings(BaseSettings):
     llm_service_url: str = "http://llm-service:8002"
     admin_service_url: str = "http://admin-service:8003"
     content_service_url: str = "http://content-service:8005"
+    ollama_base_url: str = "http://ollama:11434"
+    minio_health_url: str = "http://minio:9000/minio/health/live"
 
     cors_origins: list[str] = ["http://localhost:3000"]

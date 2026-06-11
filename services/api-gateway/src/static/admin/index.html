@@ -154,6 +154,15 @@
   <!-- ================= Einstellungen ================= -->
   <section id="view-settings" class="hidden">
     <div class="card">
+      <h2 style="display:flex; justify-content:space-between; align-items:center">
+        Systemstatus
+        <button class="small" onclick="loadStatus()">Aktualisieren</button>
+      </h2>
+      <table><tbody id="statuslist">
+        <tr><td class="muted">Wird geprüft …</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
       <h2>HTTPS / Öffentlicher Hostname</h2>
       <p class="muted" style="margin-bottom:12px">
         Unter diesem Hostnamen ist die Plattform per HTTPS erreichbar.
@@ -232,7 +241,7 @@ function init() {
         document.getElementById("tab-settings").style.display = "none";
       }
       loadDocs(); loadDrafts();
-      if (hasRole("kv-admin")) { loadUsers(); loadAudit(); loadHostname(); }
+      if (hasRole("kv-admin")) { loadUsers(); loadAudit(); loadHostname(); loadStatus(); }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
 }
@@ -561,6 +570,22 @@ document.getElementById("savehost").onclick = async () => {
     loadAudit();
   } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
 };
+
+// ---------- Systemstatus ----------
+async function loadStatus() {
+  const el = document.getElementById("statuslist");
+  el.innerHTML = `<tr><td class="muted">Wird geprüft …</td></tr>`;
+  try {
+    const r = await api("/api/v1/system/status");
+    el.innerHTML = r.checks.map(c => `<tr>
+      <td style="width:30px">${c.ok ? "✅" : "❌"}</td>
+      <td>${esc(c.name)}</td>
+      <td class="muted">${esc(c.detail)}</td>
+    </tr>`).join("");
+  } catch (e) {
+    el.innerHTML = `<tr><td>❌</td><td colspan="2">Statusabfrage fehlgeschlagen: ${esc(e.message)}</td></tr>`;
+  }
+}
 
 // ---------- Audit ----------
 async function loadAudit() {

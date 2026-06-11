@@ -9,19 +9,21 @@ echo "=== DRK MV KI-Plattform — Mono-Setup (DGX Spark) ==="
 command -v docker >/dev/null || { echo "❌ Docker fehlt (auf DGX OS vorinstalliert — Installation prüfen)"; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "❌ Docker Compose Plugin fehlt: sudo apt install docker-compose-plugin"; exit 1; }
 
-# 2. .env anlegen
+# 2. .env anlegen — Passwörter/Secrets werden automatisch generiert
+gen_secret() { openssl rand -hex 24; }
 if [ ! -f .env ]; then
     cp .env.example .env
-    echo ""
-    echo "⚠️  .env wurde aus der Vorlage erstellt."
-    echo "    Bitte jetzt ALLE CHANGE_ME-Werte setzen (Passwörter, Secrets):"
-    echo "    nano .env"
-    echo "    Danach dieses Skript erneut ausführen."
-    exit 0
-fi
-if grep -q "CHANGE_ME" .env; then
-    echo "❌ .env enthält noch CHANGE_ME-Platzhalter. Bitte zuerst ausfüllen: nano .env"
-    exit 1
+    sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(gen_secret)|" .env
+    sed -i "s|^KEYCLOAK_ADMIN_PASSWORD=.*|KEYCLOAK_ADMIN_PASSWORD=$(gen_secret)|" .env
+    sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=drk-$(openssl rand -hex 6)|" .env
+    sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$(gen_secret)|" .env
+    # KEYCLOAK_CLIENT_SECRET wird von setup_keycloak.py gesetzt
+    chmod 600 .env
+    echo "✅ .env erstellt — Passwörter automatisch generiert (chmod 600)."
+    read -rp "Kontakt-E-Mail für Let's Encrypt (leer = HTTPS später): " acme
+    if [ -n "$acme" ]; then
+        sed -i "s|^ACME_EMAIL=.*|ACME_EMAIL=${acme}|" .env
+    fi
 fi
 
 # 3. Stack bauen und starten
@@ -40,13 +42,11 @@ python3 scripts/smoke_test.py
 
 cat <<'EOF'
 
-=== Nächste Schritte (siehe docs/runbooks/) ===
-1. Keycloak Admin UI (http://<host>:8080):
-   - Client-Secret für drk-platform neu generieren, in .env eintragen
-   - tenant_id-Mapper anpassen (kv-CHANGE_ME → echter KV-Name)
-   - Erste Nutzer anlegen, Rollen zuweisen
-   - danach: docker compose up -d (Services neu laden)
+=== Nächste Schritte ===
+1. Keycloak einrichten (automatisch, fragt KV-Name + Admin-Konto ab):
+   python3 scripts/setup_keycloak.py
+   danach: docker compose up -d
 2. Open WebUI (http://<host>:3000): Admin-Konto anlegen,
    Pipes installieren (docs/runbooks/openwebui-rag-pipe.md)
-3. Erste Dokumente: python3 scripts/upload_docs.py --help
+3. Verwaltungs-UI (http://<host>:8000/admin): Dokumente, Nutzer, Status
 EOF
