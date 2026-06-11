@@ -247,9 +247,9 @@ const titleTable = new Table({
     ["Zielumgebung", "NVIDIA DGX Spark (PNY oder ASUS)"],
     ["Mandant", "Einzelner DRK-Kreisverband (Mono)"],
     ["Betriebssystem", "NVIDIA DGX OS (Ubuntu-basiert, ARM64)"],
-    ["LLM", "Qwen3 72B via Ollama"],
-    ["Stand", "Juni 2026"],
-    ["Status", "Bereit zur Umsetzung"],
+    ["LLM", "Qwen3 72B via Ollama (lokal) — optional externe Modelle"],
+    ["Stand", "Juni 2026 (Version 2 — Software implementiert)"],
+    ["Status", "Bereit zur Installation"],
   ].map(([k, v], i) => new TableRow({ children: [
     new TableCell({
       borders: borders(BORDER_GRAY),
@@ -276,7 +276,18 @@ children.push(new Paragraph({
 
 // ── ÜBERBLICK ────────────────────────────────────────────────────────────────
 children.push(heading1("1  Überblick und Voraussetzungen"));
-children.push(para("Diese Anleitung beschreibt den vollständigen Weg von der leeren DGX Spark bis zum laufenden KI-System für einen DRK-Kreisverband — inklusive Transkription, RAG-Wissensbasis und Social-Media-Modul."));
+children.push(para("Diese Anleitung beschreibt den vollständigen Weg von der leeren DGX Spark bis zum laufenden KI-System für einen DRK-Kreisverband. Die Software ist vollständig implementiert — die Installation besteht im Wesentlichen aus zwei Skripten und der Konfiguration über das browserbasierte Verwaltungs-UI."));
+children.push(spacer(60, 40));
+children.push(successBox("Was seit Version 1 fertig wurde", [
+  "✔  RAG-Wissensbasis mit rechtegeprüfter Suche und Quellen-Zitaten",
+  "✔  Social-Media-Modul (P02) mit Freigabe-Workflow",
+  "✔  Browserbasiertes Verwaltungs-UI (Dokumente, Nutzer, Freigaben, Protokoll)",
+  "✔  Nutzerverwaltung — mit oder ohne Active-Directory-Anbindung",
+  "✔  HTTPS mit Let's Encrypt (Hostname im UI änderbar)",
+  "✔  Revisionssicheres Audit-Log",
+  "✔  Optional: externe KI-Modelle (OpenAI/Anthropic) mit Freigabe pro Nutzer",
+  "✔  Setup-Skripte: Ersteinrichtung in unter einer Stunde (ohne Modell-Download)",
+]));
 children.push(spacer(80, 80));
 
 children.push(heading2("1.1  Was entsteht"));
@@ -285,15 +296,16 @@ children.push(spacer(60, 0));
 children.push(simpleTable(
   ["Service", "Port", "Funktion"],
   [
-    ["open-webui", "3000", "Benutzeroberfläche (Chat, Dokument-Upload, Prompt-Verwaltung)"],
-    ["api-gateway", "8000", "Einheitlicher Eintrittspunkt, JWT-Prüfung, Routing"],
-    ["rag-service", "8001", "Vektorsuche, Dokument-Chunking, ACL-geprüfte Antworten"],
-    ["llm-service", "8002", "Ollama-Proxy, Streaming, Modell-Management"],
-    ["content-service", "8005", "Social-Media-Entwürfe, Freigabe-Workflow (P02)"],
-    ["postgres", "5432", "Datenbank + pgvector (Embeddings)"],
-    ["keycloak", "8080", "Authentifizierung, Rollen, SSO/OIDC"],
-    ["minio", "9000", "Objektspeicher (Dokumente, CI-Assets)"],
-    ["ollama", "11434", "LLM-Engine (läuft nativ, nicht in Docker)"],
+    ["caddy", "80/443", "HTTPS-Reverse-Proxy, Let's-Encrypt-Zertifikate automatisch"],
+    ["open-webui", "3000", "Benutzeroberfläche (Chat, Wissensbasis, Social Media via Pipes)"],
+    ["api-gateway", "8000", "Eintrittspunkt, JWT-Prüfung — inkl. Verwaltungs-UI unter /admin"],
+    ["rag-service", "8001", "Vektorsuche, Chunking, ACL-geprüfte Antworten mit Zitaten"],
+    ["llm-service", "8002", "Modell-Routing: Ollama (lokal) + optional OpenAI/Anthropic"],
+    ["content-service", "8005", "Social-Media-Entwürfe, 5-Stufen-Freigabe-Workflow (P02)"],
+    ["postgres", "5432", "Datenbank + pgvector, Row-Level Security, Audit-Log"],
+    ["keycloak", "8080", "Authentifizierung, Rollen, SSO/OIDC, optional AD-Anbindung"],
+    ["minio", "9000", "Objektspeicher (Original-Dokumente)"],
+    ["ollama", "11434", "LLM-Engine im Container mit GPU-Zugriff (GB10)"],
   ],
   [1800, 900, Math.floor(CONTENT_WIDTH - 2700)]
 ));
@@ -318,10 +330,10 @@ children.push(simpleTable(
   ["Phase", "Inhalt", "Dauer", "Wer"],
   [
     ["0 — Hardware", "DGX Spark auspacken, Netz, SSH", "~2 Stunden", "IT-Betrieb KV"],
-    ["1 — Basis", "Repo klonen, .env konfigurieren, Ollama", "~3 Stunden + Download", "Entwickler"],
-    ["2 — Services", "RAG, Content, Integration fertig entwickeln", "~4 Wochen (Vibe Coding)", "Entwickler"],
-    ["3 — Deployment", "docker compose up, Keycloak, Initialdaten", "~1 Tag", "Entwickler"],
-    ["4 — Abnahme", "Tests TC-01..TC-08, Pilot-Nutzer", "~1 Tag", "Entwickler + KV"],
+    ["1 — Installation", "git clone + setup_dgx.sh (Secrets automatisch, Stack, Modelle)", "~1 Std. + Modell-Download", "IT-Betrieb"],
+    ["2 — Keycloak", "setup_keycloak.py — 3 Fragen, Rest automatisch", "~15 Minuten", "IT-Betrieb"],
+    ["3 — Verwaltung", "Pipes installieren, Nutzer + Dokumente im Verwaltungs-UI, HTTPS", "~halber Tag", "Mandanten-Admin"],
+    ["4 — Abnahme", "Abnahmetests, Pilot-Nutzer einweisen", "~1 Tag", "Admin + KV"],
   ],
   [1600, Math.floor(CONTENT_WIDTH - 5000), 1800, 1600]
 ));
@@ -380,243 +392,174 @@ children.push(codeBlock([
 ]));
 
 // ── PHASE 1 ──────────────────────────────────────────────────────────────────
-children.push(heading1("3  Phase 1 — Repository und Umgebung"));
-children.push(phaseHeader("PHASE 1", "Repository klonen und Umgebung konfigurieren", "ca. 3–4 Stunden", "Bereit"));
+children.push(heading1("3  Phase 1 — Automatisierte Installation"));
+children.push(phaseHeader("PHASE 1", "Repo klonen + Setup-Skript ausführen", "ca. 1 Std. + Download", "Bereit"));
 children.push(spacer(120, 60));
 
-children.push(heading2("3.1  Ollama installieren"));
-children.push(para("Ollama läuft nativ auf dem DGX OS (nicht in Docker) und nutzt direkt den GB10-Chip mit Unified Memory:"));
-children.push(spacer(60, 40));
+children.push(heading2("3.1  Repository klonen"));
 children.push(codeBlock([
-  "# Ollama installieren",
-  "curl -fsSL https://ollama.com/install.sh | sh",
-  "",
-  "# Dienst starten und automatisch beim Boot aktivieren",
-  "sudo systemctl enable ollama",
-  "sudo systemctl start ollama",
-  "",
-  "# Status prüfen",
-  "sudo systemctl status ollama",
-]));
-children.push(spacer(120, 60));
-
-children.push(heading2("3.2  Sprachmodelle herunterladen"));
-children.push(para("Der Download dauert je nach Internetverbindung 30–60 Minuten. Die Modelle werden dauerhaft auf dem DGX gespeichert."));
-children.push(spacer(60, 40));
-children.push(codeBlock([
-  "# Haupt-LLM: Qwen3 72B, 4-Bit-Quantisierung (~42 GB)",
-  "ollama pull qwen3:72b",
-  "",
-  "# Embedding-Modell für RAG (~274 MB)",
-  "ollama pull nomic-embed-text",
-  "",
-  "# Smoke-Test — sollte auf Deutsch antworten",
-  "ollama run qwen3:72b \"Hallo, wer bist du? Antworte auf Deutsch in 2 Sätzen.\"",
-]));
-children.push(spacer(120, 60));
-children.push(infoBox("Erwartetes Ergebnis des Smoke-Tests", [
-  "Time-to-First-Token: < 0,5 Sekunden",
-  "Ausgabe flüssig auf Deutsch",
-  "Modell erwähnt sich als Sprachassistent ohne externe Verbindungen",
-]));
-children.push(spacer(120, 60));
-
-children.push(heading2("3.3  Repository klonen"));
-children.push(codeBlock([
-  "# Repo von GitHub klonen",
   "git clone https://github.com/sventruderung/drk-mv-ki-plattform.git",
   "cd drk-mv-ki-plattform",
-  "",
-  "# Aktuellen Stand prüfen",
-  "git log --oneline -5",
 ]));
 children.push(spacer(120, 60));
 
-children.push(heading2("3.4  Umgebungsvariablen konfigurieren"));
-children.push(para("Die .env.example-Datei enthält alle Variablen mit Platzhaltern. Echte Secrets NIEMALS in Git einchecken."));
+children.push(heading2("3.2  Setup-Skript ausführen"));
+children.push(para("Das Skript erledigt die komplette Basis-Installation. Alle Passwörter und Secrets werden automatisch sicher generiert (openssl rand) — es gibt keine CHANGE_ME-Platzhalter mehr, die jemand vergessen könnte."));
 children.push(spacer(60, 40));
 children.push(codeBlock([
-  "cp .env.example .env",
-  "nano .env   # oder: vim .env",
+  "bash scripts/setup_dgx.sh",
+  "",
+  "# Das Skript fragt nur eine Sache:",
+  "#   Kontakt-E-Mail für Let's Encrypt (leer = HTTPS später einrichten)",
 ]));
 children.push(spacer(80, 60));
-children.push(simpleTable(
-  ["Variable", "Beschreibung", "Beispielwert"],
-  [
-    ["POSTGRES_PASSWORD", "Datenbank-Passwort", "Sicheres Passwort, min. 20 Zeichen"],
-    ["KEYCLOAK_ADMIN_PASSWORD", "Keycloak-Verwaltungspasswort", "Sicheres Passwort, min. 20 Zeichen"],
-    ["MINIO_ROOT_PASSWORD", "MinIO Objektspeicher", "Sicheres Passwort, min. 20 Zeichen"],
-    ["JWT_SECRET", "Token-Signierung API-Gateway", "Zufälliger 64-Zeichen-String"],
-    ["OLLAMA_BASE_URL", "Ollama-Adresse", "http://host-gateway:11434"],
-    ["KV_NAME", "Name des Kreisverbandes", "z.B. parchim"],
-    ["KV_DISPLAY_NAME", "Anzeigename", "z.B. DRK KV Parchim"],
-  ],
-  [2400, Math.floor(CONTENT_WIDTH - 5000), 2500]
-));
+children.push(para("Was das Skript automatisch erledigt:"));
+children.push(bullet(".env mit sicheren Zufalls-Passwörtern erzeugen (chmod 600)"));
+children.push(bullet("Alle Container bauen und starten (docker compose up -d --build)"));
+children.push(bullet("Sprachmodelle laden: Qwen3 72B (~42 GB) und nomic-embed-text — Download je nach Anbindung 30–90 Minuten"));
+children.push(bullet("Smoke-Test: prüft alle Dienste und Modelle, Ergebnis als ✅/❌-Liste"));
+children.push(spacer(80, 60));
+children.push(successBox("Erwartetes Ergebnis", [
+  "✅ API-Gateway   ✅ RAG-Service   ✅ LLM-Service   ✅ Content-Service",
+  "✅ Ollama        ✅ Keycloak      ✅ Open WebUI    ✅ MinIO",
+  "✅ Modell: qwen3:72b      ✅ Modell: nomic-embed-text",
+  "",
+  "Alle Checks bestanden — System bereit. 🚀",
+]));
 children.push(spacer(80, 60));
 children.push(warningBox("Sicherheitshinweis", [
-  "Die .env-Datei enthält echte Secrets und darf NIEMALS in Git eingecheckt werden.",
-  "Sie steht bereits in .gitignore — bitte vor jedem git commit prüfen: git status",
-  "Sichere Passwörter generieren: openssl rand -base64 32",
+  "Die .env-Datei enthält alle Secrets und darf NIEMALS in Git eingecheckt werden",
+  "(steht in .gitignore). Nach der Installation: .env separat und sicher sichern",
+  "(Passwort-Manager) — ohne sie ist keine Wiederherstellung möglich.",
 ]));
 
 // ── PHASE 2 ──────────────────────────────────────────────────────────────────
-children.push(heading1("4  Phase 2 — Services entwickeln"));
-children.push(phaseHeader("PHASE 2", "Fehlende Services entwickeln", "ca. 4 Wochen", "Entwicklung"));
+children.push(heading1("4  Phase 2 — Keycloak einrichten (automatisiert)"));
+children.push(phaseHeader("PHASE 2", "Keycloak-Wizard ausführen", "ca. 15 Minuten", "Bereit"));
 children.push(spacer(120, 60));
-children.push(para("Das Repository enthält bereits das Grundgerüst. Diese Services müssen noch vollständig implementiert werden:"));
+children.push(para("Die früher nötigen Klickstrecken in der Keycloak-Konsole (Client-Secret, Mapper, Service-Account-Rollen, erster Admin) erledigt ein interaktives Skript. Es stellt drei Fragen und konfiguriert den Rest über die Keycloak-Admin-API."));
 children.push(spacer(60, 40));
-
-children.push(simpleTable(
-  ["Service", "Priorität", "Aufwand", "Abhängigkeiten"],
-  [
-    ["RAG-Service", "KRITISCH — Kern des Systems", "8–10 Tage", "PostgreSQL + pgvector, Ollama (Embeddings)"],
-    ["docker-compose.yml finalisieren", "KRITISCH", "1 Tag", "Alle Service-Definitionen bekannt"],
-    ["Keycloak-Realm-Konfiguration", "HOCH", "2 Tage", "Rollen aus §4 Lastenheft"],
-    ["Content-Service (P02)", "MITTEL", "5 Tage", "RAG-Service, MinIO"],
-    ["Integration-Service (P03)", "NIEDRIG", "5 Tage", "Content-Service"],
-    ["Abnahmetests TC-01..TC-08", "HOCH", "3 Tage", "Alle Services laufend"],
-  ],
-  [2000, 2200, 1400, Math.floor(CONTENT_WIDTH - 5600)]
-));
-children.push(spacer(120, 60));
-
-children.push(heading2("4.1  RAG-Service — Kern-Funktionen"));
-children.push(para("Der RAG-Service ist der kritische Pfad. Ohne ihn funktioniert keine dokumentenbasierte KI-Antwort. Er muss folgendes leisten:"));
-children.push(spacer(60, 0));
-children.push(bullet("Dokument-Upload: PDF, DOCX, XLSX, TXT → Text-Extraktion → Chunks (je ~500 Token)"));
-children.push(bullet("Embedding: Chunks → nomic-embed-text → Vektoren in pgvector speichern"));
-children.push(bullet("ACL-Schutz: Jedes Dokument bekommt acl_groups (z.B. {kv-vorstand, kv-pflege})"));
-children.push(bullet("Suchanfrage: Nutzer-Embedding → pgvector-Suche NUR in freigegebenen Dokumenten"));
-children.push(bullet("Zitierung: Antwort enthält Quellenangabe (Dokumentenname, Seitenbereich)"));
-children.push(spacer(80, 60));
-
-children.push(heading2("4.2  Datenbankschema (bereits in infra/postgres/init/01_init.sql)"));
 children.push(codeBlock([
-  "-- Vektordimension: nomic-embed-text = 768 Dimensionen",
-  "CREATE EXTENSION IF NOT EXISTS vector;",
+  "python3 scripts/setup_keycloak.py",
   "",
-  "-- RLS aktivieren",
-  "ALTER TABLE documents ENABLE ROW LEVEL SECURITY;",
-  "CREATE POLICY tenant_isolation ON documents",
-  "  USING (tenant_id = current_setting('app.tenant_id')::UUID);",
+  "# Fragen:",
+  "#   1. Name des Kreisverbands (z.B. parchim)",
+  "#   2. Öffentlicher Hostname für HTTPS (leer = später)",
+  "#   3. Benutzername + Startpasswort für den ersten Mandanten-Admin",
   "",
-  "-- ACL-gefilterte Vektorsuche",
-  "SELECT dc.chunk_text, d.name, dc.page_start",
-  "FROM document_chunks dc",
-  "JOIN documents d ON d.id = dc.document_id",
-  "WHERE dc.tenant_id = $tenant_id",
-  "  AND dc.acl_groups && $user_roles    -- && = Array-Überschneidung",
-  "ORDER BY dc.embedding <=> $query_vector",
-  "LIMIT 5;",
+  "# Danach Services neu laden (neues Client-Secret):",
+  "docker compose up -d",
 ]));
 children.push(spacer(80, 60));
+children.push(para("Was der Wizard automatisch erledigt:"));
+children.push(bullet("Neues Client-Secret generieren und direkt in die .env schreiben"));
+children.push(bullet("tenant_id-Mapper auf den echten KV-Namen setzen (beide Clients)"));
+children.push(bullet("Service-Account-Rollen zuweisen — schaltet die Nutzerverwaltung im Verwaltungs-UI frei"));
+children.push(bullet("HTTPS-Redirect-URIs eintragen (falls Hostname angegeben)"));
+children.push(bullet("Ersten Mandanten-Admin anlegen (Rolle kv-admin, Passwortänderung beim ersten Login)"));
+children.push(spacer(80, 60));
 
-children.push(heading2("4.3  Was bereits im Repo steht"));
+children.push(heading2("4.1  Rollen des Systems (§4 Lastenheft)"));
 children.push(simpleTable(
-  ["Datei/Verzeichnis", "Status", "Beschreibung"],
+  ["Rolle", "Bedeutung"],
   [
-    ["services/api-gateway/", "Vorhanden", "Auth-Middleware, JWT-Prüfung, Chat-Route"],
-    ["services/llm-service/", "Vorhanden", "Ollama-Proxy mit Streaming"],
-    ["infra/postgres/init/01_init.sql", "Vorhanden", "Datenbankschema mit RLS und ACL"],
-    ["packages/shared/", "Vorhanden", "tenant.py, logging.py (DSGVO-konform)"],
-    ["docker-compose.yml", "Grundgerüst", "Muss für alle Services erweitert werden"],
-    ["services/rag-service/", "Fehlt", "Kern-Feature — muss implementiert werden"],
-    ["services/content-service/", "Fehlt", "P02 Social Media — nach RAG"],
-    ["services/integration-service/", "Fehlt", "P03 Drittsysteme — nach Content"],
-    ["infra/keycloak/", "Fehlt", "Realm-Export JSON für KV-Konfiguration"],
+    ["kv-admin", "Mandanten-Administrator: Nutzer, Dokumente, Freigaben, Einstellungen"],
+    ["kv-vorstand", "ACL-Gruppe: Zugriff auf Vorstands-Dokumente"],
+    ["kv-pflege", "ACL-Gruppe: Fachbereich Pflege"],
+    ["kv-rettungsdienst", "ACL-Gruppe: Bereichsleitung Rettungsdienst"],
+    ["kv-alle", "ACL-Gruppe: für alle Mitarbeitenden (Standard)"],
+    ["content-editor", "Social Media: darf Entwürfe erstellen und bearbeiten"],
+    ["content-approver", "Social Media: darf freigeben/ablehnen (nicht eigene Entwürfe)"],
   ],
-  [3200, 1400, Math.floor(CONTENT_WIDTH - 4600)]
+  [2600, Math.floor(CONTENT_WIDTH - 2600)]
 ));
+children.push(spacer(120, 60));
+
+children.push(heading2("4.2  Optional: Active-Directory-Anbindung"));
+children.push(para("Die Nutzerverwaltung funktioniert mit und ohne AD. Bei aktiver Anbindung (Keycloak User Federation, READ_ONLY, LDAPS) melden sich Mitarbeitende mit ihrem Windows-Passwort an; Konto und Passwort werden im AD gepflegt, die Rollenvergabe bleibt immer im Verwaltungs-UI. Details: docs/runbooks/ldap-ad-anbindung.md."));
+children.push(spacer(60, 40));
+children.push(infoBox("Break-Glass-Empfehlung", [
+  "Mindestens ein lokales kv-admin-Konto behalten — fällt das AD aus,",
+  "bleibt die Plattform administrierbar.",
+]));
 
 // ── PHASE 3 ──────────────────────────────────────────────────────────────────
-children.push(heading1("5  Phase 3 — Deployment"));
-children.push(phaseHeader("PHASE 3", "Stack hochfahren und konfigurieren", "ca. 1 Tag", "Bereit"));
+children.push(heading1("5  Phase 3 — Verwaltung und Oberfläche"));
+children.push(phaseHeader("PHASE 3", "Verwaltungs-UI, Pipes, HTTPS", "ca. halber Tag", "Bereit"));
 children.push(spacer(120, 60));
 
-children.push(heading2("5.1  Docker Compose starten"));
-children.push(codeBlock([
-  "# Im Repository-Verzeichnis auf dem DGX Spark",
-  "cd drk-mv-ki-plattform",
-  "",
-  "# Alle Services starten",
-  "docker compose up -d",
-  "",
-  "# Status prüfen — alle Services sollten 'healthy' sein",
-  "docker compose ps",
-  "",
-  "# Logs bei Problemen",
-  "docker compose logs -f api-gateway",
-  "docker compose logs -f rag-service",
-]));
-children.push(spacer(120, 60));
-children.push(successBox("Erwarteter Zustand nach 'docker compose up'", [
-  "postgres      :5432   ✔  healthy",
-  "keycloak      :8080   ✔  healthy",
-  "minio         :9000   ✔  healthy",
-  "api-gateway   :8000   ✔  healthy",
-  "rag-service   :8001   ✔  healthy",
-  "llm-service   :8002   ✔  healthy",
-  "content-svc   :8005   ✔  healthy",
-  "open-webui    :3000   ✔  healthy",
-  "ollama        :11434  ✔  (läuft nativ, nicht in Docker)",
-]));
-children.push(spacer(120, 60));
-
-children.push(heading2("5.2  Keycloak einrichten"));
-children.push(para("Keycloak ist die zentrale Authentifizierungsinstanz. Für einen Kreisverband wird ein eigener Realm angelegt."));
+children.push(heading2("5.1  Das Verwaltungs-UI"));
+children.push(para("Die komplette Administration läuft im Browser unter http://<host>:8000/admin — Login mit dem in Phase 2 angelegten Mandanten-Admin (Keycloak). Unten im Fenster ist der Entwicklungsstand (Version + Build-Datum) vermerkt."));
 children.push(spacer(60, 40));
-children.push(codeBlock([
-  "# Keycloak Admin-Oberfläche im Browser öffnen:",
-  "# http://192.168.10.50:8080",
-  "#",
-  "# Login: admin / <KEYCLOAK_ADMIN_PASSWORD aus .env>",
-  "",
-  "# Option A: Realm per JSON-Import anlegen (empfohlen)",
-  "#   → Master-Realm → Create Realm → Import drk-kv-<name>-realm.json",
-  "",
-  "# Option B: Manuell anlegen",
-  "#   1. Create Realm: Name = drk-kv-parchim",
-  "#   2. Clients anlegen: drk-platform-client (Confidential, Authorization enabled)",
-  "#   3. Rollen anlegen (Realm Roles):",
-  "#      - kv-admin",
-  "#      - kv-vorstand",
-  "#      - kv-pflege",
-  "#      - kv-rettungsdienst",
-  "#      - kv-standard",
-  "#   4. Ersten KV-Admin-Nutzer anlegen",
-  "#      → Users → Add User → Username/E-Mail",
-  "#      → Credentials → Passwort setzen",
-  "#      → Role Mappings → kv-admin zuweisen",
+children.push(simpleTable(
+  ["Tab", "Funktion", "Sichtbar für"],
+  [
+    ["📄 Dokumente", "Upload per Drag-and-Drop, Sichtbarkeit per Checkbox (ACL), nachträglich änderbar, Löschen", "alle Rollen"],
+    ["📣 Social-Media-Freigaben", "Entwürfe ansehen/bearbeiten, einreichen, freigeben/ablehnen — rollenabhängig", "Editoren + Approver"],
+    ["👥 Nutzer", "Anlegen, Rollen, Modelle freigeben, Passwort-Reset, Deaktivieren (AD-Konten: nur Rollen)", "kv-admin"],
+    ["📋 Protokoll", "Revisionssicheres Audit-Log aller administrativen Aktionen", "kv-admin"],
+    ["⚙️ Einstellungen", "KI-Modelle, API-Keys externer Anbieter, HTTPS-Hostname, Systemstatus", "kv-admin"],
+  ],
+  [2400, Math.floor(CONTENT_WIDTH - 4400), 2000]
+));
+children.push(spacer(120, 60));
+
+children.push(heading2("5.2  Open-WebUI-Pipes installieren (einmalig)"));
+children.push(para("Open WebUI (Port 3000) ist die Chat-Oberfläche der Endnutzer. Drei Pipe-Funktionen verbinden sie mit der Plattform — Installation jeweils per Copy-Paste im Open-WebUI-Admin-Panel (Funktionen → Neue Funktion → Inhalt einfügen → aktivieren):"));
+children.push(spacer(60, 40));
+children.push(simpleTable(
+  ["Pipe-Datei (infra/openwebui/pipes/)", "Erscheint als Modell", "Funktion"],
+  [
+    ["drk_rag_pipe.py", "🔒 DRK Wissensbasis (lokal)", "Rechtegeprüfte Dokumentensuche mit Quellen-Zitaten"],
+    ["drk_content_pipe.py", "🔒 DRK Social Media (Kanal, lokal)", "Beitragsentwürfe je Kanal → Freigabe-Workflow"],
+    ["drk_models_pipe.py", "🌐 EXTERN (Anbieter): Modellname", "Freigegebene externe Modelle (nur falls aktiviert)"],
+  ],
+  [2800, 3000, Math.floor(CONTENT_WIDTH - 5800)]
+));
+children.push(spacer(80, 60));
+children.push(infoBox("Transparenz für Nutzer: Lokal vs. Extern", [
+  "Lokale Verarbeitung ist mit 🔒 gekennzeichnet, externe mit 🌐 EXTERN.",
+  "Jede Antwort eines externen Modells beginnt mit einem Hinweis, dass die",
+  "Eingabe an einen Drittanbieter übertragen wurde. Lokale Antworten enden",
+  "mit dem Vermerk 'Lokal verarbeitet — Daten haben die Plattform nicht verlassen'.",
+]));
+children.push(spacer(80, 60));
+children.push(warningBox("Wichtig: Dokumenten-Upload nur über das Verwaltungs-UI", [
+  "Dokumente für die Wissensbasis über /admin hochladen — NICHT über den",
+  "Open-WebUI-eigenen Upload (der würde die Rechteprüfung (ACL) umgehen).",
+  "Nach Keycloak-Login das oauth_id_token-Cookie prüfen (versionsabhängig,",
+  "siehe docs/runbooks/openwebui-rag-pipe.md).",
 ]));
 children.push(spacer(120, 60));
 
-children.push(heading2("5.3  MinIO-Buckets anlegen"));
-children.push(codeBlock([
-  "# MinIO-Client installieren",
-  "curl https://dl.min.io/client/mc/release/linux-arm64/mc \\",
-  "  --create-dirs -o ~/bin/mc",
-  "chmod +x ~/bin/mc",
-  "",
-  "# Verbindung konfigurieren",
-  "mc alias set local http://localhost:9000 \\",
-  "  $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD",
-  "",
-  "# Buckets anlegen",
-  "mc mb local/drk-docs-kv-parchim      # RAG-Dokumente",
-  "mc mb local/drk-content-kv-parchim   # P02 CI-Assets",
-]));
-children.push(spacer(120, 60));
-
-children.push(heading2("5.4  Erstes RAG-Dokument hochladen"));
-children.push(para("Über die Open WebUI-Oberfläche im Browser (http://192.168.10.50:3000):"));
+children.push(heading2("5.3  HTTPS aktivieren"));
+children.push(para("Caddy läuft bereits als Reverse Proxy auf Port 80/443 und holt Let's-Encrypt-Zertifikate automatisch. Aktivierung:"));
 children.push(spacer(60, 0));
-children.push(numbered("Browser öffnen: http://192.168.10.50:3000"));
-children.push(numbered("Mit KV-Admin-Account einloggen"));
-children.push(numbered("Workspace → Knowledge → New Knowledge Base"));
-children.push(numbered("Erstes Testdokument per Drag-and-Drop hochladen (z.B. Vereinssatzung, Dienstanweisung)"));
-children.push(numbered("Warten bis Embedding abgeschlossen (Statusanzeige grün)"));
-children.push(numbered("Chat öffnen → Modell 'qwen3:72b' wählen → Testfrage stellen"));
+children.push(numbered("DNS-Eintrag des Hostnamens (z.B. ki.kv-parchim.drk.de) auf den Server zeigen lassen, Ports 80/443 freigeben"));
+children.push(numbered("Verwaltungs-UI → ⚙️ Einstellungen → Hostname eintragen und speichern (wirkt ohne Neustart)"));
+children.push(numbered("Erster Aufruf von https://<hostname> stellt das Zertifikat aus"));
+children.push(numbered("Danach interne Ports (8000, 3000, 8080) in der Firewall schließen"));
+children.push(spacer(60, 40));
+children.push(infoBox("Internes Netz ohne Internet-Zugang", [
+  "Let's Encrypt braucht eine öffentlich erreichbare HTTP-Challenge. Für rein",
+  "interne Installationen: 'local_certs' im Caddyfile aktivieren und die",
+  "Caddy-Root-CA per Gruppenrichtlinie verteilen (docs/runbooks/https-setup.md).",
+]));
+children.push(spacer(120, 60));
+
+children.push(heading2("5.4  Optional: Externe KI-Modelle (OpenAI / Anthropic)"));
+children.push(para("Standardmäßig ist alles deaktiviert — ohne bewusste Admin-Aktion verlässt kein Byte das System. Falls externe Modelle gewünscht sind:"));
+children.push(spacer(60, 0));
+children.push(numbered("VORHER: Freigabe des Datenschutzbeauftragten einholen, AVV mit dem Anbieter abschließen"));
+children.push(numbered("⚙️ Einstellungen → API-Key des Anbieters hinterlegen (wird nie wieder angezeigt)"));
+children.push(numbered("Modelle in der Tabelle aktivieren — 'Für alle Nutzer' oder individuelle Freigabe pro Nutzer (Tab 👥)"));
+children.push(spacer(60, 40));
+children.push(warningBox("Datenschutz-Garantie der Architektur", [
+  "Wissensbasis (RAG) und Social-Media-Texte nutzen IMMER das lokale Modell —",
+  "Dokumenteninhalte können externe Modelle technisch nicht erreichen.",
+  "Nur der direkte Chat kann (nach Freigabe) extern. Alle Aktivierungen und",
+  "Freigaben stehen im Audit-Protokoll. Details: docs/runbooks/externe-modelle.md",
+]));
 
 // ── PHASE 4 ──────────────────────────────────────────────────────────────────
 children.push(heading1("6  Phase 4 — Abnahmetests"));
@@ -628,48 +571,55 @@ children.push(spacer(80, 60));
 children.push(simpleTable(
   ["Test", "Beschreibung", "Erwartetes Ergebnis"],
   [
-    ["TC-01\nLatenz", "curl-Anfrage an /api/v1/chat mit JWT-Token", "Time-to-First-Token < 2,0 s\n(DGX Spark: < 0,5 s erwartet)"],
-    ["TC-02\nACL-Schutz", "Nutzer mit Rolle kv-standard fragt nach Vorstandsdokument", "Antwort: 'Keine freigegebenen Informationen'"],
-    ["TC-03\nMandanten-\nIsolation", "Simulierter Token eines anderen KV — nicht anwendbar bei Mono, entfällt", "N/A bei Mono-Installation"],
-    ["TC-04\nKein Prompt-\nLog", "Anfrage stellen, danach PostgreSQL audit_log prüfen", "Kein Prompt-Inhalt in audit_log gespeichert"],
-    ["TC-05\nZitierung", "Frage, die im RAG-Dokument beantwortet ist", "Antwort enthält Quellenangabe (Dateiname + Seite)"],
-    ["TC-06\nKeycloak-\nSSO", "Login über Keycloak-Seite, Weiterleitung zu WebUI", "Nahtloser Login ohne zweite Passwort-Eingabe"],
-    ["TC-07\nRollen-\nvergabe", "KV-Admin vergibt Rolle kv-pflege an Nutzer", "Nutzer sieht danach Pflege-Dokumente im RAG"],
-    ["TC-08\nStreaming", "Lange Chat-Anfrage beobachten", "Antwort erscheint Wort-für-Wort (Streaming aktiv)"],
+    ["TC-01\nLatenz", "Chat-Frage in Open WebUI stellen", "Erste Antwort-Tokens < 2,0 s\n(DGX Spark: < 0,5 s erwartet)"],
+    ["TC-02\nACL negativ", "Nutzer OHNE kv-vorstand fragt die Wissensbasis nach Vorstandsdokument", "'Zu Ihrer Frage liegen keine freigegebenen Informationen vor'"],
+    ["TC-03\nACL positiv", "Nutzer MIT kv-vorstand stellt dieselbe Frage", "Antwort mit Inhalt + Quellenangabe"],
+    ["TC-04\nKein Prompt-\nLog", "Chat-Anfrage stellen, danach Logs und audit_log prüfen", "Kein Prompt-Inhalt in Logs oder Audit gespeichert"],
+    ["TC-05\nZitierung", "Frage, die im RAG-Dokument beantwortet ist", "Antwort enthält [Quelle: Dateiname, Seite X]"],
+    ["TC-06\nSSO", "Login in Open WebUI über 'DRK Login'", "Keycloak-Login, danach nahtlos angemeldet"],
+    ["TC-07\nWorkflow", "Editor erstellt Social-Media-Entwurf und versucht, ihn selbst freizugeben", "Eigene Freigabe blockiert; Approver kann freigeben"],
+    ["TC-08\nStreaming", "Lange Chat-Anfrage beobachten", "Antwort erscheint Wort für Wort"],
+    ["TC-09\nAudit", "Upload, Löschung, Freigabe durchführen, Protokoll-Tab prüfen", "Alle Aktionen erscheinen; Nutzer ohne kv-admin: HTTP 403"],
+    ["TC-10\nKein Token", "Abgemeldet eine Frage an die Wissensbasis stellen", "Klarer Hinweis auf fehlende Anmeldung statt Antwort"],
   ],
   [1200, Math.floor((CONTENT_WIDTH - 1200) * 0.45), Math.floor((CONTENT_WIDTH - 1200) * 0.55)]
 ));
 children.push(spacer(120, 60));
 
-children.push(heading2("6.1  TC-01 Latenz-Test"));
+children.push(heading2("6.1  TC-01 Latenz-Test (per API)"));
 children.push(codeBlock([
-  "# JWT-Token holen (Keycloak OIDC)",
+  "# JWT-Token holen (Client-Secret steht nach dem Wizard in der .env)",
+  "source .env",
   "TOKEN=$(curl -s -X POST \\",
-  "  http://localhost:8080/realms/drk-kv-parchim/protocol/openid-connect/token \\",
-  "  -d 'grant_type=password&client_id=drk-platform-client' \\",
+  "  http://localhost:8080/auth/realms/drk-kv/protocol/openid-connect/token \\",
+  "  -d \"grant_type=password&client_id=drk-platform\" \\",
+  "  -d \"client_secret=$KEYCLOAK_CLIENT_SECRET\" \\",
   "  -d 'username=testuser&password=testpass' \\",
   "  | jq -r .access_token)",
   "",
   "# Latenz-Test",
-  "curl -w \"\\nTTFT: %{time_starttransfer}s\\nGesamt: %{time_total}s\\n\" \\",
+  "curl -w \"\\nTTFT: %{time_starttransfer}s\\n\" \\",
   "  -H \"Authorization: Bearer $TOKEN\" \\",
   "  -H \"Content-Type: application/json\" \\",
   "  -d '{\"message\":\"Was sind die Kernaufgaben des DRK?\"}' \\",
-  "  http://localhost:8000/api/v1/chat",
+  "  http://localhost:8000/api/v1/chat/",
   "",
-  "# Ziel: TTFT < 0,5 s auf DGX Spark",
+  "# Ziel: TTFT < 0,5 s auf DGX Spark (Lastenheft-Grenze: < 2,0 s)",
 ]));
 children.push(spacer(120, 60));
 
 children.push(heading2("6.2  TC-04 Kein Prompt-Logging prüfen"));
 children.push(codeBlock([
-  "# Nach einer Chat-Anfrage den Audit-Log prüfen",
-  "docker exec -it drk-postgres psql -U postgres -d drk_platform -c \\",
-  "  \"SELECT action, metadata FROM audit_log ORDER BY created_at DESC LIMIT 5;\"",
+  "# Nach einer Chat-Anfrage die Service-Logs stichprobenartig prüfen",
+  "docker compose logs --tail=100 api-gateway llm-service | grep -i frage",
+  "# Erwartung: keine Treffer — nur Metadaten (tenant_id, model) werden geloggt",
   "",
-  "# Erwartetes Ergebnis:",
-  "# Einträge vom Typ 'login', 'document_upload', 'role_change'",
-  "# KEIN Eintrag vom Typ 'chat_message' oder 'prompt'",
+  "# Audit-Log prüfen (enthält nur administrative Aktionen)",
+  "docker compose exec postgres psql -U drk_app -d drk_platform -c \\",
+  "  \"SELECT action, info FROM audit_log ORDER BY created_at DESC LIMIT 10;\"",
+  "",
+  "# Erwartung: document.upload, draft.create, user.roles etc. —",
+  "# KEINE Chat-Inhalte, keine Dokumenttexte",
 ]));
 
 // ── UPDATES & WARTUNG ─────────────────────────────────────────────────────────
@@ -691,20 +641,19 @@ children.push(spacer(120, 60));
 children.push(heading2("7.2  LLM-Modell aktualisieren"));
 children.push(codeBlock([
   "# Neues Modell herunterladen (ohne Unterbrechung des laufenden Systems)",
-  "ollama pull qwen3:72b",
-  "",
-  "# In Open WebUI: Admin Panel → Models → Standardmodell wechseln",
+  "docker compose exec ollama ollama pull qwen3:72b",
 ]));
 children.push(spacer(120, 60));
 
 children.push(heading2("7.3  Datensicherung"));
 children.push(codeBlock([
-  "# PostgreSQL-Datenbank sichern",
-  "docker exec drk-postgres pg_dump -U postgres drk_platform \\",
+  "# PostgreSQL-Datenbank sichern (Dokumente-Index, Drafts, Audit-Log)",
+  "docker compose exec postgres pg_dump -U drk_app drk_platform \\",
   "  | gzip > backup_$(date +%Y%m%d).sql.gz",
   "",
-  "# MinIO-Dokumente sichern",
-  "mc mirror local/drk-docs-kv-parchim /backup/minio/",
+  "# MinIO-Dokumente sichern (Docker-Volume)",
+  "docker run --rm -v drk-mv-ki-plattform_minio_data:/data \\",
+  "  -v /backup/minio:/backup alpine tar czf /backup/minio_$(date +%Y%m%d).tgz /data",
   "",
   "# .env-Datei sichern (SEPARAT und sicher aufbewahren!)",
   "cp .env /backup/env/drk-platform-$(date +%Y%m%d).env",
@@ -722,13 +671,15 @@ children.push(heading2("8.1  Häufige Probleme und Lösungen"));
 children.push(simpleTable(
   ["Problem", "Symptom", "Lösung"],
   [
-    ["Docker permission denied", "'Got permission denied while trying to connect to Docker'", "sudo usermod -aG docker $USER && newgrp docker"],
-    ["Ollama nicht erreichbar", "llm-service: 'Connection refused :11434'", "sudo systemctl start ollama && sudo systemctl status ollama"],
-    ["Keycloak startet nicht", "keycloak Container bleibt bei 'starting'", "docker compose logs keycloak — meist DB-Verbindungsfehler beim Erststart, 2 Min. warten"],
-    ["Embedding schlägt fehl", "rag-service: 'model nomic-embed-text not found'", "ollama pull nomic-embed-text"],
-    ["TTFT > 2 Sekunden", "Antworten kommen spät", "Prüfen: ollama ps — Modell sollte geladen sein. Erst-Anfrage lädt Modell in RAM (~10s)"],
-    ["pgvector-Fehler", "'type vector does not exist'", "docker exec drk-postgres psql -U postgres -c 'CREATE EXTENSION vector;'"],
-    ["JWT-Fehler 401", "'Token signature verification failed'", "JWT_SECRET in .env prüfen — muss auf allen Services identisch sein"],
+    ["Erste Anlaufstelle", "Irgendetwas funktioniert nicht", "Verwaltungs-UI → ⚙️ Einstellungen → Systemstatus: zeigt alle Dienste/Modelle mit Lösungshinweis"],
+    ["Docker permission denied", "'permission denied … docker.sock'", "sudo usermod -aG docker $USER && newgrp docker"],
+    ["Ollama nicht erreichbar", "llm-service: 'Connection refused :11434'", "docker compose ps ollama; docker compose up -d ollama"],
+    ["Keycloak startet nicht", "Container bleibt bei 'starting'", "docker compose logs keycloak — beim Erststart 2 Min. warten (DB-Init)"],
+    ["Modell fehlt", "Status: 'Modell fehlt'", "docker compose exec ollama ollama pull qwen3:72b (bzw. nomic-embed-text)"],
+    ["TTFT > 2 Sekunden", "Antworten kommen spät", "Erst-Anfrage lädt Modell in den Speicher (~10 s); danach < 0,5 s"],
+    ["Nutzer-Tab leer / Fehler", "'Service-Account nicht nutzbar'", "scripts/setup_keycloak.py erneut ausführen (vergibt manage-users-Rolle)"],
+    ["JWT-Fehler 401", "Verwaltungs-UI meldet Anmeldefehler", "Nach setup_keycloak.py: docker compose up -d (lädt neues Client-Secret)"],
+    ["Pipe ohne Token", "'Kein OIDC-Token gefunden'", "Login muss über 'DRK Login' (Keycloak) erfolgen, nicht mit lokalem Open-WebUI-Konto"],
   ],
   [2000, 2800, Math.floor(CONTENT_WIDTH - 4800)]
 ));
@@ -750,41 +701,46 @@ children.push(codeBlock([
   "htop",
   "",
   "# Ollama-Status",
-  "ollama ps    # zeigt geladene Modelle und RAM-Nutzung",
-  "ollama list  # alle verfügbaren Modelle",
+  "docker compose exec ollama ollama ps    # geladene Modelle + RAM",
+  "docker compose exec ollama ollama list  # alle verfügbaren Modelle",
 ]));
 
 // ── KONTAKT UND NÄCHSTE SCHRITTE ─────────────────────────────────────────────
 children.push(heading1("9  Nächste Schritte nach der Erstinstallation"));
 children.push(heading2("9.1  Pilot-Betrieb (Woche 1 nach Go-Live)"));
-children.push(numbered("3–5 Pilot-Nutzer aus dem KV einladen (Keycloak-Accounts anlegen)"));
-children.push(numbered("Erste Wissensbasis befüllen: 10–20 interne Dokumente hochladen"));
+children.push(numbered("3–5 Pilot-Nutzer im Verwaltungs-UI anlegen (Tab 👥 Nutzer) — passende Rollen: Redaktion content-editor, Führungskraft content-approver, Fachbereich z.B. kv-pflege"));
+children.push(numbered("Erste Wissensbasis befüllen: 10–20 interne Dokumente über das Verwaltungs-UI hochladen, mindestens eines mit eingeschränkter Sichtbarkeit"));
+children.push(numbered("Kurzeinweisung (30 Min): Login, Chat, 🔒 Wissensbasis, 🔒 Social Media, Bedeutung von 🔒 lokal vs. 🌐 extern"));
 children.push(numbered("Feedback-Session nach 1 Woche: Was funktioniert? Was fehlt?"));
-children.push(numbered("Ergebnisse in GitHub Issues als Backlog einpflegen"));
+children.push(numbered("Ergebnisse in GitHub Issues als Backlog einpflegen (Co-Creation-Zyklus)"));
 children.push(spacer(80, 60));
 
 children.push(heading2("9.2  Schrittweise Erweiterung"));
 children.push(simpleTable(
   ["Schritt", "Wann", "Beschreibung"],
   [
-    ["P02 Social Media freischalten", "Nach Pilot-Woche 2", "Content-Service aktivieren, Freigabe-Workflow einrichten"],
-    ["AD/LDAP-Integration", "Nach Abstimmung KV-IT", "Keycloak Identity Provider konfigurieren (SSO mit bestehendem Login)"],
+    ["AD/LDAP-Integration", "Nach Abstimmung KV-IT", "Keycloak User Federation (READ_ONLY) — Runbook ldap-ad-anbindung.md"],
+    ["Externe KI-Modelle", "Nach DSB-Freigabe + AVV", "OpenAI/Anthropic im Verwaltungs-UI aktivieren — Runbook externe-modelle.md"],
+    ["Pentest + DSB-Freigabe", "Vor Produktivbetrieb", "Go-Live-Kriterien §7 Lastenheft — blocking für Produktion"],
+    ["P03 Drittsystem-Integrationen", "Erster Co-Creation-Zyklus", "integration-service (Dienstplan, Intranet etc.)"],
     ["Weitere DRK-KI-Workshops", "Fortlaufend alle 6 Wochen", "Co-Creation-Zyklus — neue Features aus Workshop-Ergebnissen"],
-    ["Skalierung auf 2. KV", "Nach 3 Monaten Pilotbetrieb", "Mandanten-Erweiterung — neue Realm, neuer Tenant in DB"],
+    ["Skalierung auf 2. KV", "Nach 3 Monaten Pilotbetrieb", "Neuer Realm + Tenant — Codebasis ist bereits mandantenfähig (RLS)"],
   ],
   [2500, 2000, Math.floor(CONTENT_WIDTH - 4500)]
 ));
 children.push(spacer(120, 60));
 children.push(checkBox("Installations-Checkliste", [
   "□  Phase 0: DGX Spark im Netz, SSH funktioniert, Docker läuft",
-  "□  Phase 1: Ollama installiert, Qwen3 72B heruntergeladen, Smoke-Test bestanden",
-  "□  Phase 1: Repo geklont, .env konfiguriert, keine echten Secrets in Git",
-  "□  Phase 2: RAG-Service implementiert und in docker-compose.yml eingetragen",
-  "□  Phase 3: docker compose up — alle 8 Services healthy",
-  "□  Phase 3: Keycloak-Realm angelegt, erster KV-Admin-Account erstellt",
-  "□  Phase 3: MinIO-Buckets angelegt, erstes Dokument hochgeladen",
-  "□  Phase 4: TC-01..TC-08 alle bestanden",
-  "□  Pilot-Nutzer eingeladen und eingewiesen",
+  "□  Phase 1: setup_dgx.sh durchgelaufen, Smoke-Test komplett grün",
+  "□  Phase 2: setup_keycloak.py ausgeführt, docker compose up -d danach",
+  "□  Phase 3: Verwaltungs-UI erreichbar, Systemstatus alle Checks grün",
+  "□  Phase 3: Drei Pipes in Open WebUI installiert und aktiviert",
+  "□  Phase 3: oauth_id_token-Cookie nach Keycloak-Login vorhanden (DevTools)",
+  "□  Phase 3: HTTPS aktiv, interne Ports in der Firewall geschlossen",
+  "□  Phase 3: Pilot-Nutzer angelegt, Testdokumente mit ACL hochgeladen",
+  "□  Phase 4: Abnahmetests TC-01..TC-10 alle bestanden",
+  "□  Backup eingerichtet (Datenbank, MinIO, .env separat)",
+  "□  Pilot-Nutzer eingewiesen (inkl. 🔒 lokal vs. 🌐 extern)",
 ]));
 
 // ─── DOKUMENT ────────────────────────────────────────────────────────────────
