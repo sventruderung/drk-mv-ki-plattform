@@ -48,6 +48,12 @@
              border-radius: 6px; padding: 12px; font-family: inherit; font-size: .92rem; margin-top: 8px; }
   .muted { color: #888; font-size: .85rem; }
   footer { text-align: center; color: #aaa; font-size: .75rem; padding: 18px 0 24px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4);
+             display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: #fff; border-radius: 8px; padding: 22px; max-width: 460px; width: 92%; }
+  .modal h3 { margin-bottom: 14px; font-size: 1rem; }
+  textarea.edit { width: 100%; min-height: 220px; padding: 10px; border: 1px solid var(--rand);
+                  border-radius: 6px; font-family: inherit; font-size: .92rem; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -142,6 +148,23 @@
   </section>
 </main>
 <footer id="buildinfo"></footer>
+
+<!-- Modal: Sichtbarkeit ändern -->
+<div class="overlay hidden" id="aclmodal">
+  <div class="modal">
+    <h3 id="acl-title">Sichtbarkeit ändern</h3>
+    <div class="acl-row" id="acl-checks">
+      <label><input type="checkbox" value="kv-alle"> Alle Mitarbeitenden</label>
+      <label><input type="checkbox" value="kv-vorstand"> Vorstand</label>
+      <label><input type="checkbox" value="kv-pflege"> Fachbereich Pflege</label>
+      <label><input type="checkbox" value="kv-rettungsdienst"> Rettungsdienst</label>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
+      <button class="small" onclick="closeAcl()">Abbrechen</button>
+      <button class="primary" id="acl-save">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <script src="/admin/config.js"></script>
 <script>
@@ -245,7 +268,10 @@ async function loadDocs() {
       <td>${(d.acl_groups || []).map(esc).join(", ")}</td>
       <td>${badge(d.status)}</td>
       <td>${fmtDate(d.created_at)}</td>
-      <td><button class="small no" onclick="delDoc('${d.id}', '${esc(d.name)}')">Löschen</button></td>
+      <td>
+        <button class="small" onclick='openAcl("${d.id}", ${JSON.stringify(d.acl_groups || [])}, "${esc(d.name)}")'>Sichtbarkeit</button>
+        <button class="small no" onclick="delDoc('${d.id}', '${esc(d.name)}')">Löschen</button>
+      </td>
     </tr>`).join("") || `<tr><td colspan="5" class="muted">Noch keine Dokumente.</td></tr>`;
   } catch (e) { msg("Dokumente laden fehlgeschlagen: " + e.message, true); }
 }
@@ -256,6 +282,32 @@ async function delDoc(id, name) {
     msg("Dokument gelöscht."); loadDocs(); if (hasRole("kv-admin")) loadAudit();
   } catch (e) { msg("Löschen fehlgeschlagen: " + e.message, true); }
 }
+
+// ---------- ACL-Dialog ----------
+let aclDocId = null;
+
+function openAcl(id, groups, name) {
+  aclDocId = id;
+  document.getElementById("acl-title").textContent = `Sichtbarkeit ändern: ${name}`;
+  for (const c of document.querySelectorAll("#acl-checks input"))
+    c.checked = groups.includes(c.value);
+  document.getElementById("aclmodal").classList.remove("hidden");
+}
+
+function closeAcl() { document.getElementById("aclmodal").classList.add("hidden"); }
+
+document.getElementById("acl-save").onclick = async () => {
+  const groups = [...document.querySelectorAll("#acl-checks input:checked")].map(c => c.value);
+  if (!groups.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
+  try {
+    await api(`/api/v1/documents/${aclDocId}/acl`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acl_groups: groups }),
+    });
+    closeAcl(); msg("✅ Sichtbarkeit aktualisiert — wirkt sofort für alle Suchanfragen.");
+    loadDocs(); if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+};
 
 // ---------- Social Media ----------
 async function loadDrafts() {
@@ -276,17 +328,41 @@ async function openDraft(id) {
     const d = await api("/api/v1/content/" + id);
     document.getElementById("draftdetail").classList.remove("hidden");
     document.getElementById("dd-title").textContent = `Entwurf — ${d.channel} (${d.status})`;
-    document.getElementById("dd-text").textContent = d.draft_text;
     document.getElementById("dd-meta").textContent =
       `Thema: ${d.topic}` + (d.review_comment ? ` · Kommentar: ${d.review_comment}` : "");
     const a = document.getElementById("dd-actions");
     a.innerHTML = "";
+
+    // Bearbeitbar für Editoren in den Status 'entwurf' und 'abgelehnt'
+    const editable = ["entwurf", "abgelehnt"].includes(d.status) && hasRole("content-editor");
+    const textEl = document.getElementById("dd-text");
+    if (editable) {
+      textEl.innerHTML = `<textarea class="edit" id="dd-edit"></textarea>`;
+      document.getElementById("dd-edit").value = d.draft_text;
+      const save = document.createElement("button");
+      save.className = "small ok";
+      save.textContent = "💾 Text speichern";
+      save.onclick = async () => {
+        try {
+          await api("/api/v1/content/" + d.id, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ draft_text: document.getElementById("dd-edit").value }),
+          });
+          msg("✅ Entwurf gespeichert.");
+        } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+      };
+      a.appendChild(save);
+    } else {
+      textEl.textContent = d.draft_text;
+    }
+
     const can = (t) => addAction(a, d.id, t);
     if (d.status === "entwurf" && hasRole("content-editor")) can("zur_freigabe");
     if (d.status === "zur_freigabe" && hasRole("content-approver")) { can("freigegeben"); can("abgelehnt"); }
     if (d.status === "abgelehnt" && hasRole("content-editor")) can("entwurf");
     if (d.status === "freigegeben" && hasRole("content-approver")) can("publiziert");
-    if (!a.children.length) a.innerHTML = `<span class="muted">Keine Aktionen für Ihre Rolle verfügbar.</span>`;
+    if (!a.children.length)
+      a.innerHTML = `<span class="muted">Keine Aktionen für Ihre Rolle verfügbar.</span>`;
   } catch (e) { msg(e.message, true); }
 }
 

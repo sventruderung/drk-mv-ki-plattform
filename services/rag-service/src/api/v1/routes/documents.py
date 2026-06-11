@@ -7,6 +7,7 @@ X-User-Roles) — der rag-service ist nicht direkt von außen erreichbar.
 import uuid
 
 from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from drk_shared.logging import get_logger
 
@@ -114,6 +115,49 @@ async def list_documents(x_tenant_id: str = Header(...)):
             """
         )
     return [dict(r) for r in rows]
+
+
+class AclUpdateRequest(BaseModel):
+    acl_groups: list[str]
+
+
+@router.patch("/{document_id}/acl")
+async def update_acl(
+    document_id: uuid.UUID,
+    body: AclUpdateRequest,
+    x_tenant_id: str = Header(...),
+    x_user_id: str = Header(...),
+):
+    groups = [g.strip() for g in body.acl_groups if g.strip()]
+    if not groups:
+        raise HTTPException(
+            status_code=422, detail="Mindestens eine ACL-Gruppe erforderlich."
+        )
+    async with tenant_connection(x_tenant_id) as conn:
+        row = await conn.fetchrow(
+            """
+            UPDATE documents SET acl_groups = $2 WHERE id = $1
+            RETURNING name, acl_groups
+            """,
+            document_id, groups,
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Dokument nicht gefunden.")
+        # ACL ist in den Chunks denormalisiert — synchron mitziehen
+        await conn.execute(
+            "UPDATE document_chunks SET acl_groups = $2 WHERE document_id = $1",
+            document_id, groups,
+        )
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'document.acl', 'document', $3, $4)
+            """,
+            x_tenant_id, x_user_id, str(document_id),
+            f"{row['name']} | neue ACL: {', '.join(groups)}",
+        )
+    logger.info("document.acl", tenant_id=x_tenant_id, document_id=str(document_id))
+    return {"id": str(document_id), "acl_groups": groups}
 
 
 @router.delete("/{document_id}")

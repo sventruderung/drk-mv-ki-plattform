@@ -58,6 +58,25 @@ async def list_documents(request: Request):
     return resp.json()
 
 
+class AclUpdateRequest(BaseModel):
+    acl_groups: list[str]
+
+
+@router.patch("/documents/{document_id}/acl")
+async def update_document_acl(
+    request: Request, document_id: str, body: AclUpdateRequest
+):
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.patch(
+            f"{_rag_url(request)}/api/v1/documents/{document_id}/acl",
+            json={"acl_groups": body.acl_groups},
+            headers=_identity_headers(request),
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.json().get("detail"))
+    return resp.json()
+
+
 @router.delete("/documents/{document_id}")
 async def delete_document(request: Request, document_id: str):
     async with httpx.AsyncClient(timeout=30) as client:

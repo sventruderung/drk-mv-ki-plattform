@@ -155,6 +155,7 @@ async def update_draft(
     draft_id: uuid.UUID,
     body: UpdateDraftRequest,
     x_tenant_id: str = Header(...),
+    x_user_id: str = Header(...),
     x_user_roles: str = Header(""),
 ):
     if "content-editor" not in _roles(x_user_roles):
@@ -169,6 +170,15 @@ async def update_draft(
             """,
             draft_id, body.draft_text,
         )
+        if row is not None:
+            # AUDIT (§6.2): Textänderung protokollieren — keine Inhalte
+            await conn.execute(
+                """
+                INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+                VALUES ($1, $2, 'draft.update', 'draft', $3, 'Text manuell bearbeitet')
+                """,
+                x_tenant_id, x_user_id, str(draft_id),
+            )
     if row is None:
         raise HTTPException(
             status_code=409,
