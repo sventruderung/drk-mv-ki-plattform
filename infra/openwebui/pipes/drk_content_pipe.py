@@ -33,7 +33,7 @@ class Pipe:
 
     def pipes(self):
         return [
-            {"id": f"drk-content-{key}", "name": f"DRK Social Media ({label})"}
+            {"id": f"drk-content-{key}", "name": f"🔒 DRK Social Media ({label}, lokal)"}
             for key, label in CHANNELS.items()
         ]
 
@@ -99,5 +99,7 @@ class Pipe:
             f"📋 Entwurf gespeichert (ID: `{draft['id']}`, Kanal: "
             f"{CHANNELS[channel]}, Status: **{draft['status']}**).\n"
             f"Der Beitrag wird erst nach Freigabe durch eine zweite Person "
-            f"veröffentlicht — nichts geht automatisch online."
+            f"veröffentlicht — nichts geht automatisch online.\n"
+            f"🔒 *Lokal erstellt — Ihre Stichpunkte haben die DRK-Plattform "
+            f"nicht verlassen.*"
         )

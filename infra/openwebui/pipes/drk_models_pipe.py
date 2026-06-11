@@ -40,8 +40,14 @@ class Pipe:
             return [{"id": "drk-extern-offline", "name": "DRK Extern (Gateway nicht erreichbar)"}]
         if not models:
             return [{"id": "drk-extern-none", "name": "DRK Extern (keine Modelle aktiviert)"}]
+        # Unmissverständliche Kennzeichnung in der Modellauswahl
+        provider_label = {"openai": "OpenAI", "anthropic": "Anthropic"}
         return [
-            {"id": f"drk-ext-{m['id']}", "name": f"⚡ {m['display_name']}"}
+            {
+                "id": f"drk-ext-{m['id']}",
+                "name": f"🌐 EXTERN ({provider_label.get(m['provider'], m['provider'])}): "
+                + m["display_name"].replace(" (extern!)", ""),
+            }
             for m in models
         ]
 
@@ -73,6 +79,12 @@ class Pipe:
         if not question.strip():
             yield "Bitte eine Frage eingeben."
             return
+
+        # Transparenz: Jede Antwort beginnt mit dem Extern-Hinweis
+        yield (
+            "> 🌐 **Externes Modell** — Ihre Eingabe wurde an einen "
+            "Drittanbieter außerhalb der DRK-Plattform übertragen.\n\n"
+        )
 
         try:
             async with httpx.AsyncClient(timeout=self.valves.timeout_seconds) as client:

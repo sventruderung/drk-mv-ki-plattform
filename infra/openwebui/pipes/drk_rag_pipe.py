@@ -32,7 +32,7 @@ class Pipe:
         self.valves = self.Valves()
 
     def pipes(self):
-        return [{"id": "drk-rag", "name": "DRK Wissensbasis (RAG)"}]
+        return [{"id": "drk-rag", "name": "🔒 DRK Wissensbasis (lokal)"}]
 
     @staticmethod
     def _last_user_message(body: dict) -> str:
@@ -94,6 +94,11 @@ class Pipe:
                         except ValueError:
                             # Klartext (z.B. "keine freigegebenen Informationen")
                             yield line
+                    # Transparenz: lokale Verarbeitung sichtbar machen
+                    yield (
+                        "\n\n---\n🔒 *Lokal verarbeitet — Frage und Dokumente "
+                        "haben die DRK-Plattform nicht verlassen.*"
+                    )
         except httpx.ConnectError:
             yield (
                 "⚠️ DRK API-Gateway nicht erreichbar. Bitte Administrator "
