@@ -162,7 +162,10 @@ services:
     depends_on:
       - ollama
 
+  # Für den Mono-Piloten deaktiviert: noch ohne Funktionalität (nur Skeleton).
+  # Wird mit dem No-Code-Prompt-Management (§5.2) wieder aktiviert.
   admin-service:
+    profiles: ["full"]
     build:
       context: .
       dockerfile: services/admin-service/Dockerfile
