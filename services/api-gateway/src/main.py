@@ -53,6 +53,14 @@ app.include_router(content.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 
 
+def _build_date() -> str:
+    """Wird beim Docker-Build in /app/build_date geschrieben; lokal: 'dev'."""
+    try:
+        return Path("/app/build_date").read_text().strip()
+    except OSError:
+        return "dev"
+
+
 @app.get("/admin/config.js", response_class=PlainTextResponse)
 async def admin_config() -> str:
     """Laufzeit-Konfiguration fürs Admin-UI (Keycloak-Adresse aus der .env)."""
@@ -60,7 +68,9 @@ async def admin_config() -> str:
         f'window.DRK_CONFIG = {{\n'
         f'  keycloakUrl: "{settings.keycloak_public_url}",\n'
         f'  realm: "{settings.keycloak_realm}",\n'
-        f'  clientId: "drk-admin-ui"\n'
+        f'  clientId: "drk-admin-ui",\n'
+        f'  version: "{app.version}",\n'
+        f'  buildDate: "{_build_date()}"\n'
         f'}};\n'
     )
 

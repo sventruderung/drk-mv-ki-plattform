@@ -6,4 +6,6 @@ RUN pip install --no-cache-dir /packages/shared
 COPY services/api-gateway/pyproject.toml .
 COPY services/api-gateway/src ./src
 RUN pip install --no-cache-dir .
+# Entwicklungsstand fürs Admin-UI: wird beim Image-Build gesetzt
+RUN date -u +%Y-%m-%d > /app/build_date
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

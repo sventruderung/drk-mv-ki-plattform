@@ -47,6 +47,7 @@
   pre.text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee;
              border-radius: 6px; padding: 12px; font-family: inherit; font-size: .92rem; margin-top: 8px; }
   .muted { color: #888; font-size: .85rem; }
+  footer { text-align: center; color: #aaa; font-size: .75rem; padding: 18px 0 24px; }
 </style>
 </head>
 <body>
@@ -117,11 +118,15 @@
     </div>
   </section>
 </main>
+<footer id="buildinfo"></footer>
 
 <script src="/admin/config.js"></script>
 <script>
 const C = window.DRK_CONFIG;
 let kc, selectedFile = null;
+
+document.getElementById("buildinfo").textContent =
+  `DRK KI-Plattform v${C.version} · Entwicklungsstand: ${C.buildDate}`;
 
 // Keycloak-Adapter vom lokalen Keycloak laden (offline-fähig)
 const s = document.createElement("script");
