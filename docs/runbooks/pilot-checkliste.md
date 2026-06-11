@@ -14,8 +14,13 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - [ ] Realm `drk-kv` wurde automatisch importiert (Login-Seite zeigt "DRK Kreisverband")
 - [ ] Client `drk-platform`: **neues Client-Secret generieren** → in `.env` eintragen → `docker compose up -d`
 - [ ] tenant_id-Mapper: Wert `kv-CHANGE_ME` durch echten KV-Namen ersetzen (z.B. `kv-parchim`)
+- [ ] Nutzerverwaltung freischalten: Client `drk-platform` → Tab
+      **Service accounts roles** → Rollen `view-users` und `manage-users`
+      (Client `realm-management`) zuweisen — einmalig nötig, damit der
+      Nutzer-Tab im Verwaltungs-UI funktioniert
 - [ ] Admin-Konto für den Mandanten-Admin anlegen, Rolle `kv-admin`
-- [ ] 2–3 Pilot-Nutzer anlegen mit passenden Rollen:
+      (in Keycloak — alle weiteren Nutzer dann bequem im Verwaltungs-UI)
+- [ ] 2–3 Pilot-Nutzer im Verwaltungs-UI (Tab 👥 Nutzer) anlegen:
   - Redaktion: `content-editor` (+ `kv-alle`)
   - Führungskraft: `content-approver`, ggf. `kv-vorstand`
   - Fachbereich: z.B. `kv-pflege`

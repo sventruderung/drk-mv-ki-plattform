@@ -64,6 +64,7 @@
 <nav>
   <button id="tab-docs" class="active" onclick="show('docs')">📄 Dokumente</button>
   <button id="tab-drafts" onclick="show('drafts')">📣 Social-Media-Freigaben</button>
+  <button id="tab-users" onclick="show('users')">👥 Nutzer</button>
   <button id="tab-audit" onclick="show('audit')">📋 Protokoll</button>
   <button id="tab-settings" onclick="show('settings')">⚙️ Einstellungen</button>
 </nav>
@@ -124,6 +125,28 @@
       <tbody id="auditlist"></tbody></table>
     </div>
   </section>
+  <!-- ================= Nutzer ================= -->
+  <section id="view-users" class="hidden">
+    <div class="card">
+      <h2>Neuen Nutzer anlegen</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px">
+        <input id="nu-username" placeholder="Benutzername *" style="padding:9px 12px;border:1px solid var(--rand);border-radius:5px">
+        <input id="nu-email" placeholder="E-Mail" style="padding:9px 12px;border:1px solid var(--rand);border-radius:5px">
+        <input id="nu-first" placeholder="Vorname" style="padding:9px 12px;border:1px solid var(--rand);border-radius:5px">
+        <input id="nu-last" placeholder="Nachname" style="padding:9px 12px;border:1px solid var(--rand);border-radius:5px">
+        <input id="nu-pass" type="password" placeholder="Startpasswort (min. 10 Zeichen) *" style="padding:9px 12px;border:1px solid var(--rand);border-radius:5px">
+      </div>
+      <div class="acl-row" id="nu-roles"></div>
+      <button class="primary" id="nu-create">Nutzer anlegen</button>
+      <p class="muted" style="margin-top:10px">Der Nutzer muss das Passwort beim ersten Login ändern.</p>
+    </div>
+    <div class="card">
+      <h2>Nutzer dieses Kreisverbands</h2>
+      <table><thead><tr><th>Benutzername</th><th>Name</th><th>Rollen</th><th>Status</th><th>Aktionen</th></tr></thead>
+      <tbody id="userlist"></tbody></table>
+    </div>
+  </section>
+
   <!-- ================= Einstellungen ================= -->
   <section id="view-settings" class="hidden">
     <div class="card">
@@ -148,6 +171,18 @@
   </section>
 </main>
 <footer id="buildinfo"></footer>
+
+<!-- Modal: Nutzer-Rollen -->
+<div class="overlay hidden" id="rolesmodal">
+  <div class="modal">
+    <h3 id="roles-title">Rollen bearbeiten</h3>
+    <div class="acl-row" id="roles-checks" style="flex-direction:column; gap:8px"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
+      <button class="small" onclick="closeRoles()">Abbrechen</button>
+      <button class="primary" id="roles-save">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Sichtbarkeit ändern -->
 <div class="overlay hidden" id="aclmodal">
@@ -188,11 +223,12 @@ function init() {
       document.getElementById("username").textContent =
         kc.tokenParsed.preferred_username || kc.tokenParsed.sub;
       if (!hasRole("kv-admin")) {
+        document.getElementById("tab-users").style.display = "none";
         document.getElementById("tab-audit").style.display = "none";
         document.getElementById("tab-settings").style.display = "none";
       }
       loadDocs(); loadDrafts();
-      if (hasRole("kv-admin")) { loadAudit(); loadHostname(); }
+      if (hasRole("kv-admin")) { loadUsers(); loadAudit(); loadHostname(); }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
 }
@@ -220,7 +256,7 @@ function msg(text, isError) {
 }
 
 function show(view) {
-  for (const v of ["docs", "drafts", "audit", "settings"]) {
+  for (const v of ["docs", "drafts", "users", "audit", "settings"]) {
     document.getElementById("view-" + v).classList.toggle("hidden", v !== view);
     document.getElementById("tab-" + v).classList.toggle("active", v === view);
   }
@@ -388,6 +424,113 @@ function addAction(container, id, target) {
     } catch (e) { msg(e.message, true); }
   };
   container.appendChild(b);
+}
+
+// ---------- Nutzerverwaltung ----------
+const ROLE_LABELS = {
+  "kv-admin": "Mandanten-Administrator",
+  "kv-vorstand": "Vorstand",
+  "kv-pflege": "Fachbereich Pflege",
+  "kv-rettungsdienst": "Rettungsdienst",
+  "kv-alle": "Alle Mitarbeitenden",
+  "content-editor": "Social-Media-Redaktion",
+  "content-approver": "Social-Media-Freigabe",
+};
+let assignableRoles = [], rolesUserId = null;
+
+function roleCheckboxes(container, checked) {
+  container.innerHTML = assignableRoles.map(r => `<label>
+    <input type="checkbox" value="${r}" ${checked.includes(r) ? "checked" : ""}>
+    ${ROLE_LABELS[r] || r} <span class="muted">(${r})</span></label>`).join("");
+}
+
+async function loadUsers() {
+  try {
+    if (!assignableRoles.length) {
+      assignableRoles = await api("/api/v1/users/roles");
+      roleCheckboxes(document.getElementById("nu-roles"), ["kv-alle"]);
+    }
+    const users = await api("/api/v1/users/");
+    document.getElementById("userlist").innerHTML = users.map(u => `<tr>
+      <td>${esc(u.username)}</td>
+      <td>${esc((u.firstName + " " + u.lastName).trim())}<br><span class="muted">${esc(u.email)}</span></td>
+      <td>${u.roles.map(r => `<span class="badge b-entwurf">${esc(r)}</span>`).join(" ")}</td>
+      <td>${u.enabled ? '<span class="badge b-freigegeben">aktiv</span>' : '<span class="badge b-abgelehnt">deaktiviert</span>'}</td>
+      <td>
+        <button class="small" onclick='openRoles("${u.id}", ${JSON.stringify(u.roles)}, "${esc(u.username)}")'>Rollen</button>
+        <button class="small" onclick='resetPw("${u.id}", "${esc(u.username)}")'>Passwort</button>
+        <button class="small ${u.enabled ? "no" : "ok"}" onclick='toggleUser("${u.id}", ${!u.enabled}, "${esc(u.username)}")'>
+          ${u.enabled ? "Deaktivieren" : "Aktivieren"}</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="5" class="muted">Keine Nutzer gefunden.</td></tr>`;
+  } catch (e) { msg("Nutzer laden fehlgeschlagen: " + e.message, true); }
+}
+
+document.getElementById("nu-create").onclick = async () => {
+  const v = id => document.getElementById(id).value.trim();
+  const roles = [...document.querySelectorAll("#nu-roles input:checked")].map(c => c.value);
+  if (!v("nu-username") || v("nu-pass").length < 10)
+    return msg("Benutzername und Startpasswort (min. 10 Zeichen) sind Pflicht.", true);
+  try {
+    await api("/api/v1/users/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: v("nu-username"), email: v("nu-email"),
+        first_name: v("nu-first"), last_name: v("nu-last"),
+        password: document.getElementById("nu-pass").value, roles,
+      }),
+    });
+    msg(`✅ Nutzer ${v("nu-username")} angelegt — Passwortänderung beim ersten Login.`);
+    for (const id of ["nu-username", "nu-email", "nu-first", "nu-last", "nu-pass"])
+      document.getElementById(id).value = "";
+    loadUsers(); loadAudit();
+  } catch (e) { msg("Anlegen fehlgeschlagen: " + e.message, true); }
+};
+
+function openRoles(id, roles, username) {
+  rolesUserId = id;
+  document.getElementById("roles-title").textContent = `Rollen bearbeiten: ${username}`;
+  roleCheckboxes(document.getElementById("roles-checks"), roles);
+  document.getElementById("rolesmodal").classList.remove("hidden");
+}
+function closeRoles() { document.getElementById("rolesmodal").classList.add("hidden"); }
+
+document.getElementById("roles-save").onclick = async () => {
+  const roles = [...document.querySelectorAll("#roles-checks input:checked")].map(c => c.value);
+  try {
+    await api(`/api/v1/users/${rolesUserId}/roles`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roles }),
+    });
+    closeRoles(); msg("✅ Rollen aktualisiert — wirksam beim nächsten Login des Nutzers.");
+    loadUsers(); loadAudit();
+  } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+};
+
+async function toggleUser(id, enabled, username) {
+  if (!enabled && !confirm(`Nutzer "${username}" deaktivieren? Der Zugang wird sofort gesperrt.`)) return;
+  try {
+    await api(`/api/v1/users/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    msg(enabled ? "Nutzer aktiviert." : "Nutzer deaktiviert.");
+    loadUsers(); loadAudit();
+  } catch (e) { msg(e.message, true); }
+}
+
+async function resetPw(id, username) {
+  const pw = prompt(`Neues Start-Passwort für "${username}" (min. 10 Zeichen):`);
+  if (!pw) return;
+  if (pw.length < 10) return msg("Passwort zu kurz (min. 10 Zeichen).", true);
+  try {
+    await api(`/api/v1/users/${id}/reset-password`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    msg(`✅ Passwort gesetzt — ${username} muss es beim nächsten Login ändern.`);
+    loadAudit();
+  } catch (e) { msg(e.message, true); }
 }
 
 // ---------- Einstellungen ----------
