@@ -85,6 +85,15 @@ async def upload_document(
                 for c, emb in zip(chunks, embeddings)
             ],
         )
+        # AUDIT (§6.2): Upload protokollieren — Metadaten, keine Inhalte
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'document.upload', 'document', $3, $4)
+            """,
+            x_tenant_id, x_user_id, str(doc_id),
+            f"{file.filename} | ACL: {', '.join(groups)}",
+        )
 
     return {
         "id": str(doc_id),
@@ -108,11 +117,24 @@ async def list_documents(x_tenant_id: str = Header(...)):
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: uuid.UUID, x_tenant_id: str = Header(...)):
+async def delete_document(
+    document_id: uuid.UUID,
+    x_tenant_id: str = Header(...),
+    x_user_id: str = Header(...),
+):
     async with tenant_connection(x_tenant_id) as conn:
         row = await conn.fetchrow(
-            "DELETE FROM documents WHERE id = $1 RETURNING storage_key", document_id
+            "DELETE FROM documents WHERE id = $1 RETURNING storage_key, name",
+            document_id,
         )
+        if row is not None:
+            await conn.execute(
+                """
+                INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+                VALUES ($1, $2, 'document.delete', 'document', $3, $4)
+                """,
+                x_tenant_id, x_user_id, str(document_id), row["name"],
+            )
     if row is None:
         raise HTTPException(status_code=404, detail="Dokument nicht gefunden.")
     storage.delete_object(row["storage_key"])

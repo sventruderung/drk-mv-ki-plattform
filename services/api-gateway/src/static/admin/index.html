@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRK KI-Plattform — Verwaltung</title>
+<style>
+  :root { --drk-rot: #e30613; --grau: #f4f4f4; --rand: #ddd; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background: var(--grau); color: #222; }
+  header { background: var(--drk-rot); color: #fff; padding: 14px 24px;
+           display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 1.2rem; font-weight: 600; }
+  header .user { font-size: .9rem; }
+  header button { background: #fff; color: var(--drk-rot); border: 0; padding: 6px 14px;
+                  border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 12px; }
+  nav { background: #fff; border-bottom: 1px solid var(--rand); padding: 0 24px; display: flex; gap: 4px; }
+  nav button { background: none; border: 0; border-bottom: 3px solid transparent;
+               padding: 12px 18px; cursor: pointer; font-size: 1rem; }
+  nav button.active { border-bottom-color: var(--drk-rot); font-weight: 600; }
+  main { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
+  .card { background: #fff; border: 1px solid var(--rand); border-radius: 8px;
+          padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 1.05rem; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  th { background: #fafafa; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: .8rem; }
+  .b-entwurf { background: #eee; } .b-zur_freigabe { background: #fff3cd; }
+  .b-freigegeben { background: #d4edda; } .b-abgelehnt { background: #f8d7da; }
+  .b-publiziert { background: #cce5ff; } .b-ready { background: #d4edda; }
+  .drop { border: 2px dashed var(--rand); border-radius: 8px; padding: 32px;
+          text-align: center; color: #777; cursor: pointer; transition: .15s; }
+  .drop.over { border-color: var(--drk-rot); background: #fff5f5; }
+  .acl-row { display: flex; gap: 18px; flex-wrap: wrap; margin: 14px 0; }
+  .acl-row label { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+  button.primary { background: var(--drk-rot); color: #fff; border: 0; padding: 9px 20px;
+                   border-radius: 5px; cursor: pointer; font-size: .95rem; }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.small { padding: 4px 12px; font-size: .85rem; border-radius: 4px; border: 1px solid var(--rand);
+                 background: #fff; cursor: pointer; margin-right: 6px; }
+  button.ok { border-color: #28a745; color: #28a745; }
+  button.no { border-color: #dc3545; color: #dc3545; }
+  .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: .92rem; }
+  .msg.ok { background: #d4edda; } .msg.err { background: #f8d7da; }
+  .hidden { display: none; }
+  pre.text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee;
+             border-radius: 6px; padding: 12px; font-family: inherit; font-size: .92rem; margin-top: 8px; }
+  .muted { color: #888; font-size: .85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🩸 DRK KI-Plattform — Verwaltung</h1>
+  <div class="user"><span id="username"></span><button onclick="kc.logout()">Abmelden</button></div>
+</header>
+<nav>
+  <button id="tab-docs" class="active" onclick="show('docs')">📄 Dokumente</button>
+  <button id="tab-drafts" onclick="show('drafts')">📣 Social-Media-Freigaben</button>
+  <button id="tab-audit" onclick="show('audit')">📋 Protokoll</button>
+</nav>
+<main>
+  <div id="message" class="hidden"></div>
+
+  <!-- ================= Dokumente ================= -->
+  <section id="view-docs">
+    <div class="card">
+      <h2>Dokument in die Wissensbasis hochladen</h2>
+      <div class="drop" id="dropzone">
+        Datei hierher ziehen oder klicken (PDF, DOCX, XLSX, TXT)
+        <input type="file" id="fileinput" class="hidden" accept=".pdf,.docx,.xlsx,.txt">
+      </div>
+      <div class="acl-row">
+        <strong>Sichtbar für:</strong>
+        <label><input type="checkbox" value="kv-alle" checked> Alle Mitarbeitenden</label>
+        <label><input type="checkbox" value="kv-vorstand"> Vorstand</label>
+        <label><input type="checkbox" value="kv-pflege"> Fachbereich Pflege</label>
+        <label><input type="checkbox" value="kv-rettungsdienst"> Rettungsdienst</label>
+      </div>
+      <button class="primary" id="uploadbtn" disabled>Hochladen</button>
+      <span class="muted" id="filename"></span>
+    </div>
+    <div class="card">
+      <h2>Vorhandene Dokumente</h2>
+      <table><thead><tr><th>Name</th><th>Sichtbar für</th><th>Status</th><th>Hochgeladen</th><th></th></tr></thead>
+      <tbody id="doclist"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ================= Social Media ================= -->
+  <section id="view-drafts" class="hidden">
+    <div class="card">
+      <h2>Entwürfe im Freigabe-Workflow</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Beiträge werden erst nach Freigabe durch eine zweite Person veröffentlicht.
+        Eigene Entwürfe können nicht selbst freigegeben werden.</p>
+      <table><thead><tr><th>Kanal</th><th>Thema</th><th>Status</th><th>Geändert</th><th>Aktionen</th></tr></thead>
+      <tbody id="draftlist"></tbody></table>
+    </div>
+    <div class="card hidden" id="draftdetail">
+      <h2 id="dd-title"></h2>
+      <pre class="text" id="dd-text"></pre>
+      <p class="muted" id="dd-meta" style="margin:10px 0"></p>
+      <div id="dd-actions"></div>
+    </div>
+  </section>
+
+  <!-- ================= Audit ================= -->
+  <section id="view-audit" class="hidden">
+    <div class="card">
+      <h2>Audit-Protokoll (administrative Aktionen)</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Revisionssicher: Einträge können nicht geändert oder gelöscht werden.
+        Chat-Eingaben werden grundsätzlich nicht protokolliert.</p>
+      <table><thead><tr><th>Zeitpunkt</th><th>Aktion</th><th>Objekt</th><th>Details</th><th>Nutzer</th></tr></thead>
+      <tbody id="auditlist"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<script src="/admin/config.js"></script>
+<script>
+const C = window.DRK_CONFIG;
+let kc, selectedFile = null;
+
+// Keycloak-Adapter vom lokalen Keycloak laden (offline-fähig)
+const s = document.createElement("script");
+s.src = C.keycloakUrl + "/js/keycloak.js";
+s.onload = init;
+s.onerror = () => msg("Keycloak nicht erreichbar unter " + C.keycloakUrl, true);
+document.head.appendChild(s);
+
+function init() {
+  kc = new Keycloak({ url: C.keycloakUrl, realm: C.realm, clientId: C.clientId });
+  kc.init({ onLoad: "login-required", pkceMethod: "S256", checkLoginIframe: false })
+    .then(() => {
+      document.getElementById("username").textContent =
+        kc.tokenParsed.preferred_username || kc.tokenParsed.sub;
+      if (!hasRole("kv-admin")) document.getElementById("tab-audit").style.display = "none";
+      loadDocs(); loadDrafts();
+      if (hasRole("kv-admin")) loadAudit();
+    })
+    .catch(() => msg("Anmeldung fehlgeschlagen.", true));
+}
+
+function hasRole(r) { return (kc.tokenParsed.realm_access?.roles || []).includes(r); }
+
+async function api(path, opts = {}) {
+  await kc.updateToken(30).catch(() => kc.login());
+  opts.headers = Object.assign({}, opts.headers,
+    { Authorization: "Bearer " + kc.token });
+  const resp = await fetch(path, opts);
+  if (!resp.ok) {
+    let detail = "HTTP " + resp.status;
+    try { detail = (await resp.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return resp.json();
+}
+
+function msg(text, isError) {
+  const el = document.getElementById("message");
+  el.textContent = text;
+  el.className = "msg " + (isError ? "err" : "ok");
+  setTimeout(() => el.className = "hidden", 6000);
+}
+
+function show(view) {
+  for (const v of ["docs", "drafts", "audit"]) {
+    document.getElementById("view-" + v).classList.toggle("hidden", v !== view);
+    document.getElementById("tab-" + v).classList.toggle("active", v === view);
+  }
+}
+
+function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
+function fmtDate(d) { return d ? new Date(d).toLocaleString("de-DE") : ""; }
+function badge(st) { return `<span class="badge b-${esc(st)}">${esc(st)}</span>`; }
+
+// ---------- Dokumente ----------
+const drop = document.getElementById("dropzone"), fileinput = document.getElementById("fileinput");
+drop.onclick = () => fileinput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); setFile(e.dataTransfer.files[0]); };
+fileinput.onchange = () => setFile(fileinput.files[0]);
+
+function setFile(f) {
+  selectedFile = f || null;
+  document.getElementById("filename").textContent = f ? f.name : "";
+  document.getElementById("uploadbtn").disabled = !f;
+}
+
+document.getElementById("uploadbtn").onclick = async () => {
+  const acl = [...document.querySelectorAll(".acl-row input:checked")].map(c => c.value);
+  if (!acl.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  fd.append("acl_groups", acl.join(","));
+  document.getElementById("uploadbtn").disabled = true;
+  msg("Wird verarbeitet (Text-Extraktion + Indexierung) — bitte warten …");
+  try {
+    const r = await api("/api/v1/documents", { method: "POST", body: fd });
+    msg(`✅ ${r.name} hochgeladen (${r.chunks} Abschnitte indexiert).`);
+    setFile(null); loadDocs();
+  } catch (e) { msg("Upload fehlgeschlagen: " + e.message, true); }
+  document.getElementById("uploadbtn").disabled = !selectedFile;
+};
+
+async function loadDocs() {
+  try {
+    const docs = await api("/api/v1/documents");
+    document.getElementById("doclist").innerHTML = docs.map(d => `<tr>
+      <td>${esc(d.name)}</td>
+      <td>${(d.acl_groups || []).map(esc).join(", ")}</td>
+      <td>${badge(d.status)}</td>
+      <td>${fmtDate(d.created_at)}</td>
+      <td><button class="small no" onclick="delDoc('${d.id}', '${esc(d.name)}')">Löschen</button></td>
+    </tr>`).join("") || `<tr><td colspan="5" class="muted">Noch keine Dokumente.</td></tr>`;
+  } catch (e) { msg("Dokumente laden fehlgeschlagen: " + e.message, true); }
+}
+
+async function delDoc(id, name) {
+  if (!confirm(`Dokument "${name}" endgültig löschen?`)) return;
+  try { await api("/api/v1/documents/" + id, { method: "DELETE" });
+    msg("Dokument gelöscht."); loadDocs(); if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg("Löschen fehlgeschlagen: " + e.message, true); }
+}
+
+// ---------- Social Media ----------
+async function loadDrafts() {
+  try {
+    const drafts = await api("/api/v1/content/");
+    document.getElementById("draftlist").innerHTML = drafts.map(d => `<tr>
+      <td>${esc(d.channel)}</td>
+      <td>${esc((d.topic || "").slice(0, 60))}</td>
+      <td>${badge(d.status)}</td>
+      <td>${fmtDate(d.updated_at)}</td>
+      <td><button class="small" onclick="openDraft('${d.id}')">Ansehen</button></td>
+    </tr>`).join("") || `<tr><td colspan="5" class="muted">Keine Entwürfe vorhanden.</td></tr>`;
+  } catch (e) { msg("Entwürfe laden fehlgeschlagen: " + e.message, true); }
+}
+
+async function openDraft(id) {
+  try {
+    const d = await api("/api/v1/content/" + id);
+    document.getElementById("draftdetail").classList.remove("hidden");
+    document.getElementById("dd-title").textContent = `Entwurf — ${d.channel} (${d.status})`;
+    document.getElementById("dd-text").textContent = d.draft_text;
+    document.getElementById("dd-meta").textContent =
+      `Thema: ${d.topic}` + (d.review_comment ? ` · Kommentar: ${d.review_comment}` : "");
+    const a = document.getElementById("dd-actions");
+    a.innerHTML = "";
+    const can = (t) => addAction(a, d.id, t);
+    if (d.status === "entwurf" && hasRole("content-editor")) can("zur_freigabe");
+    if (d.status === "zur_freigabe" && hasRole("content-approver")) { can("freigegeben"); can("abgelehnt"); }
+    if (d.status === "abgelehnt" && hasRole("content-editor")) can("entwurf");
+    if (d.status === "freigegeben" && hasRole("content-approver")) can("publiziert");
+    if (!a.children.length) a.innerHTML = `<span class="muted">Keine Aktionen für Ihre Rolle verfügbar.</span>`;
+  } catch (e) { msg(e.message, true); }
+}
+
+const LABELS = { zur_freigabe: "Zur Freigabe einreichen", freigegeben: "✓ Freigeben",
+  abgelehnt: "✗ Ablehnen", entwurf: "Zur Überarbeitung zurückholen",
+  publiziert: "Als publiziert markieren" };
+
+function addAction(container, id, target) {
+  const b = document.createElement("button");
+  b.className = "small " + (target === "freigegeben" ? "ok" : target === "abgelehnt" ? "no" : "");
+  b.textContent = LABELS[target];
+  b.onclick = async () => {
+    let comment = null;
+    if (target === "abgelehnt") comment = prompt("Begründung für die Ablehnung:") || null;
+    try {
+      await api(`/api/v1/content/${id}/transition`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_status: target, comment }),
+      });
+      msg("Status geändert: " + target);
+      document.getElementById("draftdetail").classList.add("hidden");
+      loadDrafts(); if (hasRole("kv-admin")) loadAudit();
+    } catch (e) { msg(e.message, true); }
+  };
+  container.appendChild(b);
+}
+
+// ---------- Audit ----------
+async function loadAudit() {
+  try {
+    const rows = await api("/api/v1/audit/");
+    document.getElementById("auditlist").innerHTML = rows.map(r => `<tr>
+      <td>${fmtDate(r.created_at)}</td>
+      <td>${esc(r.action)}</td>
+      <td>${esc(r.object_type)}</td>
+      <td>${esc(r.info || "")}</td>
+      <td class="muted">${esc(r.actor)}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="muted">Keine Einträge.</td></tr>`;
+  } catch (e) { msg("Protokoll laden fehlgeschlagen: " + e.message, true); }
+}
+</script>
+</body>
+</html>

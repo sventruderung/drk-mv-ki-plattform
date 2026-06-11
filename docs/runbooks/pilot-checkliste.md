@@ -28,12 +28,13 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - [ ] Verifizieren: `oauth_id_token`-Cookie wird nach Keycloak-Login gesetzt
       (Browser-DevTools → Cookies) — versionsabhängig!
 
-## D. Wissensbasis befüllen
+## D. Wissensbasis befüllen (Verwaltungs-UI)
 
-- [ ] Testdokumente hochladen:
-      `python3 scripts/upload_docs.py --user <admin> --client-secret <secret> satzung.pdf`
-- [ ] Mindestens ein Dokument mit eingeschränkter ACL:
-      `--acl kv-vorstand vertraulich.pdf`
+- [ ] Verwaltungs-UI öffnen: `http://<host>:8000/admin/` → Login via Keycloak
+- [ ] Testdokumente per Drag-and-Drop hochladen, Sichtbarkeit per Checkbox wählen
+- [ ] Mindestens ein Dokument mit eingeschränkter Sichtbarkeit (nur Vorstand)
+- [ ] Tab **Protokoll** (als kv-admin): Upload-Einträge erscheinen im Audit-Log
+- [ ] Alternative für Massen-Import: `python3 scripts/upload_docs.py --help`
 
 ## E. Abnahmetests (vor Pilot-Start, §7 Lastenheft)
 
@@ -46,6 +47,10 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
       selbst freigeben → Approver gibt frei
 - [ ] **TC-Kein-Token**: Abgemeldeter Nutzer → klarer Hinweis statt Antwort
 - [ ] **TC-Logs**: `docker compose logs` enthält KEINE Prompt-Inhalte (Stichprobe)
+- [ ] **TC-Audit**: Upload, Löschung und Freigabe-Entscheidungen erscheinen im
+      Protokoll-Tab; Einträge sind nicht änderbar (kein UPDATE/DELETE-Recht)
+- [ ] **TC-Audit-Zugriff**: Nutzer ohne `kv-admin` sieht den Protokoll-Tab nicht
+      und erhält bei direktem API-Aufruf HTTP 403
 
 ## F. Pilot-Start
 

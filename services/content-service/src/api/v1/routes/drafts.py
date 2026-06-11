@@ -97,6 +97,14 @@ async def create_draft(
             """,
             draft_id, x_tenant_id, body.channel, body.topic, draft_text, x_user_id,
         )
+        # AUDIT (§6.2): Erstellung protokollieren — Kanal, keine Inhalte
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'draft.create', 'draft', $3, $4)
+            """,
+            x_tenant_id, x_user_id, str(draft_id), f"Kanal: {body.channel}",
+        )
     return {
         "id": str(draft_id),
         "channel": body.channel,
@@ -209,6 +217,15 @@ async def transition_draft(
             WHERE id = $1
             """,
             draft_id, body.target_status, x_user_id, body.comment,
+        )
+        # AUDIT (§6.2): Statuswechsel protokollieren
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, $3, 'draft', $4, $5)
+            """,
+            x_tenant_id, x_user_id, f"draft.{body.target_status}",
+            str(draft_id), f"{row['status']} → {body.target_status}",
         )
 
     logger.info(

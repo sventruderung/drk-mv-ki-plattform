@@ -9,6 +9,9 @@ from drk_shared.logging import get_logger
 logger = get_logger(__name__)
 
 SKIP_PATHS = {"/api/v1/health"}
+# Statisches Admin-UI: HTML/JS ohne Token ausliefern — alle API-Aufrufe
+# aus dem UI heraus laufen weiterhin durch die JWT-Prüfung.
+SKIP_PREFIXES = ("/admin",)
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -18,7 +21,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self._jwks: dict | None = None
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in SKIP_PATHS:
+        if request.url.path in SKIP_PATHS or request.url.path.startswith(SKIP_PREFIXES):
             return await call_next(request)
 
         token = self._extract_token(request)

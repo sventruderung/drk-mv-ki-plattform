@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from drk_shared.logging import configure_logging, get_logger
 from .config import Settings
+from . import db
 from .middleware.auth import JWTMiddleware
-from .api.v1.routes import chat, content, health, rag
+from .api.v1.routes import audit, chat, content, health, rag
 
 settings = Settings()
 configure_logging(level=settings.log_level, service_name="api-gateway")
@@ -15,8 +19,10 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await db.init_pool(settings)
     logger.info("api-gateway.startup", environment=settings.environment)
     yield
+    await db.close_pool()
     logger.info("api-gateway.shutdown")
 
 
@@ -44,3 +50,23 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
+
+
+@app.get("/admin/config.js", response_class=PlainTextResponse)
+async def admin_config() -> str:
+    """Laufzeit-Konfiguration fürs Admin-UI (Keycloak-Adresse aus der .env)."""
+    return (
+        f'window.DRK_CONFIG = {{\n'
+        f'  keycloakUrl: "{settings.keycloak_public_url}",\n'
+        f'  realm: "{settings.keycloak_realm}",\n'
+        f'  clientId: "drk-admin-ui"\n'
+        f'}};\n'
+    )
+
+
+app.mount(
+    "/admin",
+    StaticFiles(directory=Path(__file__).parent / "static" / "admin", html=True),
+    name="admin-ui",
+)
