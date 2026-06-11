@@ -112,6 +112,7 @@ services:
       RAG_SERVICE_URL: http://rag-service:${RAG_SERVICE_PORT}
       LLM_SERVICE_URL: http://llm-service:${LLM_SERVICE_PORT}
       ADMIN_SERVICE_URL: http://admin-service:${ADMIN_SERVICE_PORT}
+      CONTENT_SERVICE_URL: http://content-service:${CONTENT_SERVICE_PORT:-8005}
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${API_GATEWAY_PORT:-8000}:8000"
@@ -174,6 +175,24 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${ADMIN_SERVICE_PORT:-8003}:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  content-service:
+    build:
+      context: .
+      dockerfile: services/content-service/Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LLM_SERVICE_URL: http://llm-service:${LLM_SERVICE_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${CONTENT_SERVICE_PORT:-8005}:8005"
     depends_on:
       postgres:
         condition: service_healthy

@@ -15,5 +15,6 @@ class Settings(BaseSettings):
     rag_service_url: str = "http://rag-service:8001"
     llm_service_url: str = "http://llm-service:8002"
     admin_service_url: str = "http://admin-service:8003"
+    content_service_url: str = "http://content-service:8005"
 
     cors_origins: list[str] = ["http://localhost:3000"]

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from drk_shared.logging import configure_logging, get_logger
 from .config import Settings
 from .middleware.auth import JWTMiddleware
-from .api.v1.routes import chat, health, rag
+from .api.v1.routes import chat, content, health, rag
 
 settings = Settings()
 configure_logging(level=settings.log_level, service_name="api-gateway")
@@ -43,3 +43,4 @@ app.state.settings = settings
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api/v1")
+app.include_router(content.router, prefix="/api/v1")

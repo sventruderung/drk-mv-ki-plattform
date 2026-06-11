@@ -14,7 +14,9 @@
       { "name": "kv-vorstand", "description": "ACL-Gruppe: Nur Kreisverbands-Vorstand (§4.2)" },
       { "name": "kv-pflege", "description": "ACL-Gruppe: Fachbereich Pflege (§4.2)" },
       { "name": "kv-rettungsdienst", "description": "ACL-Gruppe: Bereichsleitung Rettungsdienst (§4.2)" },
-      { "name": "kv-alle", "description": "ACL-Gruppe: Offen für alle Mitarbeitenden (§4.2)" }
+      { "name": "kv-alle", "description": "ACL-Gruppe: Offen für alle Mitarbeitenden (§4.2)" },
+      { "name": "content-editor", "description": "P02: Darf Social-Media-Entwürfe erstellen und bearbeiten" },
+      { "name": "content-approver", "description": "P02: Darf Entwürfe freigeben/ablehnen (nicht eigene)" }
     ]
   },
   "defaultRoles": ["kv-alle"],
