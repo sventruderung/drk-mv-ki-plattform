@@ -14,6 +14,7 @@ Abhängigkeit: sudo apt install python3-httpx (oder pip install httpx im venv)
 
 import getpass
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -162,7 +163,23 @@ def main() -> None:
                    json={**client, "redirectUris": merged})
         write_env_value("KEYCLOAK_PUBLIC_URL", f"https://{hostname}/auth")
         print(f"✅ Redirect-URIs für https://{hostname} eingetragen, .env aktualisiert.")
-        print("   → Hostname nach dem Start zusätzlich im Verwaltungs-UI eintragen (⚙️).")
+        # Hostname direkt in die Plattform-DB schreiben — Caddy fragt dort vor
+        # jeder Zertifikats-Ausstellung an (On-Demand-TLS)
+        result = subprocess.run(
+            ["docker", "compose", "exec", "-T", "postgres",
+             "psql", "-U", "drk_app", "-d", "drk_platform", "-c",
+             "UPDATE system_settings SET value = %s, updated_at = now(), "
+             "updated_by = 'setup_keycloak' WHERE key = 'public_hostname'"
+             .replace("%s", f"'{hostname}'")],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            print(f"✅ HTTPS-Hostname in der Plattform hinterlegt — Zertifikat wird")
+            print(f"   beim ersten Aufruf von https://{hostname} ausgestellt")
+            print(f"   (DNS + Portweiterleitung 80/443 vorausgesetzt).")
+        else:
+            print("⚠️  Hostname konnte nicht in die DB geschrieben werden — bitte")
+            print("   nach dem Start im Verwaltungs-UI eintragen (⚙️ Einstellungen).")
 
     # --- 5. Ersten kv-admin anlegen ---
     resp = kc.req("POST", "/users", json={
