@@ -17,6 +17,7 @@ SUPPORTED_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
     "application/msword": "doc",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-excel": "xls",
     "text/plain": "txt",
 }
 
@@ -37,6 +38,8 @@ def extract_text(data: bytes, content_type: str) -> list[tuple[int | None, str]]
             return _extract_doc(data)
         case "xlsx":
             return _extract_xlsx(data)
+        case "xls":
+            return _extract_xls(data)
         case "txt":
             return [(None, data.decode("utf-8", errors="replace"))]
     raise AssertionError("unreachable")
@@ -86,5 +89,29 @@ def _extract_xlsx(data: bytes) -> list[tuple[int | None, str]]:
         ]
         if rows:
             parts.append(f"[Tabelle: {sheet.title}]\n" + "\n".join(rows))
+    text = "\n\n".join(parts)
+    return [(None, text)] if text else []
+
+
+def _extract_xls(data: bytes) -> list[tuple[int | None, str]]:
+    """Alt-Excel (.xls) via xlrd."""
+    import xlrd
+
+    try:
+        wb = xlrd.open_workbook(file_contents=data)
+    except xlrd.XLRDError:
+        raise ValueError(
+            "Alt-Excel-Datei konnte nicht gelesen werden — "
+            "bitte als .xlsx speichern und erneut hochladen."
+        )
+    parts: list[str] = []
+    for sheet in wb.sheets():
+        rows = [
+            " | ".join(str(c) for c in sheet.row_values(r) if c not in ("", None))
+            for r in range(sheet.nrows)
+            if any(c not in ("", None) for c in sheet.row_values(r))
+        ]
+        if rows:
+            parts.append(f"[Tabelle: {sheet.name}]\n" + "\n".join(rows))
     text = "\n\n".join(parts)
     return [(None, text)] if text else []

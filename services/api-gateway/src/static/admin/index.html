@@ -78,8 +78,8 @@
       <h2>Dokument in die Wissensbasis hochladen</h2>
       <div class="drop" id="dropzone">
         Dateien oder ganze Ordner hierher ziehen — oder klicken<br>
-        <span class="muted">(PDF, DOC, DOCX, XLSX, TXT, ZIP — ZIP-Archive werden automatisch entpackt)</span>
-        <input type="file" id="fileinput" class="hidden" multiple accept=".pdf,.doc,.docx,.xlsx,.txt,.zip">
+        <span class="muted">(PDF, DOC, DOCX, XLS, XLSX, TXT, ZIP — ZIP-Archive werden automatisch entpackt)</span>
+        <input type="file" id="fileinput" class="hidden" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
         <input type="file" id="folderinput" class="hidden" webkitdirectory>
       </div>
       <p style="margin-top:8px"><button class="small" onclick="document.getElementById('folderinput').click()">📁 Ordner auswählen</button>
@@ -333,7 +333,7 @@ function fmtDate(d) { return d ? new Date(d).toLocaleString("de-DE") : ""; }
 function badge(st) { return `<span class="badge b-${esc(st)}">${esc(st)}</span>`; }
 
 // ---------- Dokumente ----------
-const SUPPORTED_EXT = [".pdf", ".doc", ".docx", ".xlsx", ".txt", ".zip"];
+const SUPPORTED_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip"];
 let uploadQueue = [];
 
 const drop = document.getElementById("dropzone"),
