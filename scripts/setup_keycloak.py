@@ -128,8 +128,22 @@ def main() -> None:
 
     # --- 1. Client-Secret rotieren und in .env schreiben ---
     secret = kc.req("POST", f"/clients/{platform['id']}/client-secret").json()["value"]
+    # Verifizieren statt blind vertrauen: zurücklesen + Token-Test
+    stored = kc.req("GET", f"/clients/{platform['id']}/client-secret").json().get("value")
+    if stored != secret:
+        fail(f"Secret-Rotation nicht persistiert (Keycloak meldet '{stored[:8]}…') — "
+             "Keycloak-Datenbank prüfen: docker compose logs keycloak")
+    token_test = httpx.post(
+        f"{kc.base}/realms/{REALM}/protocol/openid-connect/token",
+        data={"grant_type": "client_credentials",
+              "client_id": "drk-platform", "client_secret": secret},
+        timeout=15,
+    )
+    if token_test.status_code != 200:
+        fail("Service-Account-Login mit neuem Secret fehlgeschlagen "
+             f"(HTTP {token_test.status_code}: {token_test.text[:120]})")
     write_env_value("KEYCLOAK_CLIENT_SECRET", secret)
-    print("✅ Client-Secret generiert und in .env eingetragen.")
+    print("✅ Client-Secret generiert, verifiziert und in .env eingetragen.")
 
     # --- 2. tenant_id-Mapper in beiden Clients setzen ---
     for client in (platform, admin_ui):
