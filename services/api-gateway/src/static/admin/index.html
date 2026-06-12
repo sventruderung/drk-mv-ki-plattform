@@ -77,9 +77,13 @@
     <div class="card">
       <h2>Dokument in die Wissensbasis hochladen</h2>
       <div class="drop" id="dropzone">
-        Datei hierher ziehen oder klicken (PDF, DOCX, XLSX, TXT)
-        <input type="file" id="fileinput" class="hidden" accept=".pdf,.docx,.xlsx,.txt">
+        Dateien oder ganze Ordner hierher ziehen — oder klicken<br>
+        <span class="muted">(PDF, DOCX, XLSX, TXT, ZIP — ZIP-Archive werden automatisch entpackt)</span>
+        <input type="file" id="fileinput" class="hidden" multiple accept=".pdf,.docx,.xlsx,.txt,.zip">
+        <input type="file" id="folderinput" class="hidden" webkitdirectory>
       </div>
+      <p style="margin-top:8px"><button class="small" onclick="document.getElementById('folderinput').click()">📁 Ordner auswählen</button>
+        <span class="muted" id="queueinfo"></span></p>
       <div class="acl-row">
         <strong>Sichtbar für:</strong>
         <label><input type="checkbox" value="kv-alle" checked> Alle Mitarbeitenden</label>
@@ -329,33 +333,86 @@ function fmtDate(d) { return d ? new Date(d).toLocaleString("de-DE") : ""; }
 function badge(st) { return `<span class="badge b-${esc(st)}">${esc(st)}</span>`; }
 
 // ---------- Dokumente ----------
-const drop = document.getElementById("dropzone"), fileinput = document.getElementById("fileinput");
+const SUPPORTED_EXT = [".pdf", ".docx", ".xlsx", ".txt", ".zip"];
+let uploadQueue = [];
+
+const drop = document.getElementById("dropzone"),
+      fileinput = document.getElementById("fileinput"),
+      folderinput = document.getElementById("folderinput");
 drop.onclick = () => fileinput.click();
 drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
 drop.ondragleave = () => drop.classList.remove("over");
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); setFile(e.dataTransfer.files[0]); };
-fileinput.onchange = () => setFile(fileinput.files[0]);
+fileinput.onchange = () => setQueue([...fileinput.files]);
+folderinput.onchange = () => setQueue([...folderinput.files]);
 
-function setFile(f) {
-  selectedFile = f || null;
-  document.getElementById("filename").textContent = f ? f.name : "";
-  document.getElementById("uploadbtn").disabled = !f;
+drop.ondrop = async e => {
+  e.preventDefault(); drop.classList.remove("over");
+  // Ordner-Drop: Verzeichnisse rekursiv einsammeln
+  const files = [];
+  const entries = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry());
+  if (entries.some(Boolean)) {
+    for (const entry of entries) if (entry) await collect(entry, files);
+  } else {
+    files.push(...e.dataTransfer.files);
+  }
+  setQueue(files);
+};
+
+function collect(entry, out) {
+  return new Promise(resolve => {
+    if (entry.isFile) {
+      entry.file(f => { out.push(f); resolve(); }, resolve);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readAll = () => reader.readEntries(async batch => {
+        if (!batch.length) return resolve();
+        for (const child of batch) await collect(child, out);
+        readAll();  // readEntries liefert max. 100 pro Aufruf
+      }, resolve);
+      readAll();
+    } else resolve();
+  });
+}
+
+function setQueue(files) {
+  uploadQueue = files.filter(f =>
+    SUPPORTED_EXT.some(ext => f.name.toLowerCase().endsWith(ext)) && !f.name.startsWith("."));
+  const skipped = files.length - uploadQueue.length;
+  document.getElementById("filename").textContent = "";
+  document.getElementById("queueinfo").textContent = uploadQueue.length
+    ? `${uploadQueue.length} Datei(en) ausgewählt` + (skipped ? ` (${skipped} ohne unterstütztes Format übersprungen)` : "")
+    : (files.length ? "Keine unterstützten Dateien dabei." : "");
+  document.getElementById("uploadbtn").disabled = !uploadQueue.length;
 }
 
 document.getElementById("uploadbtn").onclick = async () => {
   const acl = [...document.querySelectorAll(".acl-row input:checked")].map(c => c.value);
   if (!acl.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
-  const fd = new FormData();
-  fd.append("file", selectedFile);
-  fd.append("acl_groups", acl.join(","));
+  const queue = uploadQueue; uploadQueue = [];
   document.getElementById("uploadbtn").disabled = true;
-  msg("Wird verarbeitet (Text-Extraktion + Indexierung) — bitte warten …");
-  try {
-    const r = await api("/api/v1/documents", { method: "POST", body: fd });
-    msg(`✅ ${r.name} hochgeladen (${r.chunks} Abschnitte indexiert).`);
-    setFile(null); loadDocs();
-  } catch (e) { msg("Upload fehlgeschlagen: " + e.message, true); }
-  document.getElementById("uploadbtn").disabled = !selectedFile;
+  let okDocs = 0, failed = [], skippedZip = [];
+
+  for (let i = 0; i < queue.length; i++) {
+    const f = queue[i];
+    document.getElementById("queueinfo").textContent =
+      `⏳ ${i + 1}/${queue.length}: ${f.name} wird verarbeitet …`;
+    const fd = new FormData();
+    fd.append("file", f);
+    fd.append("acl_groups", acl.join(","));
+    try {
+      const r = await api("/api/v1/documents", { method: "POST", body: fd });
+      okDocs += r.documents ? r.documents.length : 1;   // ZIP liefert Liste
+      if (r.skipped) skippedZip.push(...r.skipped);
+    } catch (e) { failed.push(`${f.name}: ${e.message}`); }
+    loadDocs();
+  }
+
+  document.getElementById("queueinfo").textContent = "";
+  const parts = [`✅ ${okDocs} Dokument(e) indexiert.`];
+  if (skippedZip.length) parts.push(`⏭️ Übersprungen: ${skippedZip.join(", ")}`);
+  if (failed.length) parts.push(`❌ Fehlgeschlagen: ${failed.join(" | ")}`);
+  msg(parts.join(" "), failed.length > 0);
+  if (hasRole("kv-admin")) loadAudit();
 };
 
 async function loadDocs() {

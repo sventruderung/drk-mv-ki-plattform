@@ -4,7 +4,10 @@ Identität kommt vom API-Gateway über interne Header (X-Tenant-ID, X-User-ID,
 X-User-Roles) — der rag-service ist nicht direkt von außen erreichbar.
 """
 
+import io
 import uuid
+import zipfile
+from pathlib import PurePosixPath
 
 from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -23,38 +26,36 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 settings = Settings()
 
+# Dateiendung → Content-Type (für Dateien aus ZIP-Archiven)
+EXT_TYPES = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".txt": "text/plain",
+}
+ZIP_MAX_MEMBERS = 200
+ZIP_MAX_MEMBER_BYTES = 100 * 1024 * 1024  # 100 MB pro Datei
 
-@router.post("/")
-async def upload_document(
-    file: UploadFile,
-    acl_groups: str = Form("kv-alle"),  # kommasepariert, z.B. "kv-vorstand,kv-pflege"
-    x_tenant_id: str = Header(...),
-    x_user_id: str = Header(...),
-):
-    content_type = file.content_type or ""
-    if content_type not in SUPPORTED_TYPES:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Format nicht unterstützt: {content_type}. "
-            "Erlaubt: PDF, DOCX, XLSX, TXT.",
-        )
 
-    data = await file.read()
-    groups = [g.strip() for g in acl_groups.split(",") if g.strip()]
+async def _ingest(
+    data: bytes, filename: str, content_type: str,
+    groups: list[str], tenant_id: str, user_id: str,
+) -> dict:
+    """Eine Datei verarbeiten: extrahieren, chunken, embedden, speichern, auditieren."""
     doc_id = uuid.uuid4()
-    storage_key = f"{x_tenant_id}/{doc_id}/{file.filename}"
+    storage_key = f"{tenant_id}/{doc_id}/{filename}"
 
     # COMPLIANCE: Kein Logging von Dokumentinhalten — nur Metadaten
     logger.info(
         "document.upload",
-        tenant_id=x_tenant_id,
+        tenant_id=tenant_id,
         document_id=str(doc_id),
         size_bytes=len(data),
     )
 
     pages = extract_text(data, content_type)
     if not pages:
-        raise HTTPException(status_code=422, detail="Kein Text im Dokument gefunden.")
+        raise HTTPException(status_code=422, detail=f"Kein Text gefunden in: {filename}")
 
     chunks = split_into_chunks(pages, settings.chunk_size, settings.chunk_overlap)
     embeddings = await embed_texts(
@@ -63,7 +64,7 @@ async def upload_document(
 
     storage.put_object(storage_key, data, content_type)
 
-    async with tenant_connection(x_tenant_id) as conn:
+    async with tenant_connection(tenant_id) as conn:
         await conn.execute(
             """
             INSERT INTO documents
@@ -71,8 +72,8 @@ async def upload_document(
                acl_groups, uploaded_by, status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ready')
             """,
-            doc_id, x_tenant_id, file.filename, storage_key,
-            content_type, len(data), groups, x_user_id,
+            doc_id, tenant_id, filename, storage_key,
+            content_type, len(data), groups, user_id,
         )
         await conn.executemany(
             """
@@ -82,7 +83,7 @@ async def upload_document(
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             """,
             [
-                (doc_id, x_tenant_id, c.index, c.text, c.page, groups, str(emb))
+                (doc_id, tenant_id, c.index, c.text, c.page, groups, str(emb))
                 for c, emb in zip(chunks, embeddings)
             ],
         )
@@ -92,14 +93,85 @@ async def upload_document(
             INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
             VALUES ($1, $2, 'document.upload', 'document', $3, $4)
             """,
-            x_tenant_id, x_user_id, str(doc_id),
-            f"{file.filename} | ACL: {', '.join(groups)}",
+            tenant_id, user_id, str(doc_id),
+            f"{filename} | ACL: {', '.join(groups)}",
         )
 
+    return {"id": str(doc_id), "name": filename, "chunks": len(chunks)}
+
+
+@router.post("/")
+async def upload_document(
+    file: UploadFile,
+    acl_groups: str = Form("kv-alle"),  # kommasepariert, z.B. "kv-vorstand,kv-pflege"
+    x_tenant_id: str = Header(...),
+    x_user_id: str = Header(...),
+):
+    content_type = file.content_type or ""
+    groups = [g.strip() for g in acl_groups.split(",") if g.strip()]
+    is_zip = (file.filename or "").lower().endswith(".zip") or content_type in (
+        "application/zip", "application/x-zip-compressed"
+    )
+
+    if not is_zip and content_type not in SUPPORTED_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Format nicht unterstützt: {content_type}. "
+            "Erlaubt: PDF, DOCX, XLSX, TXT, ZIP.",
+        )
+
+    data = await file.read()
+
+    if not is_zip:
+        result = await _ingest(
+            data, file.filename, content_type, groups, x_tenant_id, x_user_id
+        )
+        return {**result, "acl_groups": groups, "status": "ready"}
+
+    # --- ZIP: alle unterstützten Dateien daraus verarbeiten ---
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=422, detail="ZIP-Datei ist beschädigt.")
+
+    documents: list[dict] = []
+    skipped: list[str] = []
+    members = [m for m in archive.infolist() if not m.is_dir()]
+    if len(members) > ZIP_MAX_MEMBERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"ZIP enthält {len(members)} Dateien — Maximum: {ZIP_MAX_MEMBERS}.",
+        )
+    for member in members:
+        name = PurePosixPath(member.filename).name  # Pfade entschärfen
+        ext = PurePosixPath(name).suffix.lower()
+        if name.startswith(".") or name.startswith("~"):
+            continue  # Systemdateien (.DS_Store, Office-Lockfiles) still überspringen
+        if ext not in EXT_TYPES:
+            skipped.append(f"{name} (Format)")
+            continue
+        if member.file_size > ZIP_MAX_MEMBER_BYTES:
+            skipped.append(f"{name} (zu groß)")
+            continue
+        try:
+            result = await _ingest(
+                archive.read(member), name, EXT_TYPES[ext],
+                groups, x_tenant_id, x_user_id,
+            )
+            documents.append(result)
+        except HTTPException as e:
+            skipped.append(f"{name} ({e.detail})")
+
+    if not documents:
+        raise HTTPException(
+            status_code=422,
+            detail="ZIP enthielt keine verarbeitbaren Dokumente "
+            f"({len(skipped)} übersprungen).",
+        )
     return {
-        "id": str(doc_id),
-        "name": file.filename,
-        "chunks": len(chunks),
+        "zip": file.filename,
+        "documents": documents,
+        "skipped": skipped,
         "acl_groups": groups,
         "status": "ready",
     }

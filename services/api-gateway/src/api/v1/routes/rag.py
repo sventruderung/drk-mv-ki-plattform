@@ -35,7 +35,8 @@ def _llm_url(request: Request) -> str:
 async def upload_document(
     request: Request, file: UploadFile, acl_groups: str = Form("kv-alle")
 ):
-    async with httpx.AsyncClient(timeout=600) as client:
+    # ZIP-Archive können viele Dokumente enthalten — großzügiger Timeout
+    async with httpx.AsyncClient(timeout=1800) as client:
         resp = await client.post(
             f"{_rag_url(request)}/api/v1/documents/",
             files={"file": (file.filename, await file.read(), file.content_type)},
