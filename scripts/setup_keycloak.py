@@ -235,7 +235,8 @@ def main() -> None:
            json=[{"id": r["id"], "name": r["name"]} for r in wanted])
     print(f"✅ Mandanten-Admin '{admin_user}' angelegt (Rollen: kv-admin, kv-alle).")
 
-    print("\n=== Fertig. Jetzt Services neu laden: docker compose up -d ===")
+    print("\n=== Fertig. Jetzt Services mit dem neuen Client-Secret neu starten: ===")
+    print("docker compose up -d --force-recreate api-gateway open-webui")
     print("Danach: Verwaltungs-UI öffnen (/admin) und mit dem neuen Admin anmelden.")
 
 
