@@ -79,6 +79,29 @@ async def create_kb(body: CreateKbRequest, request: Request):
     return {"id": str(kb_id), "name": name}
 
 
+@router.put("/{kb_id}")
+async def rename_kb(kb_id: uuid.UUID, body: CreateKbRequest, request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    name = body.name.strip()
+    async with tenant_connection(request.state.tenant_id) as conn:
+        row = await conn.fetchrow(
+            "UPDATE knowledge_bases SET name = $2 WHERE id = $1 RETURNING name",
+            kb_id, name,
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Nicht gefunden.")
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'kb.rename', 'kb', $3, $4)
+            """,
+            request.state.tenant_id, request.state.user_id or "", str(kb_id),
+            f"umbenannt in: {name}",
+        )
+    return {"id": str(kb_id), "name": name}
+
+
 @router.delete("/{kb_id}")
 async def delete_kb(kb_id: uuid.UUID, request: Request):
     if "kv-admin" not in request.state.roles:

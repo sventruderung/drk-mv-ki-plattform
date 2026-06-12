@@ -91,6 +91,7 @@
           <option value="">Allgemein</option>
         </select>
         <button class="small" id="newkb">＋ Neue anlegen</button>
+        <button class="small" id="renamekb">✏️ Umbenennen</button>
       </div>
       <div class="acl-row">
         <strong>Sichtbar für:</strong>
@@ -466,6 +467,23 @@ async function loadKbs() {
     sel.value = current;
   } catch (e) { msg("Wissensdatenbanken laden fehlgeschlagen: " + e.message, true); }
 }
+
+document.getElementById("renamekb").onclick = async () => {
+  const sel = document.getElementById("kbselect");
+  if (!sel.value) return msg("'Allgemein' ist die Sammelablage und kann nicht umbenannt werden — bitte eine eigene Wissensdatenbank wählen.", true);
+  const current = sel.options[sel.selectedIndex].text.replace(/ \(\d+\)$/, "");
+  const name = prompt("Neuer Name:", current);
+  if (!name || !name.trim() || name.trim() === current) return;
+  try {
+    await api("/api/v1/kbs/" + sel.value, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await loadKbs(); loadDocs();
+    msg(`✅ Umbenannt in "${name.trim()}".`);
+    if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg(e.message, true); }
+};
 
 document.getElementById("newkb").onclick = async () => {
   const name = prompt("Name der neuen Wissensdatenbank (z.B. Satzungen, Pflege):");
