@@ -127,6 +127,8 @@ services:
       ENABLE_OAUTH_ID_TOKEN_COOKIE: "true"
       # DRK-Login mit bestehendem lokalen Konto gleicher E-Mail verknüpfen
       OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+      # Keycloak-Nutzer sind bereits autorisiert — keine zweite Freigabe in Open WebUI
+      DEFAULT_USER_ROLE: "user"
     volumes:
       - open_webui_data:/app/backend/data
     ports:
