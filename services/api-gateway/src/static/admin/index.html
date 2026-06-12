@@ -269,6 +269,15 @@
         <button class="primary" id="m-save">Speichern</button>
         <button class="small" id="m-test">Testnachricht senden</button>
       </p>
+      <h2 style="margin-top:18px">System steuern</h2>
+      <p class="muted" style="margin-bottom:10px">
+        Alle Aktionen werden im Protokoll vermerkt. Laufende Chat-Anfragen
+        brechen dabei ab — Nutzer vorab informieren.</p>
+      <p style="display:flex; gap:10px; flex-wrap:wrap">
+        <button class="small" id="sys-restart">🔄 Dienste neu starten</button>
+        <button class="small no" id="sys-reboot">♻️ Server neu starten</button>
+        <button class="small no" id="sys-shutdown">⏻ Server herunterfahren</button>
+      </p>
       <h2 style="margin-top:18px">Letzte Ereignisse</h2>
       <table><thead><tr><th>Zeitpunkt</th><th>Dienst</th><th>Status</th><th>Details</th></tr></thead>
       <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
@@ -1073,6 +1082,27 @@ document.getElementById("m-test").onclick = async () => {
     msg("✅ Testnachricht verschickt — Posteingang prüfen.");
   } catch (e) { msg(e.message, true); }
 };
+
+async function sysAction(path, confirmText, doubleCheck) {
+  if (!confirm(confirmText)) return;
+  if (doubleCheck && prompt(`Zur Bestätigung "${doubleCheck}" eintippen:`) !== doubleCheck)
+    return msg("Abgebrochen — Bestätigung stimmte nicht.", true);
+  try {
+    const r = await api(path, { method: "POST" });
+    msg("✅ " + r.hint);
+  } catch (e) { msg(e.message, true); }
+}
+
+document.getElementById("sys-restart").onclick = () =>
+  sysAction("/api/v1/system/restart-services",
+    "Alle Dienste neu starten? Die Plattform ist dabei ca. 1 Minute nicht erreichbar.");
+document.getElementById("sys-reboot").onclick = () =>
+  sysAction("/api/v1/system/reboot",
+    "Den SERVER neu starten? Die Plattform ist dabei ca. 3–5 Minuten nicht erreichbar.");
+document.getElementById("sys-shutdown").onclick = () =>
+  sysAction("/api/v1/system/shutdown",
+    "Den Server HERUNTERFAHREN? Einschalten ist danach nur am Gerät möglich!",
+    "HERUNTERFAHREN");
 
 async function loadEvents() {
   try {

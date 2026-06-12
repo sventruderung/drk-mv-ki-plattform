@@ -96,6 +96,53 @@ async def system_status(request: Request):
     return {"ok": all(c["ok"] for c in checks), "checks": checks}
 
 
+async def _audit_system(request: Request, action: str, info: str) -> None:
+    from ....db import tenant_connection
+
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, $3, 'system', 'host', $4)
+            """,
+            request.state.tenant_id, request.state.user_id or "", action, info,
+        )
+
+
+@router.post("/restart-services")
+async def restart_services(request: Request):
+    """Alle Container des Stacks neu starten (Gateway zuletzt)."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    from .... import docker_ctl
+
+    await _audit_system(request, "system.restart-services", "Alle Dienste neu gestartet")
+    docker_ctl.schedule(docker_ctl.restart_stack)
+    return {"ok": True, "hint": "Dienste starten neu — Seite in ca. 1 Minute neu laden."}
+
+
+@router.post("/reboot")
+async def reboot_host(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    from .... import docker_ctl
+
+    await _audit_system(request, "system.reboot", "Server-Neustart ausgelöst")
+    docker_ctl.schedule(docker_ctl.host_power, "reboot", delay=3.0)
+    return {"ok": True, "hint": "Server startet neu — Plattform in ca. 3–5 Minuten wieder erreichbar."}
+
+
+@router.post("/shutdown")
+async def shutdown_host(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    from .... import docker_ctl
+
+    await _audit_system(request, "system.shutdown", "Server-Herunterfahren ausgelöst")
+    docker_ctl.schedule(docker_ctl.host_power, "poweroff", delay=3.0)
+    return {"ok": True, "hint": "Server fährt herunter — Einschalten danach nur am Gerät möglich."}
+
+
 @router.get("/events")
 async def monitor_events(request: Request, limit: int = 50):
     """Letzte Statuswechsel (ausgefallen/wiederhergestellt) — kv-admin."""
