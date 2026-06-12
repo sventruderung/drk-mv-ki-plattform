@@ -110,6 +110,19 @@ services:
       OAUTH_PROVIDER_NAME: "DRK Login"
       # Deutsche Oberfläche als Standard für neue Nutzer
       DEFAULT_LOCALE: "de-DE"
+      # Deutsche Prompt-Vorschläge auf der Startseite (greift bei Erstinstallation;
+      # bei laufender Instanz: Admin-Panel → Einstellungen → Oberfläche)
+      DEFAULT_PROMPT_SUGGESTIONS: >-
+        [{"title": ["E-Mail formulieren", "freundlich und professionell"],
+          "content": "Formuliere eine freundliche Antwort auf folgende E-Mail:\n\n"},
+         {"title": ["Text zusammenfassen", "in 5 Stichpunkten"],
+          "content": "Fasse den folgenden Text in 5 Stichpunkten zusammen:\n\n"},
+         {"title": ["Einfache Sprache", "barrierefrei umformulieren"],
+          "content": "Übertrage den folgenden Text in Einfache Sprache:\n\n"},
+         {"title": ["Protokoll strukturieren", "Beschlüsse und Aufgaben"],
+          "content": "Strukturiere diese Besprechungsnotizen als Protokoll mit Beschlüssen und Aufgaben:\n\n"},
+         {"title": ["Social-Media-Idee", "Stichpunkte für einen Beitrag"],
+          "content": "Hilf mir, Stichpunkte für einen Social-Media-Beitrag zu folgendem Anlass zu sammeln:\n\n"}]
       # RAG-Pipe: ID-Token als Cookie bereitstellen, damit die Pipe es ans Gateway durchreichen kann
       ENABLE_OAUTH_ID_TOKEN_COOKIE: "true"
     volumes:
