@@ -30,9 +30,22 @@ settings = Settings()
 EXT_TYPES = {
     ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".docm": "application/vnd.ms-word.document.macroEnabled.12",
     ".doc": "application/msword",
+    ".rtf": "application/rtf",
+    ".odt": "application/vnd.oasis.opendocument.text",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
     ".xls": "application/vnd.ms-excel",
+    ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+    ".csv": "text/csv",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".eml": "message/rfc822",
+    ".msg": "application/vnd.ms-outlook",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".md": "text/markdown",
     ".txt": "text/plain",
 }
 ZIP_MAX_MEMBERS = 200
@@ -115,11 +128,16 @@ async def upload_document(
         "application/zip", "application/x-zip-compressed"
     )
 
+    # Browser melden teils unpräzise MIME-Typen — Endung ist verlässlicher
+    ext = PurePosixPath(file.filename or "").suffix.lower()
+    if not is_zip and content_type not in SUPPORTED_TYPES and ext in EXT_TYPES:
+        content_type = EXT_TYPES[ext]
+
     if not is_zip and content_type not in SUPPORTED_TYPES:
         raise HTTPException(
             status_code=415,
             detail=f"Format nicht unterstützt: {content_type}. "
-            "Erlaubt: PDF, DOCX, XLSX, TXT, ZIP.",
+            "Erlaubt: Office (alt+neu), PDF, RTF, OpenOffice, E-Mail, HTML, CSV, TXT, ZIP.",
         )
 
     data = await file.read()
