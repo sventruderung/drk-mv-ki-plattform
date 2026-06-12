@@ -72,7 +72,17 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 
 - [ ] Kurzeinweisung der Pilot-Nutzer (30 Min: Login, Chat, Wissensbasis, Social Media)
 - [ ] Feedback-Kanal benannt (für Co-Creation-Zyklus)
-- [ ] Backup eingerichtet: `postgres_data`- und `minio_data`-Volumes sichern
+- [ ] Backup eingerichtet: `sudo bash scripts/backup.sh --install` + Probelauf
+      (täglich 02:30, Details in `backup.md`); externes Spiegel-Ziel klären
+
+## Update-Prozedur (bei jedem neuen Stand)
+
+```bash
+git pull origin main
+bash scripts/migrate.sh                  # DB-Schema nachziehen (idempotent)
+docker compose up -d --build             # geänderte Services neu bauen
+python3 scripts/setup_openwebui.py       # nur falls Pipes geändert wurden
+```
 
 ## Offene Punkte nach Pilot (bewusst nicht im Scope)
 
