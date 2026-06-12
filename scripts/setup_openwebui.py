@@ -11,6 +11,7 @@ Abhängigkeit: sudo apt install python3-httpx
 
 import getpass
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -57,10 +58,18 @@ def main() -> None:
         fail("infra/openwebui/pipes nicht gefunden — bitte im Repo-Root ausführen.")
 
     with httpx.Client(base_url=BASE, timeout=30) as client:
-        try:
-            client.get("/health").raise_for_status()
-        except httpx.HTTPError:
-            fail(f"Open WebUI nicht erreichbar unter {BASE} — läuft der Container?")
+        # Open WebUI braucht nach dem (Neu-)Start bis zu einer Minute
+        for attempt in range(30):
+            try:
+                client.get("/health").raise_for_status()
+                break
+            except httpx.HTTPError:
+                if attempt == 0:
+                    print("⏳ Warte auf Open WebUI (startet noch) ...")
+                time.sleep(3)
+        else:
+            fail(f"Open WebUI nach 90 s nicht erreichbar unter {BASE} — "
+                 "Container prüfen: docker compose logs open-webui")
 
         headers = {"Authorization": f"Bearer {get_token(client)}"}
 
