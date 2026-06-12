@@ -379,13 +379,25 @@ function collect(entry, out) {
 }
 
 function setQueue(files) {
-  uploadQueue = files.filter(f =>
-    SUPPORTED_EXT.some(ext => f.name.toLowerCase().endsWith(ext)) && !f.name.startsWith("."));
-  const skipped = files.length - uploadQueue.length;
+  const isSupported = f =>
+    SUPPORTED_EXT.some(ext => f.name.toLowerCase().endsWith(ext)) && !f.name.startsWith(".");
+  uploadQueue = files.filter(isSupported);
+  const skipped = [...files].filter(f => !isSupported(f));
+  // Übersprungene Endungen zählen, z.B. ".lnk (3), .ini (1)"
+  const extCount = {};
+  for (const f of skipped) {
+    const m = f.name.match(/\.[^.]+$/);
+    const ext = m ? m[0].toLowerCase() : "(ohne Endung)";
+    extCount[ext] = (extCount[ext] || 0) + 1;
+  }
+  const extInfo = Object.entries(extCount)
+    .sort((a, b) => b[1] - a[1])
+    .map(([ext, n]) => `${ext} (${n})`).join(", ");
   document.getElementById("filename").textContent = "";
   document.getElementById("queueinfo").textContent = uploadQueue.length
-    ? `${uploadQueue.length} Datei(en) ausgewählt` + (skipped ? ` (${skipped} ohne unterstütztes Format übersprungen)` : "")
-    : (files.length ? "Keine unterstützten Dateien dabei." : "");
+    ? `${uploadQueue.length} Datei(en) ausgewählt`
+      + (skipped.length ? ` — ${skipped.length} übersprungen: ${extInfo}` : "")
+    : (files.length ? `Keine unterstützten Dateien dabei — gefunden: ${extInfo}` : "");
   document.getElementById("uploadbtn").disabled = !uploadQueue.length;
 }
 
