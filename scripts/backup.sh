@@ -39,6 +39,7 @@ notify_failure() {
 }
 trap notify_failure ERR
 
+umask 077   # Backups enthalten Dokumenttexte + Secrets — nur Besitzer liest
 mkdir -p "$BACKUP_DIR"
 TS="$(date +%F_%H%M)"
 echo "=== Backup $TS → $BACKUP_DIR ==="
