@@ -21,9 +21,15 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
+    from . import monitor
+
     await db.init_pool(settings)
+    monitor_task = asyncio.create_task(monitor.run(settings))
     logger.info("api-gateway.startup", environment=settings.environment)
     yield
+    monitor_task.cancel()
     await db.close_pool()
     logger.info("api-gateway.shutdown")
 

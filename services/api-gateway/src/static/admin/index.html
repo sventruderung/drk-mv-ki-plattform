@@ -250,6 +250,30 @@
       </tbody></table>
     </div>
     <div class="card">
+      <h2>Monitoring &amp; E-Mail-Alarm</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Die Plattform prüft sich minütlich selbst. Bei Ausfall oder
+        Wiederherstellung eines Dienstes wird ein Ereignis protokolliert und —
+        wenn aktiviert — eine E-Mail an die Alarm-Adresse geschickt.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px">
+        <input id="m-host" placeholder="SMTP-Server (z.B. mail.drk-dbr.de)" style="padding:8px 11px;border:1px solid var(--rand);border-radius:5px">
+        <input id="m-port" placeholder="Port (587)" style="padding:8px 11px;border:1px solid var(--rand);border-radius:5px">
+        <input id="m-user" placeholder="Benutzer/Absender" style="padding:8px 11px;border:1px solid var(--rand);border-radius:5px">
+        <input id="m-pass" type="password" placeholder="Passwort (leer = unverändert)" style="padding:8px 11px;border:1px solid var(--rand);border-radius:5px">
+        <input id="m-mail" placeholder="Alarm-Empfänger (E-Mail)" style="padding:8px 11px;border:1px solid var(--rand);border-radius:5px">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="m-enabled"> E-Mail-Alarm aktiv
+        </label>
+      </div>
+      <p style="margin-top:12px">
+        <button class="primary" id="m-save">Speichern</button>
+        <button class="small" id="m-test">Testnachricht senden</button>
+      </p>
+      <h2 style="margin-top:18px">Letzte Ereignisse</h2>
+      <table><thead><tr><th>Zeitpunkt</th><th>Dienst</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
+    </div>
+    <div class="card">
       <h2>HTTPS / Öffentlicher Hostname</h2>
       <p class="muted" style="margin-bottom:12px">
         Unter diesem Hostnamen ist die Plattform per HTTPS erreichbar.
@@ -344,7 +368,7 @@ function init() {
       loadDocs(); loadDrafts(); loadKbs();
       if (hasRole("kv-admin")) {
         loadUsers(); loadAudit(); loadHostname(); loadStatus();
-        loadModels(); loadKeyStatus();
+        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents();
       }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
@@ -1008,6 +1032,61 @@ document.getElementById("umodels-save").onclick = async () => {
     loadAudit();
   } catch (e) { msg(e.message, true); }
 };
+
+// ---------- Monitoring ----------
+async function loadSmtp() {
+  try {
+    const c = await api("/api/v1/settings/smtp");
+    document.getElementById("m-host").value = c.smtp_host;
+    document.getElementById("m-port").value = c.smtp_port;
+    document.getElementById("m-user").value = c.smtp_user;
+    document.getElementById("m-pass").placeholder =
+      c.smtp_password_set ? "Passwort gesetzt (leer = unverändert)" : "Passwort";
+    document.getElementById("m-mail").value = c.alert_email;
+    document.getElementById("m-enabled").checked = c.alerts_enabled;
+  } catch (e) { msg(e.message, true); }
+}
+
+document.getElementById("m-save").onclick = async () => {
+  const pass = document.getElementById("m-pass").value;
+  try {
+    await api("/api/v1/settings/smtp", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        smtp_host: document.getElementById("m-host").value,
+        smtp_port: document.getElementById("m-port").value,
+        smtp_user: document.getElementById("m-user").value,
+        smtp_password: pass || null,
+        alert_email: document.getElementById("m-mail").value,
+        alerts_enabled: document.getElementById("m-enabled").checked,
+      }),
+    });
+    document.getElementById("m-pass").value = "";
+    msg("✅ Monitoring-Einstellungen gespeichert."); loadSmtp(); loadAudit();
+  } catch (e) { msg(e.message, true); }
+};
+
+document.getElementById("m-test").onclick = async () => {
+  msg("Testnachricht wird gesendet …");
+  try {
+    await api("/api/v1/settings/smtp/test", { method: "POST" });
+    msg("✅ Testnachricht verschickt — Posteingang prüfen.");
+  } catch (e) { msg(e.message, true); }
+};
+
+async function loadEvents() {
+  try {
+    const events = await api("/api/v1/system/events");
+    if (events.length)
+      document.getElementById("eventlist").innerHTML = events.map(ev => `<tr>
+        <td>${fmtDate(ev.created_at)}</td>
+        <td>${esc(ev.check_name)}</td>
+        <td>${ev.ok ? '<span class="badge b-freigegeben">wiederhergestellt</span>'
+                    : '<span class="badge b-abgelehnt">ausgefallen</span>'}</td>
+        <td class="muted">${esc(ev.detail || "")}</td>
+      </tr>`).join("");
+  } catch (e) { msg(e.message, true); }
+}
 
 // ---------- Systemstatus ----------
 async function loadStatus() {

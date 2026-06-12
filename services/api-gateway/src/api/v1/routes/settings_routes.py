@@ -129,6 +129,88 @@ async def set_apikeys(body: ApiKeysRequest, request: Request):
     return {"updated": updated}
 
 
+class SmtpRequest(BaseModel):
+    smtp_host: str | None = None
+    smtp_port: str | None = None
+    smtp_user: str | None = None
+    smtp_password: str | None = None   # None = unverändert
+    alert_email: str | None = None
+    alerts_enabled: bool | None = None
+
+
+@router.get("/settings/smtp")
+async def get_smtp(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value FROM system_settings WHERE key LIKE 'smtp_%' "
+            "OR key IN ('alert_email', 'alerts_enabled')"
+        )
+    cfg = {r["key"]: r["value"] for r in rows}
+    return {
+        "smtp_host": cfg.get("smtp_host", ""),
+        "smtp_port": cfg.get("smtp_port", "587"),
+        "smtp_user": cfg.get("smtp_user", ""),
+        "smtp_password_set": bool(cfg.get("smtp_password")),
+        "alert_email": cfg.get("alert_email", ""),
+        "alerts_enabled": cfg.get("alerts_enabled") == "true",
+    }
+
+
+@router.put("/settings/smtp")
+async def set_smtp(body: SmtpRequest, request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    values = {
+        "smtp_host": body.smtp_host,
+        "smtp_port": body.smtp_port,
+        "smtp_user": body.smtp_user,
+        "smtp_password": body.smtp_password,
+        "alert_email": body.alert_email,
+        "alerts_enabled": None if body.alerts_enabled is None
+        else ("true" if body.alerts_enabled else "false"),
+    }
+    async with plain_connection() as conn:
+        for key, value in values.items():
+            if value is not None:
+                await conn.execute(
+                    """
+                    INSERT INTO system_settings (key, value, updated_at, updated_by)
+                    VALUES ($1, $2, now(), $3)
+                    ON CONFLICT (key) DO UPDATE
+                    SET value = $2, updated_at = now(), updated_by = $3
+                    """,
+                    key, value.strip() if isinstance(value, str) else value,
+                    request.state.user_id or "",
+                )
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'settings.smtp', 'settings', 'smtp', 'Alarm-Konfiguration geändert')
+            """,
+            request.state.tenant_id, request.state.user_id or "",
+        )
+    return {"saved": True}
+
+
+@router.post("/settings/smtp/test")
+async def smtp_test(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    from ....monitor import send_alert
+
+    err = await send_alert(
+        "DRK KI-Plattform: Testnachricht",
+        "Diese Testnachricht bestätigt, dass der E-Mail-Alarm korrekt "
+        "konfiguriert ist.\n\nVerwaltungs-UI → Einstellungen → Monitoring",
+    )
+    if err:
+        raise HTTPException(status_code=502, detail=f"Versand fehlgeschlagen: {err}")
+    return {"sent": True}
+
+
 @router.get("/tls/check")
 async def tls_check(domain: str = "") -> Response:
     """Caddy On-Demand-TLS 'ask': 200 = Zertifikat ausstellen, 403 = ablehnen."""

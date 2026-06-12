@@ -1,15 +1,21 @@
-"""Systemstatus für das Verwaltungs-UI — Setup- und Betriebs-Checks (kv-admin)."""
+"""Systemstatus für das Verwaltungs-UI — Setup- und Betriebs-Checks (kv-admin).
+
+collect_checks() wird auch vom Hintergrund-Monitor (monitor.py) genutzt.
+"""
 
 import asyncio
+import shutil
 
 from fastapi import APIRouter, HTTPException, Request
 import httpx
 
+from ....db import plain_connection
 from ....keycloak_admin import KeycloakAdmin, KeycloakAdminError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
 REQUIRED_MODELS = ["qwen3:32b", "nomic-embed-text"]
+DISK_WARN_FREE_GB = 50  # Warnen, wenn weniger frei (Modelle + DB brauchen Luft)
 
 
 async def _check_http(name: str, url: str, hint: str) -> dict:
@@ -23,12 +29,8 @@ async def _check_http(name: str, url: str, hint: str) -> dict:
         return {"name": name, "ok": False, "detail": f"{type(e).__name__} — {hint}"}
 
 
-@router.get("/status")
-async def system_status(request: Request):
-    if "kv-admin" not in request.state.roles:
-        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
-    s = request.app.state.settings
-
+async def collect_checks(s) -> list[dict]:
+    """Alle Betriebs-Checks ausführen (Status-Endpoint + Hintergrund-Monitor)."""
     checks = list(await asyncio.gather(
         _check_http("Wissensbasis (rag-service)", f"{s.rag_service_url}/api/v1/health",
                     "Container prüfen: docker compose ps rag-service"),
@@ -72,4 +74,37 @@ async def system_status(request: Request):
         checks.append({"name": "Nutzerverwaltung (Service-Account)", "ok": False,
                        "detail": f"{detail} — scripts/setup_keycloak.py ausführen"})
 
+    # Festplattenplatz (Overlay-FS zeigt den freien Platz des Hosts)
+    usage = shutil.disk_usage("/")
+    free_gb = usage.free // (1024 ** 3)
+    checks.append({
+        "name": "Festplattenplatz",
+        "ok": free_gb >= DISK_WARN_FREE_GB,
+        "detail": f"{free_gb} GB frei"
+        + ("" if free_gb >= DISK_WARN_FREE_GB
+           else f" — unter {DISK_WARN_FREE_GB} GB! Alte Backups/Modelle aufräumen"),
+    })
+
+    return checks
+
+
+@router.get("/status")
+async def system_status(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    checks = await collect_checks(request.app.state.settings)
     return {"ok": all(c["ok"] for c in checks), "checks": checks}
+
+
+@router.get("/events")
+async def monitor_events(request: Request, limit: int = 50):
+    """Letzte Statuswechsel (ausgefallen/wiederhergestellt) — kv-admin."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT check_name, ok, detail, created_at FROM monitor_events "
+            "ORDER BY created_at DESC LIMIT $1",
+            min(limit, 500),
+        )
+    return [dict(r) for r in rows]
