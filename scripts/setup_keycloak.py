@@ -187,13 +187,17 @@ def main() -> None:
         platform_uris.append(f"https://{hostname}/*")
         admin_uris.append(f"https://{hostname}/admin/*")
     if platform_uris:
-        for client, uris in (
-            (platform, platform_uris),
-            (admin_ui, admin_uris),
+        for client_name, uris in (
+            ("drk-platform", platform_uris),
+            ("drk-admin-ui", admin_uris),
         ):
-            merged = sorted(set(client.get("redirectUris", [])) | set(uris))
-            kc.req("PUT", f"/clients/{client['id']}",
-                   json={**client, "redirectUris": merged})
+            # FRISCH laden — der Stand vom Skriptanfang enthält das Secret und
+            # die Mapper von VOR Schritt 1/2 und würde beides zurückdrehen!
+            client = kc.client_by_id(client_name)
+            payload = {k: v for k, v in client.items()
+                       if k not in ("secret", "protocolMappers")}
+            payload["redirectUris"] = sorted(set(client.get("redirectUris", [])) | set(uris))
+            kc.req("PUT", f"/clients/{client['id']}", json=payload)
         print(f"✅ Redirect-URIs eingetragen (intern: {local_ip or '—'}"
               + (f", öffentlich: {hostname}" if hostname else "") + ").")
     if hostname:
@@ -234,6 +238,18 @@ def main() -> None:
     kc.req("POST", f"/users/{user_id}/role-mappings/realm",
            json=[{"id": r["id"], "name": r["name"]} for r in wanted])
     print(f"✅ Mandanten-Admin '{admin_user}' angelegt (Rollen: kv-admin, kv-alle).")
+
+    # --- End-Verifikation: gilt das rotierte Secret nach ALLEN Schritten noch? ---
+    final = httpx.post(
+        f"{kc.base}/realms/{REALM}/protocol/openid-connect/token",
+        data={"grant_type": "client_credentials",
+              "client_id": "drk-platform", "client_secret": secret},
+        timeout=15,
+    )
+    if final.status_code != 200:
+        fail("End-Verifikation fehlgeschlagen — ein späterer Schritt hat das "
+             f"Client-Secret überschrieben (HTTP {final.status_code}).")
+    print("✅ End-Verifikation: Secret, Mapper und Service-Account konsistent.")
 
     print("\n=== Fertig. Jetzt Services mit dem neuen Client-Secret neu starten: ===")
     print("docker compose up -d --force-recreate api-gateway open-webui")
