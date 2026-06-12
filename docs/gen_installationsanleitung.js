@@ -247,7 +247,7 @@ const titleTable = new Table({
     ["Zielumgebung", "NVIDIA DGX Spark (PNY oder ASUS)"],
     ["Mandant", "Einzelner DRK-Kreisverband (Mono)"],
     ["Betriebssystem", "NVIDIA DGX OS (Ubuntu-basiert, ARM64)"],
-    ["LLM", "Qwen3 72B via Ollama (lokal) — optional externe Modelle"],
+    ["LLM", "Qwen3 32B via Ollama (lokal) — optional externe Modelle"],
     ["Stand", "Juni 2026 (Version 2 — Software implementiert)"],
     ["Status", "Bereit zur Installation"],
   ].map(([k, v], i) => new TableRow({ children: [
@@ -317,7 +317,7 @@ children.push(simpleTable(
   [
     ["Hardware", "NVIDIA DGX Spark (PNY oder ASUS)", "Beide Varianten identische Performance"],
     ["RAM", "128 GB LPDDR5X", "Unified Memory — kein separates VRAM-Limit"],
-    ["SSD", "1 TB (ASUS) oder 4 TB (PNY)", "Für Qwen3 72B + OS + Daten reicht 1 TB"],
+    ["SSD", "1 TB (ASUS) oder 4 TB (PNY)", "Für Qwen3 32B + OS + Daten reicht 1 TB"],
     ["Netzwerk", "Gigabit-LAN im KV-Netz", "Für SSH-Zugang und Nutzer-Browser-Zugriff"],
     ["Internetzugang", "Einmalig für Erstinstallation", "Ca. 50 GB Download (Modell + Docker-Images)"],
   ],
@@ -416,13 +416,13 @@ children.push(spacer(80, 60));
 children.push(para("Was das Skript automatisch erledigt:"));
 children.push(bullet(".env mit sicheren Zufalls-Passwörtern erzeugen (chmod 600)"));
 children.push(bullet("Alle Container bauen und starten (docker compose up -d --build)"));
-children.push(bullet("Sprachmodelle laden: Qwen3 72B (~42 GB) und nomic-embed-text — Download je nach Anbindung 30–90 Minuten"));
+children.push(bullet("Sprachmodelle laden: Qwen3 32B (~20 GB) und nomic-embed-text — Download je nach Anbindung 15–45 Minuten"));
 children.push(bullet("Smoke-Test: prüft alle Dienste und Modelle, Ergebnis als ✅/❌-Liste"));
 children.push(spacer(80, 60));
 children.push(successBox("Erwartetes Ergebnis", [
   "✅ API-Gateway   ✅ RAG-Service   ✅ LLM-Service   ✅ Content-Service",
   "✅ Ollama        ✅ Keycloak      ✅ Open WebUI    ✅ MinIO",
-  "✅ Modell: qwen3:72b      ✅ Modell: nomic-embed-text",
+  "✅ Modell: qwen3:32b      ✅ Modell: nomic-embed-text",
   "",
   "Alle Checks bestanden — System bereit. 🚀",
 ]));
@@ -641,7 +641,7 @@ children.push(spacer(120, 60));
 children.push(heading2("7.2  LLM-Modell aktualisieren"));
 children.push(codeBlock([
   "# Neues Modell herunterladen (ohne Unterbrechung des laufenden Systems)",
-  "docker compose exec ollama ollama pull qwen3:72b",
+  "docker compose exec ollama ollama pull qwen3:32b",
 ]));
 children.push(spacer(120, 60));
 
@@ -675,7 +675,7 @@ children.push(simpleTable(
     ["Docker permission denied", "'permission denied … docker.sock'", "sudo usermod -aG docker $USER && newgrp docker"],
     ["Ollama nicht erreichbar", "llm-service: 'Connection refused :11434'", "docker compose ps ollama; docker compose up -d ollama"],
     ["Keycloak startet nicht", "Container bleibt bei 'starting'", "docker compose logs keycloak — beim Erststart 2 Min. warten (DB-Init)"],
-    ["Modell fehlt", "Status: 'Modell fehlt'", "docker compose exec ollama ollama pull qwen3:72b (bzw. nomic-embed-text)"],
+    ["Modell fehlt", "Status: 'Modell fehlt'", "docker compose exec ollama ollama pull qwen3:32b (bzw. nomic-embed-text)"],
     ["TTFT > 2 Sekunden", "Antworten kommen spät", "Erst-Anfrage lädt Modell in den Speicher (~10 s); danach < 0,5 s"],
     ["Nutzer-Tab leer / Fehler", "'Service-Account nicht nutzbar'", "scripts/setup_keycloak.py erneut ausführen (vergibt manage-users-Rolle)"],
     ["JWT-Fehler 401", "Verwaltungs-UI meldet Anmeldefehler", "Nach setup_keycloak.py: docker compose up -d (lädt neues Client-Secret)"],

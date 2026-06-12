@@ -30,9 +30,9 @@ fi
 echo "→ Baue und starte Container (erster Lauf dauert einige Minuten) ..."
 docker compose up -d --build
 
-# 4. Modelle laden (einmalig; Qwen3 72B ≈ 42 GB Download)
+# 4. Modelle laden (einmalig; Qwen3 32B ≈ 20 GB Download)
 echo "→ Lade LLM-Modelle (einmalig, je nach Anbindung 30–90 Min) ..."
-docker compose exec ollama ollama pull qwen3:72b
+docker compose exec ollama ollama pull qwen3:32b
 docker compose exec ollama ollama pull nomic-embed-text
 
 # 5. Smoke-Test

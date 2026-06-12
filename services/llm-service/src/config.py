@@ -11,5 +11,5 @@ class Settings(BaseSettings):
     postgres_db: str = "drk_platform"
     postgres_user: str = "drk_app"
     postgres_password: str = ""
-    # DGX Spark (128 GB Unified Memory): Qwen3 72B Q4 ≈ 42 GB, TTFT < 0,5 s
-    ollama_default_model: str = "qwen3:72b"
+    # DGX Spark (128 GB Unified Memory): Qwen3 32B Q4 ≈ 20 GB, TTFT < 0,5 s
+    ollama_default_model: str = "qwen3:32b"

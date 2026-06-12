@@ -15,12 +15,12 @@ CHECKS = [
     ("LLM-Service",      "http://localhost:8002/api/v1/health"),
     ("Content-Service",  "http://localhost:8005/api/v1/health"),
     ("Ollama",           "http://localhost:11434/api/tags"),
-    ("Keycloak (Realm)", "http://localhost:8080/realms/drk-kv/.well-known/openid-configuration"),
+    ("Keycloak (Realm)", "http://localhost:8080/auth/realms/drk-kv/.well-known/openid-configuration"),
     ("Open WebUI",       "http://localhost:3000/health"),
     ("MinIO",            "http://localhost:9000/minio/health/live"),
 ]
 
-REQUIRED_MODELS = {"qwen3:72b", "nomic-embed-text"}
+REQUIRED_MODELS = {"qwen3:32b", "nomic-embed-text"}
 
 
 def main() -> None:

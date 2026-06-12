@@ -9,7 +9,7 @@ from ....keycloak_admin import KeycloakAdmin, KeycloakAdminError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-REQUIRED_MODELS = ["qwen3:72b", "nomic-embed-text"]
+REQUIRED_MODELS = ["qwen3:32b", "nomic-embed-text"]
 
 
 async def _check_http(name: str, url: str, hint: str) -> dict:

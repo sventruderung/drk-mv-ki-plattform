@@ -8,7 +8,7 @@ laufen lokal (Zero-Data-Leak, DSGVO-konform).
 
 | Modul | Beschreibung |
 |---|---|
-| **KI-Chat** | Open WebUI mit Qwen3 72B (lokal via Ollama) |
+| **KI-Chat** | Open WebUI mit Qwen3 32B (lokal via Ollama) |
 | **Wissensbasis (RAG)** | Dokumente hochladen (PDF/DOCX/XLSX/TXT), rechtegeprüfte Suche mit Quellen-Zitaten — Nutzer sehen nur Inhalte, für die sie freigeschaltet sind (§4.2) |
 | **Social Media (P02)** | KI-Entwürfe für Facebook/Instagram/LinkedIn/Webseite/Newsletter mit Freigabe-Workflow — nichts geht ohne menschliche Freigabe online |
 | **SSO** | Keycloak (OIDC), vorbereitet für Active-Directory-Anbindung |
@@ -16,7 +16,7 @@ laufen lokal (Zero-Data-Leak, DSGVO-konform).
 ## Architektur
 
 ```
-Open WebUI (:3000) ──── Ollama (:11434, Qwen3 72B + nomic-embed-text)
+Open WebUI (:3000) ──── Ollama (:11434, Qwen3 32B + nomic-embed-text)
      │ Pipes (OIDC-Token)
      ▼
 API-Gateway (:8000) ── JWT-Validierung, tenant_id + Rollen aus Token
