@@ -129,6 +129,9 @@ services:
       OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
       # Keycloak-Nutzer sind bereits autorisiert — keine zweite Freigabe in Open WebUI
       DEFAULT_USER_ROLE: "user"
+      # Modell-Sichtbarkeit steuert unsere Plattform (Gateway/Keycloak) —
+      # Open WebUIs eigene Modell-Zugriffskontrolle deshalb aus
+      BYPASS_MODEL_ACCESS_CONTROL: "true"
     volumes:
       - open_webui_data:/app/backend/data
     ports:
