@@ -7,7 +7,7 @@
   "resetPasswordAllowed": true,
   "bruteForceProtected": true,
   "sslRequired": "external",
-  "accessTokenLifespan": 900,
+  "accessTokenLifespan": 28800,
   "roles": {
     "realm": [
       { "name": "kv-admin", "description": "Mandanten-Administrator (§4.1): Nutzer- und Rechteverwaltung, Dokumentenordner" },

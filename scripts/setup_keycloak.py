@@ -123,8 +123,10 @@ def main() -> None:
         f"{kc.base}/admin/realms/{REALM}", headers=kc.headers, timeout=15
     ).json()
     realm["displayName"] = display_name
+    # Token-Lebensdauer ein Arbeitstag — 15-Min-Standard erzwingt staendiges Neu-Anmelden
+    realm["accessTokenLifespan"] = 28800
     kc.req("PUT", "", json=realm)
-    print(f"✅ Anzeigename gesetzt: {display_name}")
+    print(f"✅ Anzeigename gesetzt: {display_name} (Token-Lebensdauer: 8 h)")
 
     # --- 1. Client-Secret rotieren und in .env schreiben ---
     secret = kc.req("POST", f"/clients/{platform['id']}/client-secret").json()["value"]

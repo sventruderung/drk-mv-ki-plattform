@@ -28,6 +28,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         # HTTPException in Middleware würde als 500 enden — daher JSONResponse
         def reject(code: int, detail: str) -> JSONResponse:
+            # Nur Ablehnungsgrund + Pfad — niemals Token-Inhalte loggen
+            logger.info("auth.reject", path=request.url.path, status=code, reason=detail)
             return JSONResponse(status_code=code, content={"detail": detail})
 
         token = self._extract_token(request)
