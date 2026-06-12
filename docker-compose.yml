@@ -125,6 +125,8 @@ services:
           "content": "Hilf mir, Stichpunkte für einen Social-Media-Beitrag zu folgendem Anlass zu sammeln:\n\n"}]
       # RAG-Pipe: ID-Token als Cookie bereitstellen, damit die Pipe es ans Gateway durchreichen kann
       ENABLE_OAUTH_ID_TOKEN_COOKIE: "true"
+      # DRK-Login mit bestehendem lokalen Konto gleicher E-Mail verknüpfen
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
     volumes:
       - open_webui_data:/app/backend/data
     ports:
