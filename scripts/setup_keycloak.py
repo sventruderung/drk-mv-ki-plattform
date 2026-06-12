@@ -102,8 +102,9 @@ def main() -> None:
     if not re.match(r"^[a-z0-9-]{2,40}$", kv_name):
         fail(f"Name '{raw_name}' ergibt keine gültige Kennung.")
     tenant_id = f"kv-{kv_name}"
-    if kv_name != raw_name:
-        print(f"   → Technische Kennung: {tenant_id}")
+    # Anzeigename behält Groß-/Kleinschreibung (Login-Seite, Oberfläche)
+    display_name = f"DRK KV {raw_name}"
+    print(f"   → Technische Kennung: {tenant_id} | Anzeigename: {display_name}")
 
     hostname = input("Öffentlicher Hostname für HTTPS (leer = später): ").strip().lower()
 
@@ -115,6 +116,14 @@ def main() -> None:
 
     platform = kc.client_by_id("drk-platform")
     admin_ui = kc.client_by_id("drk-admin-ui")
+
+    # --- 0. Anzeigename des Realms (Login-Seite) ---
+    realm = httpx.get(
+        f"{kc.base}/admin/realms/{REALM}", headers=kc.headers, timeout=15
+    ).json()
+    realm["displayName"] = display_name
+    kc.req("PUT", "", json=realm)
+    print(f"✅ Anzeigename gesetzt: {display_name}")
 
     # --- 1. Client-Secret rotieren und in .env schreiben ---
     secret = kc.req("POST", f"/clients/{platform['id']}/client-secret").json()["value"]
