@@ -73,6 +73,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
             jwks,
             algorithms=["RS256"],
             audience=self.settings.keycloak_client_id,
+            # ID-Tokens tragen at_hash; ohne zugehöriges Access-Token lehnt
+            # jose sonst ab. Signatur + Audience + Ablauf werden geprüft.
+            options={"verify_at_hash": False},
         )
 
     async def _get_jwks(self) -> dict:
