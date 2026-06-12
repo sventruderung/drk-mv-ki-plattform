@@ -206,18 +206,132 @@ async def upload_document(
 
 
 @router.get("/")
-async def list_documents(x_tenant_id: str = Header(...)):
+async def list_documents(
+    x_tenant_id: str = Header(...),
+    search: str = "",
+    kb: str = "",        # "" = alle | "none" = Allgemein | UUID
+    group: str = "",     # ACL-Gruppe
+    ext: str = "",       # Dateiendung, z.B. "pdf"
+    page: int = 1,
+    page_size: int = 50,
+):
+    where = ["TRUE"]
+    params: list = []
+
+    def p(value) -> str:
+        params.append(value)
+        return f"${len(params)}"
+
+    if search.strip():
+        where.append(f"d.name ILIKE {p('%' + search.strip() + '%')}")
+    if kb == "none":
+        where.append("d.kb_id IS NULL")
+    elif kb.strip():
+        where.append(f"d.kb_id = {p(uuid.UUID(kb))}")
+    if group.strip():
+        where.append(f"{p(group.strip())} = ANY(d.acl_groups)")
+    if ext.strip():
+        where.append(f"d.name ILIKE {p('%.' + ext.strip().lstrip('.'))}")
+
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 200)
+    where_sql = " AND ".join(where)
+
     async with tenant_connection(x_tenant_id) as conn:
+        total = await conn.fetchval(
+            f"SELECT count(*) FROM documents d WHERE {where_sql}", *params
+        )
         rows = await conn.fetch(
-            """
+            f"""
             SELECT d.id, d.name, d.content_type, d.size_bytes, d.acl_groups,
                    d.status, d.created_at, d.kb_id, kb.name AS kb_name
             FROM documents d
             LEFT JOIN knowledge_bases kb ON kb.id = d.kb_id
+            WHERE {where_sql}
             ORDER BY d.created_at DESC
-            """
+            LIMIT {p(page_size)} OFFSET {p((page - 1) * page_size)}
+            """,
+            *params,
         )
-    return [dict(r) for r in rows]
+    return {
+        "documents": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+class BulkRequest(BaseModel):
+    ids: list[uuid.UUID]
+    action: str                      # move | acl | delete
+    kb_id: str | None = None         # für move ("" = Allgemein)
+    acl_groups: list[str] | None = None  # für acl
+
+
+@router.post("/bulk")
+async def bulk_action(
+    body: BulkRequest,
+    x_tenant_id: str = Header(...),
+    x_user_id: str = Header(...),
+):
+    if not body.ids:
+        raise HTTPException(status_code=422, detail="Keine Dokumente ausgewählt.")
+    if len(body.ids) > 500:
+        raise HTTPException(status_code=422, detail="Maximal 500 Dokumente pro Aktion.")
+
+    async with tenant_connection(x_tenant_id) as conn:
+        match body.action:
+            case "move":
+                kb_uuid = uuid.UUID(body.kb_id) if (body.kb_id or "").strip() else None
+                target = "Allgemein"
+                if kb_uuid:
+                    target = await conn.fetchval(
+                        "SELECT name FROM knowledge_bases WHERE id = $1", kb_uuid
+                    )
+                    if target is None:
+                        raise HTTPException(status_code=404, detail="Ziel-Wissensdatenbank nicht gefunden.")
+                result = await conn.fetch(
+                    "UPDATE documents SET kb_id = $2 WHERE id = ANY($1) RETURNING name",
+                    body.ids, kb_uuid,
+                )
+                info = f"{len(result)} Dokument(e) verschoben nach: {target}"
+                action = "document.move"
+            case "acl":
+                groups = [g.strip() for g in (body.acl_groups or []) if g.strip()]
+                if not groups:
+                    raise HTTPException(status_code=422, detail="Mindestens eine Gruppe erforderlich.")
+                result = await conn.fetch(
+                    "UPDATE documents SET acl_groups = $2 WHERE id = ANY($1) RETURNING id",
+                    body.ids, groups,
+                )
+                await conn.execute(
+                    "UPDATE document_chunks SET acl_groups = $2 WHERE document_id = ANY($1)",
+                    body.ids, groups,
+                )
+                info = f"{len(result)} Dokument(e) | neue ACL: {', '.join(groups)}"
+                action = "document.acl"
+            case "delete":
+                result = await conn.fetch(
+                    "DELETE FROM documents WHERE id = ANY($1) RETURNING storage_key",
+                    body.ids,
+                )
+                for r in result:
+                    storage.delete_object(r["storage_key"])
+                info = f"{len(result)} Dokument(e) gelöscht"
+                action = "document.delete"
+            case _:
+                raise HTTPException(status_code=422, detail="Unbekannte Aktion.")
+
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, $3, 'document', 'bulk', $4)
+            """,
+            x_tenant_id, x_user_id, action, info,
+        )
+
+    logger.info("document.bulk", tenant_id=x_tenant_id, action=body.action, count=len(body.ids))
+    return {"affected": len(result), "action": body.action}
 
 
 class AclUpdateRequest(BaseModel):

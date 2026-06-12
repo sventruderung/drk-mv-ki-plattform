@@ -105,9 +105,50 @@
       <span class="muted" id="filename"></span>
     </div>
     <div class="card">
-      <h2>Vorhandene Dokumente</h2>
-      <table><thead><tr><th>Name</th><th>Wissensdatenbank</th><th>Sichtbar für</th><th>Status</th><th>Hochgeladen</th><th></th></tr></thead>
+      <h2>Vorhandene Dokumente <span class="muted" id="doccount"></span></h2>
+      <div class="acl-row" style="align-items:center">
+        <input id="f-search" placeholder="🔎 Dateiname suchen …"
+               style="flex:1; min-width:200px; padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
+        <select id="f-kb" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
+          <option value="">Alle Wissensdatenbanken</option>
+          <option value="none">Allgemein</option>
+        </select>
+        <select id="f-group" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
+          <option value="">Alle Gruppen</option>
+          <option value="kv-alle">Alle Mitarbeitenden</option>
+          <option value="kv-vorstand">Vorstand</option>
+          <option value="kv-pflege">Pflege</option>
+          <option value="kv-rettungsdienst">Rettungsdienst</option>
+        </select>
+        <select id="f-ext" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
+          <option value="">Alle Typen</option>
+          <option>pdf</option><option>docx</option><option>doc</option>
+          <option>xlsx</option><option>xls</option><option>pptx</option><option>ppt</option>
+          <option>eml</option><option>msg</option><option>txt</option>
+        </select>
+      </div>
+      <div id="bulkbar" class="hidden"
+           style="background:#fff8e6; border:1px solid #e0c46c; border-radius:6px; padding:8px 12px;
+                  margin:10px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <strong><span id="bulkcount">0</span> ausgewählt:</strong>
+        <select id="bulk-kb" style="padding:6px 10px; border:1px solid var(--rand); border-radius:5px">
+          <option value="">→ Allgemein</option>
+        </select>
+        <button class="small" id="bulk-move">Verschieben</button>
+        <button class="small" id="bulk-acl">Sichtbarkeit ändern</button>
+        <button class="small no" id="bulk-delete">Löschen</button>
+        <button class="small" id="bulk-clear">Auswahl aufheben</button>
+      </div>
+      <table><thead><tr>
+        <th style="width:30px"><input type="checkbox" id="selall" title="Seite auswählen"></th>
+        <th>Name</th><th>Wissensdatenbank</th><th>Sichtbar für</th><th>Status</th><th>Hochgeladen</th><th></th>
+      </tr></thead>
       <tbody id="doclist"></tbody></table>
+      <div style="display:flex; gap:12px; align-items:center; justify-content:center; padding-top:12px">
+        <button class="small" id="pg-prev">◀ Zurück</button>
+        <span class="muted" id="pg-info"></span>
+        <button class="small" id="pg-next">Weiter ▶</button>
+      </div>
     </div>
   </section>
 
@@ -441,10 +482,27 @@ document.getElementById("uploadbtn").onclick = async () => {
   if (hasRole("kv-admin")) loadAudit();
 };
 
+const docFilters = { search: "", kb: "", group: "", ext: "", page: 1 };
+let docSelection = new Set();
+let docTotalPages = 1;
+
 async function loadDocs() {
   try {
-    const docs = await api("/api/v1/documents");
+    const q = new URLSearchParams({
+      search: docFilters.search, kb: docFilters.kb, group: docFilters.group,
+      ext: docFilters.ext, page: docFilters.page, page_size: 50,
+    });
+    const r = await api("/api/v1/documents?" + q.toString());
+    const docs = r.documents;
+    docTotalPages = Math.max(1, Math.ceil(r.total / r.page_size));
+    document.getElementById("doccount").textContent = `(${r.total})`;
+    document.getElementById("pg-info").textContent =
+      `Seite ${r.page} von ${docTotalPages} — ${r.total} Dokument(e)`;
+    document.getElementById("pg-prev").disabled = r.page <= 1;
+    document.getElementById("pg-next").disabled = r.page >= docTotalPages;
+
     document.getElementById("doclist").innerHTML = docs.map(d => `<tr>
+      <td><input type="checkbox" class="rowsel" value="${d.id}" ${docSelection.has(d.id) ? "checked" : ""}></td>
       <td>${esc(d.name)}</td>
       <td>${esc(d.kb_name || "Allgemein")}</td>
       <td>${(d.acl_groups || []).map(esc).join(", ")}</td>
@@ -454,9 +512,69 @@ async function loadDocs() {
         <button class="small" onclick='openAcl("${d.id}", ${JSON.stringify(d.acl_groups || [])}, "${esc(d.name)}")'>Sichtbarkeit</button>
         <button class="small no" onclick="delDoc('${d.id}', '${esc(d.name)}')">Löschen</button>
       </td>
-    </tr>`).join("") || `<tr><td colspan="6" class="muted">Noch keine Dokumente.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="7" class="muted">Keine Dokumente gefunden.</td></tr>`;
+
+    for (const cb of document.querySelectorAll(".rowsel"))
+      cb.onchange = () => { cb.checked ? docSelection.add(cb.value) : docSelection.delete(cb.value); updateBulkbar(); };
+    document.getElementById("selall").checked =
+      docs.length > 0 && docs.every(d => docSelection.has(d.id));
+    updateBulkbar();
   } catch (e) { msg("Dokumente laden fehlgeschlagen: " + e.message, true); }
 }
+
+function updateBulkbar() {
+  document.getElementById("bulkcount").textContent = docSelection.size;
+  document.getElementById("bulkbar").classList.toggle("hidden", docSelection.size === 0);
+}
+
+// Filter verdrahten (Suche mit kurzer Tipp-Pause)
+let searchTimer = null;
+document.getElementById("f-search").oninput = e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { docFilters.search = e.target.value; docFilters.page = 1; loadDocs(); }, 300);
+};
+for (const [id, key] of [["f-kb", "kb"], ["f-group", "group"], ["f-ext", "ext"]])
+  document.getElementById(id).onchange = e => { docFilters[key] = e.target.value; docFilters.page = 1; loadDocs(); };
+document.getElementById("pg-prev").onclick = () => { if (docFilters.page > 1) { docFilters.page--; loadDocs(); } };
+document.getElementById("pg-next").onclick = () => { if (docFilters.page < docTotalPages) { docFilters.page++; loadDocs(); } };
+document.getElementById("selall").onchange = e => {
+  for (const cb of document.querySelectorAll(".rowsel")) {
+    cb.checked = e.target.checked;
+    e.target.checked ? docSelection.add(cb.value) : docSelection.delete(cb.value);
+  }
+  updateBulkbar();
+};
+
+// Sammelaktionen
+async function bulkAction(payload, successText) {
+  try {
+    const r = await api("/api/v1/documents/bulk", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [...docSelection], ...payload }),
+    });
+    docSelection.clear();
+    msg(`✅ ${r.affected} Dokument(e) ${successText}.`);
+    loadDocs(); loadKbs(); if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg(e.message, true); }
+}
+
+document.getElementById("bulk-move").onclick = () => {
+  const sel = document.getElementById("bulk-kb");
+  const target = sel.options[sel.selectedIndex].text.replace(/^→ /, "").replace(/ \(\d+\)$/, "");
+  if (!confirm(`${docSelection.size} Dokument(e) verschieben nach "${target}"?`)) return;
+  bulkAction({ action: "move", kb_id: sel.value }, `verschoben nach "${target}"`);
+};
+document.getElementById("bulk-acl").onclick = () => {
+  aclTarget = { kind: "bulk" };
+  document.getElementById("acl-title").textContent =
+    `Sichtbarkeit ändern: ${docSelection.size} Dokument(e)`;
+  document.getElementById("aclmodal").classList.remove("hidden");
+};
+document.getElementById("bulk-delete").onclick = () => {
+  if (!confirm(`${docSelection.size} Dokument(e) endgültig löschen?`)) return;
+  bulkAction({ action: "delete" }, "gelöscht");
+};
+document.getElementById("bulk-clear").onclick = () => { docSelection.clear(); loadDocs(); };
 
 let kbCache = [];
 
@@ -464,11 +582,18 @@ async function loadKbs() {
   try {
     const r = await api("/api/v1/kbs/");
     kbCache = r.kbs;
-    const sel = document.getElementById("kbselect");
-    const current = sel.value;
-    sel.innerHTML = `<option value="">Allgemein</option>` +
-      r.kbs.map(kb => `<option value="${kb.id}">${esc(kb.name)} (${kb.doc_count})</option>`).join("");
-    sel.value = current;
+    const options = r.kbs.map(kb =>
+      `<option value="${kb.id}">${esc(kb.name)} (${kb.doc_count})</option>`).join("");
+    for (const [id, first] of [
+      ["kbselect", `<option value="">Allgemein</option>`],
+      ["f-kb", `<option value="">Alle Wissensdatenbanken</option><option value="none">Allgemein (${r.unsorted_count})</option>`],
+      ["bulk-kb", `<option value="">→ Allgemein</option>`],
+    ]) {
+      const sel = document.getElementById(id);
+      const current = sel.value;
+      sel.innerHTML = first + options;
+      sel.value = current;
+    }
   } catch (e) { msg("Wissensdatenbanken laden fehlgeschlagen: " + e.message, true); }
 }
 
@@ -551,6 +676,10 @@ document.getElementById("kbaclbtn").onclick = () => {
 document.getElementById("acl-save").onclick = async () => {
   const groups = [...document.querySelectorAll("#acl-checks input:checked")].map(c => c.value);
   if (!groups.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
+  if (aclTarget.kind === "bulk") {
+    closeAcl();
+    return bulkAction({ action: "acl", acl_groups: groups }, "Sichtbarkeit geändert");
+  }
   const url = aclTarget.kind === "kb"
     ? `/api/v1/kbs/${aclTarget.id}/acl`
     : `/api/v1/documents/${aclTarget.id}/acl`;

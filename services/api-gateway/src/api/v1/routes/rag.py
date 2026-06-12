@@ -54,9 +54,30 @@ async def list_documents(request: Request):
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
             f"{_rag_url(request)}/api/v1/documents/",
+            params=dict(request.query_params),
             headers=_identity_headers(request),
         )
     resp.raise_for_status()
+    return resp.json()
+
+
+class BulkRequest(BaseModel):
+    ids: list[str]
+    action: str
+    kb_id: str | None = None
+    acl_groups: list[str] | None = None
+
+
+@router.post("/documents/bulk")
+async def bulk_documents(request: Request, body: BulkRequest):
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(
+            f"{_rag_url(request)}/api/v1/documents/bulk",
+            json=body.model_dump(),
+            headers=_identity_headers(request),
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail=resp.json().get("detail"))
     return resp.json()
 
 
