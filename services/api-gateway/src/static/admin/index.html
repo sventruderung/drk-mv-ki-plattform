@@ -78,9 +78,9 @@
       <h2>Dokument in die Wissensbasis hochladen</h2>
       <div class="drop" id="dropzone">
         Dateien oder ganze Ordner hierher ziehen — oder klicken<br>
-        <span class="muted">(Word, Excel, PowerPoint — alt und neu —, PDF, RTF, OpenOffice, E-Mail, HTML, CSV, TXT, ZIP)</span>
+        <span class="muted">(Word, Excel, PowerPoint — alt und neu —, PDF inkl. Scans (OCR), Bilder, RTF, OpenOffice, E-Mail, HTML, CSV, TXT, ZIP)</span>
         <input type="file" id="fileinput" class="hidden" multiple
-               accept=".pdf,.doc,.docx,.docm,.rtf,.odt,.xls,.xlsx,.xlsm,.ods,.csv,.ppt,.pptx,.eml,.msg,.html,.htm,.md,.txt,.zip">
+               accept=".pdf,.doc,.docx,.docm,.rtf,.odt,.xls,.xlsx,.xlsm,.ods,.csv,.ppt,.pptx,.eml,.msg,.html,.htm,.md,.txt,.png,.jpg,.jpeg,.tif,.tiff,.zip">
         <input type="file" id="folderinput" class="hidden" webkitdirectory>
       </div>
       <p style="margin-top:8px"><button class="small" onclick="document.getElementById('folderinput').click()">📁 Ordner auswählen</button>
@@ -336,7 +336,8 @@ function badge(st) { return `<span class="badge b-${esc(st)}">${esc(st)}</span>`
 // ---------- Dokumente ----------
 const SUPPORTED_EXT = [".pdf", ".doc", ".docx", ".docm", ".rtf", ".odt",
   ".xls", ".xlsx", ".xlsm", ".ods", ".csv", ".ppt", ".pptx",
-  ".eml", ".msg", ".html", ".htm", ".md", ".txt", ".zip"];
+  ".eml", ".msg", ".html", ".htm", ".md", ".txt",
+  ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".zip"];
 let uploadQueue = [];
 
 const drop = document.getElementById("dropzone"),

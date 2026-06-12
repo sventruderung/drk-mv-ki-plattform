@@ -47,6 +47,11 @@ EXT_TYPES = {
     ".htm": "text/html",
     ".md": "text/markdown",
     ".txt": "text/plain",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
 }
 ZIP_MAX_MEMBERS = 200
 ZIP_MAX_MEMBER_BYTES = 100 * 1024 * 1024  # 100 MB pro Datei

@@ -36,7 +36,12 @@ SUPPORTED_TYPES = {
     "text/html": "html",
     "text/markdown": "txt",
     "text/plain": "txt",
+    "image/png": "image",
+    "image/jpeg": "image",
+    "image/tiff": "image",
 }
+
+OCR_MAX_PAGES = 300  # Schutz vor versehentlichen Mammut-Scans
 
 
 def extract_text(data: bytes, content_type: str) -> list[tuple[int | None, str]]:
@@ -74,6 +79,8 @@ def extract_text(data: bytes, content_type: str) -> list[tuple[int | None, str]]
             return _extract_msg(data)
         case "html":
             return _extract_html(data)
+        case "image":
+            return _extract_image(data)
         case "txt":
             return [(None, data.decode("utf-8", errors="replace"))]
     raise AssertionError("unreachable")
@@ -87,11 +94,52 @@ def _extract_pdf(data: bytes) -> list[tuple[int | None, str]]:
         if (text := page.extract_text() or "").strip()
     ]
     if not pages and len(reader.pages) > 0:
+        # Keine Textebene — vermutlich ein Scan: Texterkennung (OCR)
+        return _ocr_pdf(data)
+    return pages
+
+
+def _ocr_pdf(data: bytes) -> list[tuple[int | None, str]]:
+    """Gescanntes PDF: Seiten rendern und per Tesseract (deutsch) erkennen."""
+    import pypdfium2 as pdfium
+    import pytesseract
+
+    pdf = pdfium.PdfDocument(data)
+    if len(pdf) > OCR_MAX_PAGES:
         raise ValueError(
-            "PDF enthält keinen Text — vermutlich ein Scan. "
-            "OCR wird derzeit nicht unterstützt."
+            f"Scan mit {len(pdf)} Seiten — Maximum für Texterkennung: "
+            f"{OCR_MAX_PAGES}. Bitte aufteilen."
+        )
+    pages: list[tuple[int | None, str]] = []
+    for i in range(len(pdf)):
+        image = pdf[i].render(scale=2.0).to_pil()  # ~150 dpi
+        text = pytesseract.image_to_string(image, lang="deu").strip()
+        if text:
+            pages.append((i + 1, text))
+    if not pages:
+        raise ValueError(
+            "Auch per Texterkennung (OCR) kein Text gefunden — "
+            "Scanqualität prüfen."
         )
     return pages
+
+
+def _extract_image(data: bytes) -> list[tuple[int | None, str]]:
+    """Bilddatei (PNG/JPG/TIFF): Texterkennung per Tesseract (deutsch)."""
+    import pytesseract
+    from PIL import Image
+
+    try:
+        image = Image.open(io.BytesIO(data))
+    except Exception:
+        raise ValueError("Bilddatei konnte nicht gelesen werden.")
+    text = pytesseract.image_to_string(image, lang="deu").strip()
+    if not text:
+        raise ValueError(
+            "Per Texterkennung (OCR) kein Text im Bild gefunden — "
+            "Scanqualität prüfen."
+        )
+    return [(None, text)]
 
 
 def _extract_docx(data: bytes) -> list[tuple[int | None, str]]:
