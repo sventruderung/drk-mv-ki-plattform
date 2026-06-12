@@ -26,7 +26,9 @@ async def stream_local(
         async with client.stream(
             "POST",
             f"{ollama_base_url}/api/generate",
-            json={"model": model, "prompt": prompt, "stream": True},
+            # think=False: Qwen3 wuerde sonst erst unsichtbar "nachdenken" —
+            # der Nutzer saehe sekundenlang nichts (TTFT-Anforderung < 2 s)
+            json={"model": model, "prompt": prompt, "stream": True, "think": False},
         ) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():

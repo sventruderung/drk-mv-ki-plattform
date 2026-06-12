@@ -64,6 +64,9 @@ services:
   ollama:
     restart: unless-stopped
     image: ollama/ollama:latest
+    environment:
+      # Modell dauerhaft im Speicher halten — Neuladen kostet sonst ~10 s TTFT
+      OLLAMA_KEEP_ALIVE: "-1"
     volumes:
       - ollama_data:/root/.ollama
     ports:
