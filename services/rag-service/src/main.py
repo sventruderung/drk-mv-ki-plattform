@@ -15,8 +15,15 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
+    from .core.rerank import warmup
+
     await db.init_pool(settings)
     storage.init_storage(settings)
+    if settings.rerank_enabled:
+        # Reranker im Hintergrund laden — erste Anfrage wartet dann nicht
+        asyncio.get_event_loop().run_in_executor(None, warmup, settings.rerank_model)
     logger.info("rag-service.startup")
     yield
     await db.close_pool()

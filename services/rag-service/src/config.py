@@ -23,3 +23,9 @@ class Settings(BaseSettings):
     chunk_size: int = 1000          # Zeichen pro Chunk
     chunk_overlap: int = 200
     top_k: int = 3                  # Treffer pro RAG-Anfrage (mehr = bessere Abdeckung, langsameres TTFT)
+
+    # Reranking (§3.2): Vektorsuche liefert Kandidaten, der Cross-Encoder
+    # waehlt die wirklich relevanten aus
+    rerank_enabled: bool = True
+    rerank_candidates: int = 20
+    rerank_model: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"

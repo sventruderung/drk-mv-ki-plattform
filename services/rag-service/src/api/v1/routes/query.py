@@ -12,6 +12,7 @@ from drk_shared.logging import get_logger
 
 from ....config import Settings
 from ....core.embeddings import embed_query
+from ....core.rerank import rerank_scores, select_top
 from ....db import tenant_connection
 
 logger = get_logger(__name__)
@@ -52,9 +53,11 @@ async def query(
         body.question, settings.ollama_base_url, settings.embedding_model
     )
     top_k = body.top_k or settings.top_k
+    # Mit Reranking: mehr Kandidaten holen, der Cross-Encoder waehlt aus
+    fetch_n = max(settings.rerank_candidates, top_k) if settings.rerank_enabled else top_k
 
     kb_filter = ""
-    params: list = [str(query_embedding), roles, top_k]
+    params: list = [str(query_embedding), roles, fetch_n]
     if body.kb_id:
         kb_filter = "AND d.kb_id = $4"
         params.append(body.kb_id)
@@ -80,6 +83,13 @@ async def query(
             """,
             *params,
         )
+
+    # Reranking (§3.2): Relevanz zur Frage bewerten, beste top_k behalten
+    if settings.rerank_enabled and len(rows) > top_k:
+        scores = await rerank_scores(
+            body.question, [r["chunk_text"] for r in rows], settings.rerank_model
+        )
+        rows = select_top(rows, scores, top_k)
 
     citations = [
         Citation(
