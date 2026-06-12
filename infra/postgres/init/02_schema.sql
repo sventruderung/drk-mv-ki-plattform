@@ -15,6 +15,7 @@ CREATE TABLE documents (
     -- ACL-Gruppen laut §4.2: z.B. kv-vorstand, kv-pflege, kv-rettungsdienst, kv-alle
     acl_groups    TEXT[] NOT NULL DEFAULT '{kv-alle}',
     uploaded_by   TEXT NOT NULL,                 -- Keycloak user_id (sub)
+    content_sha256 TEXT,                         -- Duplikat-Erkennung beim Upload
     status        TEXT NOT NULL DEFAULT 'processing',  -- processing | ready | error
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -24,6 +25,7 @@ CREATE POLICY tenant_isolation ON documents
     USING (tenant_id = current_tenant_id());
 
 CREATE INDEX idx_documents_tenant ON documents (tenant_id);
+CREATE INDEX idx_documents_hash ON documents (tenant_id, content_sha256);
 
 -- ---------------------------------------------------------------------------
 -- Chunks mit Embeddings (nomic-embed-text via Ollama → 768 Dimensionen)

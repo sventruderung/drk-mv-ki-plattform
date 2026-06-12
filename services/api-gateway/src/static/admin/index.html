@@ -470,7 +470,11 @@ document.getElementById("uploadbtn").onclick = async () => {
       const r = await api("/api/v1/documents", { method: "POST", body: fd });
       okDocs += r.documents ? r.documents.length : 1;   // ZIP liefert Liste
       if (r.skipped) skippedZip.push(...r.skipped);
-    } catch (e) { failed.push(`${f.name}: ${e.message}`); }
+    } catch (e) {
+      // Duplikate sind kein Fehler — als übersprungen ausweisen
+      if (e.message.includes("Duplikat")) skippedZip.push(`${f.name} (${e.message})`);
+      else failed.push(`${f.name}: ${e.message}`);
+    }
     loadDocs();
   }
 

@@ -4,6 +4,7 @@ Identität kommt vom API-Gateway über interne Header (X-Tenant-ID, X-User-ID,
 X-User-Roles) — der rag-service ist nicht direkt von außen erreichbar.
 """
 
+import hashlib
 import io
 import uuid
 import zipfile
@@ -63,6 +64,24 @@ async def _ingest(
     kb_id: uuid.UUID | None = None,
 ) -> dict:
     """Eine Datei verarbeiten: extrahieren, chunken, embedden, speichern, auditieren."""
+    # Duplikat-Erkennung VOR der teuren Verarbeitung (Extraktion/Embedding/OCR)
+    sha = hashlib.sha256(data).hexdigest()
+    async with tenant_connection(tenant_id) as conn:
+        dup = await conn.fetchrow(
+            """
+            SELECT d.name, kb.name AS kb_name FROM documents d
+            LEFT JOIN knowledge_bases kb ON kb.id = d.kb_id
+            WHERE d.content_sha256 = $1 LIMIT 1
+            """,
+            sha,
+        )
+    if dup:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Duplikat — bereits vorhanden als '{dup['name']}' "
+            f"in '{dup['kb_name'] or 'Allgemein'}'",
+        )
+
     doc_id = uuid.uuid4()
     storage_key = f"{tenant_id}/{doc_id}/{filename}"
 
@@ -90,11 +109,11 @@ async def _ingest(
             """
             INSERT INTO documents
               (id, tenant_id, name, storage_key, content_type, size_bytes,
-               acl_groups, uploaded_by, status, kb_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ready', $9)
+               acl_groups, uploaded_by, status, kb_id, content_sha256)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ready', $9, $10)
             """,
             doc_id, tenant_id, filename, storage_key,
-            content_type, len(data), groups, user_id, kb_id,
+            content_type, len(data), groups, user_id, kb_id, sha,
         )
         await conn.executemany(
             """
