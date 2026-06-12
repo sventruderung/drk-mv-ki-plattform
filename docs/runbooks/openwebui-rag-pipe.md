@@ -48,6 +48,23 @@ für die er eine aktive Leseberechtigung hat — identisch zur Gateway-API.
    in der Wissensbasis vor."
 3. Abmelden, Cookie löschen, Frage stellen → Hinweis auf fehlendes Token
 
+## Deutsche Oberfläche und Prompt-Vorschläge
+
+Die Oberflächensprache steht per `DEFAULT_LOCALE=de-DE` (Compose) auf
+Deutsch. Die **Prompt-Vorschläge auf der Startseite** sind in Open WebUI
+gespeicherte Konfiguration und werden einmalig im Admin-Panel gepflegt:
+
+**Admin-Panel → Einstellungen → Oberfläche → Standard-Prompt-Vorschläge**
+— die englischen Standardvorschläge löschen und z.B. ersetzen durch:
+
+| Titel | Prompt |
+|---|---|
+| E-Mail formulieren | Formuliere eine freundliche Antwort auf folgende E-Mail: |
+| Text zusammenfassen | Fasse den folgenden Text in 5 Stichpunkten zusammen: |
+| Einfache Sprache | Übertrage den folgenden Text in Einfache Sprache: |
+| Protokoll strukturieren | Strukturiere diese Besprechungsnotizen als Protokoll mit Beschlüssen und Aufgaben: |
+| Wissensbasis fragen | Was sagt unsere Dienstanweisung zu folgendem Thema: |
+
 ## Bekannte Grenzen
 
 - Das ID-Token läuft nach 15 Minuten ab (Realm-Einstellung

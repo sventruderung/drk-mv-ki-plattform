@@ -108,6 +108,8 @@ services:
       OAUTH_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       OPENID_PROVIDER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
       OAUTH_PROVIDER_NAME: "DRK Login"
+      # Deutsche Oberfläche als Standard für neue Nutzer
+      DEFAULT_LOCALE: "de-DE"
       # RAG-Pipe: ID-Token als Cookie bereitstellen, damit die Pipe es ans Gateway durchreichen kann
       ENABLE_OAUTH_ID_TOKEN_COOKIE: "true"
     volumes:
