@@ -18,6 +18,12 @@ if [ ! -f .env ]; then
     sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=drk-$(openssl rand -hex 6)|" .env
     sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$(gen_secret)|" .env
     # KEYCLOAK_CLIENT_SECRET wird von setup_keycloak.py gesetzt
+    # Browser-erreichbare Keycloak-URL: Standard = Server-IP (der Wizard
+    # stellt bei Angabe eines HTTPS-Hostnamens auf https://<host>/auth um)
+    LOCAL_IP=$(hostname -I | awk '{print $1}')
+    if [ -n "$LOCAL_IP" ]; then
+        sed -i "s|^KEYCLOAK_PUBLIC_URL=.*|KEYCLOAK_PUBLIC_URL=http://${LOCAL_IP}:8080/auth|" .env
+    fi
     chmod 600 .env
     echo "✅ .env erstellt — Passwörter automatisch generiert (chmod 600)."
     read -rp "Kontakt-E-Mail für Let's Encrypt (leer = HTTPS später): " acme
