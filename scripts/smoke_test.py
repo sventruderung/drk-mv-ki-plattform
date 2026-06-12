@@ -2,7 +2,7 @@
 """Smoke-Test nach dem Deployment: Sind alle Dienste erreichbar und gesund?
 
 Auf dem DGX Spark ausführen:  python3 scripts/smoke_test.py
-Abhängigkeit: pip install httpx
+Abhängigkeit: sudo apt install python3-httpx (oder pip install httpx im venv)
 """
 
 import sys

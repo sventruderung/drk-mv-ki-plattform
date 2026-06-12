@@ -9,7 +9,7 @@ Erledigt über die Keycloak-Admin-API:
   5. Ersten Mandanten-Admin (kv-admin) anlegen
 
 Auf dem Server im Repo-Root ausführen:  python3 scripts/setup_keycloak.py
-Abhängigkeit: pip install httpx
+Abhängigkeit: sudo apt install python3-httpx (oder pip install httpx im venv)
 """
 
 import getpass

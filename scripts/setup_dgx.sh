@@ -35,9 +35,9 @@ echo "→ Lade LLM-Modelle (einmalig, je nach Anbindung 30–90 Min) ..."
 docker compose exec ollama ollama pull qwen3:32b
 docker compose exec ollama ollama pull nomic-embed-text
 
-# 5. Smoke-Test
+# 5. Smoke-Test (httpx via apt — pip ist auf Ubuntu/DGX OS systemweit gesperrt, PEP 668)
 echo "→ Smoke-Test ..."
-pip3 install --quiet httpx 2>/dev/null || true
+python3 -c "import httpx" 2>/dev/null || sudo apt install -y python3-httpx
 python3 scripts/smoke_test.py
 
 cat <<'EOF'

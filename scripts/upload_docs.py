@@ -9,7 +9,7 @@ Beispiele:
     python upload_docs.py --acl kv-vorstand finanzbericht.pdf
     python upload_docs.py --acl kv-pflege,kv-vorstand *.pdf
 
-Abhängigkeit: pip install httpx
+Abhängigkeit: sudo apt install python3-httpx (oder pip install httpx im venv)
 """
 
 import argparse
