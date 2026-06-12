@@ -92,6 +92,7 @@
         </select>
         <button class="small" id="newkb">＋ Neue anlegen</button>
         <button class="small" id="renamekb">✏️ Umbenennen</button>
+        <button class="small" id="kbaclbtn">🔐 Zugriff</button>
       </div>
       <div class="acl-row">
         <strong>Sichtbar für:</strong>
@@ -457,9 +458,12 @@ async function loadDocs() {
   } catch (e) { msg("Dokumente laden fehlgeschlagen: " + e.message, true); }
 }
 
+let kbCache = [];
+
 async function loadKbs() {
   try {
     const r = await api("/api/v1/kbs/");
+    kbCache = r.kbs;
     const sel = document.getElementById("kbselect");
     const current = sel.value;
     sel.innerHTML = `<option value="">Allgemein</option>` +
@@ -467,6 +471,15 @@ async function loadKbs() {
     sel.value = current;
   } catch (e) { msg("Wissensdatenbanken laden fehlgeschlagen: " + e.message, true); }
 }
+
+// Beim Wechsel der Wissensdatenbank: Sichtbarkeits-Checkboxen mit deren
+// Zugriffsgruppen vorbelegen — verhindert vergessene Einschränkungen
+document.getElementById("kbselect").onchange = () => {
+  const kb = kbCache.find(k => k.id === document.getElementById("kbselect").value);
+  const groups = kb ? kb.acl_groups : ["kv-alle"];
+  for (const c of document.querySelectorAll(".acl-row input[type=checkbox]"))
+    c.checked = groups.includes(c.value);
+};
 
 document.getElementById("renamekb").onclick = async () => {
   const sel = document.getElementById("kbselect");
@@ -488,10 +501,13 @@ document.getElementById("renamekb").onclick = async () => {
 document.getElementById("newkb").onclick = async () => {
   const name = prompt("Name der neuen Wissensdatenbank (z.B. Satzungen, Pflege):");
   if (!name || !name.trim()) return;
+  // Aktuell angehakte Gruppen als Zugriffsgruppen der neuen KB übernehmen
+  const groups = [...document.querySelectorAll(".acl-row input[type=checkbox]:checked")]
+    .map(c => c.value);
   try {
     const r = await api("/api/v1/kbs/", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: name.trim(), acl_groups: groups.length ? groups : ["kv-alle"] }),
     });
     await loadKbs();
     document.getElementById("kbselect").value = r.id;
@@ -507,11 +523,11 @@ async function delDoc(id, name) {
   } catch (e) { msg("Löschen fehlgeschlagen: " + e.message, true); }
 }
 
-// ---------- ACL-Dialog ----------
-let aclDocId = null;
+// ---------- ACL-Dialog (Dokumente UND Wissensdatenbanken) ----------
+let aclTarget = null;  // {kind: "doc"|"kb", id}
 
 function openAcl(id, groups, name) {
-  aclDocId = id;
+  aclTarget = { kind: "doc", id };
   document.getElementById("acl-title").textContent = `Sichtbarkeit ändern: ${name}`;
   for (const c of document.querySelectorAll("#acl-checks input"))
     c.checked = groups.includes(c.value);
@@ -520,16 +536,35 @@ function openAcl(id, groups, name) {
 
 function closeAcl() { document.getElementById("aclmodal").classList.add("hidden"); }
 
+document.getElementById("kbaclbtn").onclick = () => {
+  const sel = document.getElementById("kbselect");
+  if (!sel.value)
+    return msg("'Allgemein' hat keine eigene Zugriffsgruppe — bitte eine Wissensdatenbank wählen.", true);
+  const kb = kbCache.find(k => k.id === sel.value);
+  aclTarget = { kind: "kb", id: sel.value };
+  document.getElementById("acl-title").textContent = `Zugriff auf Wissensdatenbank: ${kb ? kb.name : ""}`;
+  for (const c of document.querySelectorAll("#acl-checks input"))
+    c.checked = (kb ? kb.acl_groups : ["kv-alle"]).includes(c.value);
+  document.getElementById("aclmodal").classList.remove("hidden");
+};
+
 document.getElementById("acl-save").onclick = async () => {
   const groups = [...document.querySelectorAll("#acl-checks input:checked")].map(c => c.value);
   if (!groups.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
+  const url = aclTarget.kind === "kb"
+    ? `/api/v1/kbs/${aclTarget.id}/acl`
+    : `/api/v1/documents/${aclTarget.id}/acl`;
   try {
-    await api(`/api/v1/documents/${aclDocId}/acl`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
+    await api(url, {
+      method: aclTarget.kind === "kb" ? "PUT" : "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ acl_groups: groups }),
     });
-    closeAcl(); msg("✅ Sichtbarkeit aktualisiert — wirkt sofort für alle Suchanfragen.");
-    loadDocs(); if (hasRole("kv-admin")) loadAudit();
+    closeAcl();
+    msg(aclTarget.kind === "kb"
+      ? "✅ Zugriff auf die Wissensdatenbank aktualisiert — wirkt sofort."
+      : "✅ Sichtbarkeit aktualisiert — wirkt sofort für alle Suchanfragen.");
+    loadDocs(); loadKbs(); if (hasRole("kv-admin")) loadAudit();
   } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
 };
 

@@ -5,6 +5,9 @@ CREATE TABLE knowledge_bases (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id   TEXT NOT NULL,
     name        TEXT NOT NULL,
+    -- Zugriff rollenbasiert (§4.2): nur Nutzer mit einer dieser Gruppen
+    -- sehen Inhalte dieser Wissensdatenbank (zusätzlich zur Dokument-ACL)
+    acl_groups  TEXT[] NOT NULL DEFAULT '{kv-alle}',
     created_by  TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant_id, name)

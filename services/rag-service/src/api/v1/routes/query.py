@@ -70,7 +70,9 @@ async def query(
                    1 - (dc.embedding <=> $1::vector) AS similarity
             FROM document_chunks dc
             JOIN documents d ON d.id = dc.document_id
+            LEFT JOIN knowledge_bases kb ON kb.id = d.kb_id
             WHERE dc.acl_groups && $2::text[]
+              AND (d.kb_id IS NULL OR kb.acl_groups && $2::text[])
               AND d.status = 'ready'
               {kb_filter}
             ORDER BY dc.embedding <=> $1::vector
