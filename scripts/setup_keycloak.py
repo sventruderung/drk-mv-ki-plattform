@@ -145,14 +145,21 @@ def main() -> None:
     write_env_value("KEYCLOAK_CLIENT_SECRET", secret)
     print("✅ Client-Secret generiert, verifiziert und in .env eingetragen.")
 
-    # --- 2. tenant_id-Mapper in beiden Clients setzen ---
+    # --- 2. tenant_id-Mapper in beiden Clients setzen (mit Verifikation) ---
     for client in (platform, admin_ui):
         mappers = kc.req("GET", f"/clients/{client['id']}/protocol-mappers/models").json()
         for m in mappers:
             if m.get("config", {}).get("claim.name") == "tenant_id":
                 m["config"]["claim.value"] = tenant_id
                 kc.req("PUT", f"/clients/{client['id']}/protocol-mappers/models/{m['id']}", json=m)
-    print(f"✅ tenant_id-Mapper auf '{tenant_id}' gesetzt (beide Clients).")
+        # Zurücklesen — stiller Fehlschlag wäre eine Tenant-Verwechslung!
+        check = kc.req("GET", f"/clients/{client['id']}/protocol-mappers/models").json()
+        stored = next((m["config"].get("claim.value") for m in check
+                       if m.get("config", {}).get("claim.name") == "tenant_id"), None)
+        if stored != tenant_id:
+            fail(f"tenant_id-Mapper in {client['clientId']} nicht übernommen "
+                 f"(steht auf '{stored}') — Keycloak prüfen.")
+    print(f"✅ tenant_id-Mapper auf '{tenant_id}' gesetzt und verifiziert (beide Clients).")
 
     # --- 3. Service-Account-Rollen für die Nutzerverwaltung ---
     sa_user = kc.req("GET", f"/clients/{platform['id']}/service-account-user").json()

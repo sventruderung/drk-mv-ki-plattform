@@ -1,6 +1,8 @@
-from fastapi import Request, HTTPException, status
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from jose import jwt, JWTError
+from jose.exceptions import ExpiredSignatureError
 import httpx
 
 from drk_shared.tenant import set_roles, set_tenant_id
@@ -24,19 +26,26 @@ class JWTMiddleware(BaseHTTPMiddleware):
         if request.url.path in SKIP_PATHS or request.url.path.startswith(SKIP_PREFIXES):
             return await call_next(request)
 
+        # HTTPException in Middleware würde als 500 enden — daher JSONResponse
+        def reject(code: int, detail: str) -> JSONResponse:
+            return JSONResponse(status_code=code, content={"detail": detail})
+
         token = self._extract_token(request)
         if not token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token fehlt")
+            return reject(status.HTTP_401_UNAUTHORIZED, "Token fehlt")
 
         try:
             claims = await self._verify_token(token)
+        except ExpiredSignatureError:
+            return reject(status.HTTP_401_UNAUTHORIZED, "Sitzung abgelaufen — bitte neu anmelden")
         except JWTError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ungültig")
+            return reject(status.HTTP_401_UNAUTHORIZED, "Token ungültig")
 
         # TENANT-ISOLATION: tenant_id kommt ausschließlich aus JWT-Claims
         tenant_id = claims.get("tenant_id") or claims.get("azp")
-        if not tenant_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kein Tenant im Token")
+        if not tenant_id or tenant_id == "kv-CHANGE_ME":
+            return reject(status.HTTP_403_FORBIDDEN,
+                          "Kein gültiger Tenant im Token — tenant_id-Mapper in Keycloak prüfen")
 
         # ACL (§4.2): Rollen aus realm_access.roles — Basis für die rechtegeprüfte RAG-Suche
         roles = claims.get("realm_access", {}).get("roles", [])
