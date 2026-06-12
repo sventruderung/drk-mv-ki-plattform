@@ -23,6 +23,7 @@ settings = Settings()
 class QueryRequest(BaseModel):
     question: str
     top_k: int | None = None
+    kb_id: str | None = None  # nur diese Wissensdatenbank durchsuchen
 
 
 class Citation(BaseModel):
@@ -52,11 +53,17 @@ async def query(
     )
     top_k = body.top_k or settings.top_k
 
+    kb_filter = ""
+    params: list = [str(query_embedding), roles, top_k]
+    if body.kb_id:
+        kb_filter = "AND d.kb_id = $4"
+        params.append(body.kb_id)
+
     async with tenant_connection(x_tenant_id) as conn:
         # ACL-Filter: && prüft Überschneidung von Chunk-Gruppen und Nutzer-Rollen.
         # RLS filtert zusätzlich auf tenant_id (Defense in Depth).
         rows = await conn.fetch(
-            """
+            f"""
             SELECT d.name AS document_name,
                    dc.page,
                    dc.chunk_text,
@@ -65,10 +72,11 @@ async def query(
             JOIN documents d ON d.id = dc.document_id
             WHERE dc.acl_groups && $2::text[]
               AND d.status = 'ready'
+              {kb_filter}
             ORDER BY dc.embedding <=> $1::vector
             LIMIT $3
             """,
-            str(query_embedding), roles, top_k,
+            *params,
         )
 
     citations = [

@@ -32,7 +32,18 @@ class Pipe:
         self.valves = self.Valves()
 
     def pipes(self):
-        return [{"id": "drk-rag", "name": "🔒 DRK Wissensbasis (lokal)"}]
+        """Eine Auswahl pro Wissensdatenbank + 'alle' (Namen vom Gateway)."""
+        entries = [{"id": "drk-rag", "name": "🔒 DRK Wissensbasis — alle (lokal)"}]
+        try:
+            resp = httpx.get(f"{self.valves.gateway_url}/api/v1/kbs/public", timeout=10)
+            resp.raise_for_status()
+            entries += [
+                {"id": f"drk-rag-{kb['id']}", "name": f"🔒 Wissensbasis: {kb['name']} (lokal)"}
+                for kb in resp.json()
+            ]
+        except httpx.HTTPError:
+            pass  # Gateway nicht erreichbar — nur die Gesamt-Suche anbieten
+        return entries
 
     @staticmethod
     def _last_user_message(body: dict) -> str:
@@ -68,6 +79,12 @@ class Pipe:
             yield "Bitte eine Frage eingeben."
             return
 
+        # Gewählte Wissensdatenbank aus der Modell-ID ("...drk-rag-<uuid>")
+        model_id = body.get("model", "")
+        kb_id = None
+        if "drk-rag-" in model_id:
+            kb_id = model_id.split("drk-rag-", 1)[1]
+
         await status("🔍 Durchsuche die Wissensbasis (rechtegeprüft) …")
         try:
             async with httpx.AsyncClient(
@@ -76,7 +93,7 @@ class Pipe:
                 async with client.stream(
                     "POST",
                     f"{self.valves.gateway_url}/api/v1/rag/chat",
-                    json={"message": question},
+                    json={"message": question, "kb_id": kb_id},
                     headers={"Authorization": f"Bearer {token}"},
                 ) as resp:
                     if resp.status_code == 401:

@@ -33,14 +33,15 @@ def _llm_url(request: Request) -> str:
 
 @router.post("/documents")
 async def upload_document(
-    request: Request, file: UploadFile, acl_groups: str = Form("kv-alle")
+    request: Request, file: UploadFile,
+    acl_groups: str = Form("kv-alle"), kb_id: str = Form(""),
 ):
     # ZIP-Archive können viele Dokumente enthalten — großzügiger Timeout
     async with httpx.AsyncClient(timeout=1800) as client:
         resp = await client.post(
             f"{_rag_url(request)}/api/v1/documents/",
             files={"file": (file.filename, await file.read(), file.content_type)},
-            data={"acl_groups": acl_groups},
+            data={"acl_groups": acl_groups, "kb_id": kb_id},
             headers=_identity_headers(request),
         )
     if resp.status_code != 200:
@@ -93,6 +94,7 @@ async def delete_document(request: Request, document_id: str):
 class RagChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
+    kb_id: str | None = None  # nur diese Wissensdatenbank durchsuchen
 
 
 RAG_SYSTEM_PROMPT = (
@@ -114,7 +116,7 @@ async def rag_chat(body: RagChatRequest, request: Request) -> StreamingResponse:
     async with httpx.AsyncClient(timeout=60) as client:
         search = await client.post(
             f"{_rag_url(request)}/api/v1/query/",
-            json={"question": body.message},
+            json={"question": body.message, "kb_id": body.kb_id},
             headers=headers,
         )
     search.raise_for_status()

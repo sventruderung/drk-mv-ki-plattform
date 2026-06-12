@@ -60,6 +60,7 @@ ZIP_MAX_MEMBER_BYTES = 100 * 1024 * 1024  # 100 MB pro Datei
 async def _ingest(
     data: bytes, filename: str, content_type: str,
     groups: list[str], tenant_id: str, user_id: str,
+    kb_id: uuid.UUID | None = None,
 ) -> dict:
     """Eine Datei verarbeiten: extrahieren, chunken, embedden, speichern, auditieren."""
     doc_id = uuid.uuid4()
@@ -89,11 +90,11 @@ async def _ingest(
             """
             INSERT INTO documents
               (id, tenant_id, name, storage_key, content_type, size_bytes,
-               acl_groups, uploaded_by, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ready')
+               acl_groups, uploaded_by, status, kb_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ready', $9)
             """,
             doc_id, tenant_id, filename, storage_key,
-            content_type, len(data), groups, user_id,
+            content_type, len(data), groups, user_id, kb_id,
         )
         await conn.executemany(
             """
@@ -124,9 +125,11 @@ async def _ingest(
 async def upload_document(
     file: UploadFile,
     acl_groups: str = Form("kv-alle"),  # kommasepariert, z.B. "kv-vorstand,kv-pflege"
+    kb_id: str = Form(""),              # Ziel-Wissensdatenbank (leer = Allgemein)
     x_tenant_id: str = Header(...),
     x_user_id: str = Header(...),
 ):
+    kb_uuid = uuid.UUID(kb_id) if kb_id.strip() else None
     content_type = file.content_type or ""
     groups = [g.strip() for g in acl_groups.split(",") if g.strip()]
     is_zip = (file.filename or "").lower().endswith(".zip") or content_type in (
@@ -149,7 +152,7 @@ async def upload_document(
 
     if not is_zip:
         result = await _ingest(
-            data, file.filename, content_type, groups, x_tenant_id, x_user_id
+            data, file.filename, content_type, groups, x_tenant_id, x_user_id, kb_uuid
         )
         return {**result, "acl_groups": groups, "status": "ready"}
 
@@ -181,7 +184,7 @@ async def upload_document(
         try:
             result = await _ingest(
                 archive.read(member), name, EXT_TYPES[ext],
-                groups, x_tenant_id, x_user_id,
+                groups, x_tenant_id, x_user_id, kb_uuid,
             )
             documents.append(result)
         except HTTPException as e:
@@ -207,8 +210,11 @@ async def list_documents(x_tenant_id: str = Header(...)):
     async with tenant_connection(x_tenant_id) as conn:
         rows = await conn.fetch(
             """
-            SELECT id, name, content_type, size_bytes, acl_groups, status, created_at
-            FROM documents ORDER BY created_at DESC
+            SELECT d.id, d.name, d.content_type, d.size_bytes, d.acl_groups,
+                   d.status, d.created_at, d.kb_id, kb.name AS kb_name
+            FROM documents d
+            LEFT JOIN knowledge_bases kb ON kb.id = d.kb_id
+            ORDER BY d.created_at DESC
             """
         )
     return [dict(r) for r in rows]

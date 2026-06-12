@@ -85,6 +85,13 @@
       </div>
       <p style="margin-top:8px"><button class="small" onclick="document.getElementById('folderinput').click()">📁 Ordner auswählen</button>
         <span class="muted" id="queueinfo"></span></p>
+      <div class="acl-row" style="align-items:center">
+        <strong>Wissensdatenbank:</strong>
+        <select id="kbselect" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
+          <option value="">Allgemein</option>
+        </select>
+        <button class="small" id="newkb">＋ Neue anlegen</button>
+      </div>
       <div class="acl-row">
         <strong>Sichtbar für:</strong>
         <label><input type="checkbox" value="kv-alle" checked> Alle Mitarbeitenden</label>
@@ -97,7 +104,7 @@
     </div>
     <div class="card">
       <h2>Vorhandene Dokumente</h2>
-      <table><thead><tr><th>Name</th><th>Sichtbar für</th><th>Status</th><th>Hochgeladen</th><th></th></tr></thead>
+      <table><thead><tr><th>Name</th><th>Wissensdatenbank</th><th>Sichtbar für</th><th>Status</th><th>Hochgeladen</th><th></th></tr></thead>
       <tbody id="doclist"></tbody></table>
     </div>
   </section>
@@ -291,7 +298,7 @@ function init() {
         document.getElementById("tab-audit").style.display = "none";
         document.getElementById("tab-settings").style.display = "none";
       }
-      loadDocs(); loadDrafts();
+      loadDocs(); loadDrafts(); loadKbs();
       if (hasRole("kv-admin")) {
         loadUsers(); loadAudit(); loadHostname(); loadStatus();
         loadModels(); loadKeyStatus();
@@ -415,6 +422,7 @@ document.getElementById("uploadbtn").onclick = async () => {
     const fd = new FormData();
     fd.append("file", f);
     fd.append("acl_groups", acl.join(","));
+    fd.append("kb_id", document.getElementById("kbselect").value);
     try {
       const r = await api("/api/v1/documents", { method: "POST", body: fd });
       okDocs += r.documents ? r.documents.length : 1;   // ZIP liefert Liste
@@ -436,6 +444,7 @@ async function loadDocs() {
     const docs = await api("/api/v1/documents");
     document.getElementById("doclist").innerHTML = docs.map(d => `<tr>
       <td>${esc(d.name)}</td>
+      <td>${esc(d.kb_name || "Allgemein")}</td>
       <td>${(d.acl_groups || []).map(esc).join(", ")}</td>
       <td>${badge(d.status)}</td>
       <td>${fmtDate(d.created_at)}</td>
@@ -443,9 +452,35 @@ async function loadDocs() {
         <button class="small" onclick='openAcl("${d.id}", ${JSON.stringify(d.acl_groups || [])}, "${esc(d.name)}")'>Sichtbarkeit</button>
         <button class="small no" onclick="delDoc('${d.id}', '${esc(d.name)}')">Löschen</button>
       </td>
-    </tr>`).join("") || `<tr><td colspan="5" class="muted">Noch keine Dokumente.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="6" class="muted">Noch keine Dokumente.</td></tr>`;
   } catch (e) { msg("Dokumente laden fehlgeschlagen: " + e.message, true); }
 }
+
+async function loadKbs() {
+  try {
+    const r = await api("/api/v1/kbs/");
+    const sel = document.getElementById("kbselect");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Allgemein</option>` +
+      r.kbs.map(kb => `<option value="${kb.id}">${esc(kb.name)} (${kb.doc_count})</option>`).join("");
+    sel.value = current;
+  } catch (e) { msg("Wissensdatenbanken laden fehlgeschlagen: " + e.message, true); }
+}
+
+document.getElementById("newkb").onclick = async () => {
+  const name = prompt("Name der neuen Wissensdatenbank (z.B. Satzungen, Pflege):");
+  if (!name || !name.trim()) return;
+  try {
+    const r = await api("/api/v1/kbs/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await loadKbs();
+    document.getElementById("kbselect").value = r.id;
+    msg(`✅ Wissensdatenbank "${r.name}" angelegt und ausgewählt.`);
+    if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg(e.message, true); }
+};
 
 async function delDoc(id, name) {
   if (!confirm(`Dokument "${name}" endgültig löschen?`)) return;
