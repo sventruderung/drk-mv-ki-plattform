@@ -93,10 +93,17 @@ def main() -> None:
     print("✅ Mit Keycloak verbunden.\n")
 
     # --- Eingaben ---
-    kv_name = input("Name des Kreisverbands (z.B. parchim): ").strip().lower()
+    raw_name = input("Name des Kreisverbands (z.B. Bad Doberan): ").strip()
+    # Normalisieren: Kleinbuchstaben, Umlaute, Leerzeichen -> Bindestrich
+    kv_name = raw_name.lower()
+    for old, new in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        kv_name = kv_name.replace(old, new)
+    kv_name = re.sub(r"[^a-z0-9]+", "-", kv_name).strip("-")
     if not re.match(r"^[a-z0-9-]{2,40}$", kv_name):
-        fail("Ungültiger Name — nur Kleinbuchstaben, Ziffern, Bindestriche.")
+        fail(f"Name '{raw_name}' ergibt keine gültige Kennung.")
     tenant_id = f"kv-{kv_name}"
+    if kv_name != raw_name:
+        print(f"   → Technische Kennung: {tenant_id}")
 
     hostname = input("Öffentlicher Hostname für HTTPS (leer = später): ").strip().lower()
 
