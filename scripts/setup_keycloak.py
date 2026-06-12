@@ -152,17 +152,30 @@ def main() -> None:
                json=to_assign)
     print("✅ Service-Account-Rollen (view-users, manage-users) zugewiesen.")
 
-    # --- 4. HTTPS-Redirect-URIs ---
+    # --- 4. Redirect-URIs (interne IP immer; HTTPS-Hostname falls angegeben) ---
+    local_ip = subprocess.run(
+        ["hostname", "-I"], capture_output=True, text=True
+    ).stdout.split()
+    local_ip = local_ip[0] if local_ip else ""
+
+    platform_uris = [f"http://{local_ip}:3000/*", f"http://{local_ip}:8000/*"] if local_ip else []
+    admin_uris = [f"http://{local_ip}:8000/*"] if local_ip else []
     if hostname:
+        platform_uris.append(f"https://{hostname}/*")
+        admin_uris.append(f"https://{hostname}/admin/*")
+    if platform_uris:
         for client, uris in (
-            (platform, [f"https://{hostname}/*"]),
-            (admin_ui, [f"https://{hostname}/admin/*"]),
+            (platform, platform_uris),
+            (admin_ui, admin_uris),
         ):
             merged = sorted(set(client.get("redirectUris", [])) | set(uris))
             kc.req("PUT", f"/clients/{client['id']}",
                    json={**client, "redirectUris": merged})
+        print(f"✅ Redirect-URIs eingetragen (intern: {local_ip or '—'}"
+              + (f", öffentlich: {hostname}" if hostname else "") + ").")
+    if hostname:
         write_env_value("KEYCLOAK_PUBLIC_URL", f"https://{hostname}/auth")
-        print(f"✅ Redirect-URIs für https://{hostname} eingetragen, .env aktualisiert.")
+        print(f"✅ KEYCLOAK_PUBLIC_URL auf https://{hostname}/auth gesetzt (.env).")
         # Hostname direkt in die Plattform-DB schreiben — Caddy fragt dort vor
         # jeder Zertifikats-Ausstellung an (On-Demand-TLS)
         result = subprocess.run(
