@@ -46,7 +46,13 @@ class Pipe:
                 return content
         return ""
 
-    async def pipe(self, body: dict, __user__: dict, __request__):
+    async def pipe(self, body: dict, __user__: dict, __request__, __event_emitter__=None):
+        async def status(text: str, done: bool = False):
+            if __event_emitter__:
+                await __event_emitter__(
+                    {"type": "status", "data": {"description": text, "done": done}}
+                )
+
         # OIDC-Token des Nutzers aus der Open-WebUI-Session (Cookie nach OAuth-Login)
         token = __request__.cookies.get("oauth_id_token")
         if not token:
@@ -62,6 +68,7 @@ class Pipe:
             yield "Bitte eine Frage eingeben."
             return
 
+        await status("🔍 Durchsuche die Wissensbasis (rechtegeprüft) …")
         try:
             async with httpx.AsyncClient(
                 timeout=self.valves.timeout_seconds
@@ -83,9 +90,13 @@ class Pipe:
                     # Gateway streamt Ollama-NDJSON — Text-Tokens extrahieren
                     import json as _json
 
+                    first = True
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue
+                        if first:
+                            await status("✍️ Formuliere Antwort aus den Quellen …", done=True)
+                            first = False
                         try:
                             chunk = _json.loads(line)
                             text = chunk.get("response", "")

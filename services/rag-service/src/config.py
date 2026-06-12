@@ -22,4 +22,4 @@ class Settings(BaseSettings):
 
     chunk_size: int = 1000          # Zeichen pro Chunk
     chunk_overlap: int = 200
-    top_k: int = 5                  # Treffer pro RAG-Anfrage
+    top_k: int = 3                  # Treffer pro RAG-Anfrage (mehr = bessere Abdeckung, langsameres TTFT)
