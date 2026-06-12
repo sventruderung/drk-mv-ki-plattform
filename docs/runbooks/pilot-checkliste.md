@@ -27,9 +27,11 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 
 ## C. Open WebUI einrichten (Port 3000)
 
-- [ ] Erstes Konto = Admin-Konto (lokal), danach Login nur noch via "DRK Login"
-- [ ] Pipe `drk_rag_pipe.py` installiert + aktiviert (siehe `openwebui-rag-pipe.md`)
-- [ ] Pipe `drk_content_pipe.py` installiert + aktiviert
+- [ ] `python3 scripts/setup_openwebui.py` — legt bei Bedarf das Admin-Konto
+      an und installiert + aktiviert alle drei Pipes automatisch
+      (manuelle Alternative: siehe `openwebui-rag-pipe.md`)
+- [ ] Deutsche Prompt-Vorschläge prüfen (bei Erstinstallation automatisch;
+      sonst Admin-Panel → Oberfläche, Vorlagen im Runbook)
 - [ ] Verifizieren: `oauth_id_token`-Cookie wird nach Keycloak-Login gesetzt
       (Browser-DevTools → Cookies) — versionsabhängig!
 
