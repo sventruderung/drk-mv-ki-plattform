@@ -5,6 +5,8 @@ keine Seiten kennt (TXT, XLSX, DOCX).
 """
 
 import io
+import subprocess
+import tempfile
 
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
@@ -13,6 +15,7 @@ from pypdf import PdfReader
 SUPPORTED_TYPES = {
     "application/pdf": "pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/msword": "doc",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     "text/plain": "txt",
 }
@@ -30,6 +33,8 @@ def extract_text(data: bytes, content_type: str) -> list[tuple[int | None, str]]
             return _extract_pdf(data)
         case "docx":
             return _extract_docx(data)
+        case "doc":
+            return _extract_doc(data)
         case "xlsx":
             return _extract_xlsx(data)
         case "txt":
@@ -49,6 +54,24 @@ def _extract_pdf(data: bytes) -> list[tuple[int | None, str]]:
 def _extract_docx(data: bytes) -> list[tuple[int | None, str]]:
     doc = DocxDocument(io.BytesIO(data))
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    return [(None, text)] if text else []
+
+
+def _extract_doc(data: bytes) -> list[tuple[int | None, str]]:
+    """Alt-Word (.doc) via antiword — liefert reinen Text."""
+    with tempfile.NamedTemporaryFile(suffix=".doc") as tmp:
+        tmp.write(data)
+        tmp.flush()
+        result = subprocess.run(
+            ["antiword", "-m", "UTF-8.txt", tmp.name],
+            capture_output=True, timeout=60,
+        )
+    if result.returncode != 0:
+        raise ValueError(
+            "Alt-Word-Datei konnte nicht gelesen werden — "
+            "bitte als .docx speichern und erneut hochladen."
+        )
+    text = result.stdout.decode("utf-8", errors="replace").strip()
     return [(None, text)] if text else []
 
 
