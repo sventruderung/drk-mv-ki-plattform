@@ -75,6 +75,20 @@ abgehakt sein, bevor echte Nutzer eingeladen werden.
 - [ ] Backup eingerichtet: `sudo bash scripts/backup.sh --install` + Probelauf
       (täglich 02:30, Details in `backup.md`); externes Spiegel-Ziel klären
 
+## Nach Netzwechsel / IP-Änderung
+
+Wenn der Server in ein anderes LAN umzieht oder eine neue IP bekommt
+(Login zeigt „Keycloak nicht erreichbar"):
+
+```bash
+python3 scripts/set_host.py            # neue IP automatisch erkennen + nachziehen
+# oder explizit:  python3 scripts/set_host.py 192.168.50.7
+# öffentlicher Hostname (HTTPS): python3 scripts/set_host.py ki.drk-dbr.de --https
+```
+
+Danach im Browser ab- und neu anmelden. Das Skript ergänzt die neue Adresse,
+ohne die alte zu entfernen — die Plattform funktioniert dann in beiden Netzen.
+
 ## Update-Prozedur (bei jedem neuen Stand)
 
 ```bash
