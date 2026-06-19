@@ -349,6 +349,31 @@
         <code>manage-realm</code>. Für <code>ldaps://</code> (empfohlen) muss das
         AD-Zertifikat dem Keycloak-Truststore bekannt sein.</p>
     </div>
+
+    <div class="card">
+      <h2>ELO-Dokumentensystem</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Anmeldung am ELO REST Service. Damit kann der Chat Dokumente im ELO-Archiv
+        suchen, zusammenfassen und Kennzahlen bilden. Read-only; das Passwort wird
+        verschlüsselt im Secret-Store gehalten und nie wieder angezeigt.</p>
+      <div style="display:flex; flex-direction:column; gap:10px; max-width:680px">
+        <label class="fld"><span>Basis-URL (ELO REST Service, ohne /api)</span>
+          <input type="text" id="elo-url" placeholder="z.B. http://elo-host:9090/rest-Archiv"></label>
+        <label class="fld"><span>Benutzer</span>
+          <input type="text" id="elo-user" value="0"></label>
+        <label class="fld"><span>Passwort</span>
+          <input type="password" id="elo-pw" placeholder="Passwort" autocomplete="new-password"></label>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+        <button class="small" id="elo-test">Verbindung testen</button>
+        <button class="primary" id="elo-save">Speichern</button>
+      </div>
+      <div id="elo-status" class="hidden" style="margin-top:12px"></div>
+      <p class="muted" style="margin-top:12px">
+        Der ELO-Host muss aus dem Plattform-Netz erreichbar sein. Im Prototyp wird
+        mit einem technischen Konto gearbeitet (keine nutzerbezogene ACL) — daher
+        nur gegen ein Test-Archiv ohne echte Sozialdaten.</p>
+    </div>
   </section>
 </main>
 <footer id="buildinfo"></footer>
@@ -442,7 +467,7 @@ function init() {
       loadDocs(); loadDrafts(); loadKbs();
       if (hasRole("kv-admin")) {
         loadUsers(); loadAudit(); loadHostname(); loadStatus();
-        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap();
+        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap(); loadElo();
       }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
@@ -1107,6 +1132,61 @@ document.getElementById("ldap-delete").onclick = async () => {
     msg("AD-Anbindung entfernt.");
     loadLdap(); loadAudit();
   } catch (e) { ldapStatus("❌ Entfernen fehlgeschlagen: " + esc(e.message), true); }
+};
+
+// ---------- ELO-Dokumentensystem ----------
+function eloStatus(html, isError) {
+  const el = document.getElementById("elo-status");
+  el.innerHTML = html;
+  el.className = html ? "" : "hidden";
+  el.style.color = isError ? "#b45309" : "#2f6f3e";
+}
+
+async function loadElo() {
+  try {
+    const r = await api("/api/v1/settings/elo");
+    document.getElementById("elo-url").value = r.base_url || "";
+    document.getElementById("elo-user").value = r.user || "0";
+    document.getElementById("elo-pw").placeholder =
+      r.password_set ? "(gesetzt — leer lassen = unverändert)" : "Passwort";
+    eloStatus(r.base_url ? "Verbindung konfiguriert." : "Noch keine ELO-Verbindung hinterlegt.", false);
+  } catch (e) { eloStatus("Laden fehlgeschlagen: " + esc(e.message), true); }
+}
+
+function eloBody() {
+  const pw = document.getElementById("elo-pw").value;
+  return {
+    base_url: document.getElementById("elo-url").value.trim(),
+    user: document.getElementById("elo-user").value.trim() || "0",
+    password: pw ? pw : null,
+  };
+}
+
+document.getElementById("elo-save").onclick = async () => {
+  try {
+    await api("/api/v1/settings/elo", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(eloBody()),
+    });
+    document.getElementById("elo-pw").value = "";
+    msg("✅ ELO-Verbindung gespeichert.");
+    loadElo(); loadAudit();
+  } catch (e) { eloStatus("❌ Speichern fehlgeschlagen: " + esc(e.message), true); }
+};
+
+document.getElementById("elo-test").onclick = async () => {
+  eloStatus("Teste Anmeldung am ELO-Server …", false);
+  try {
+    // Erst speichern, damit der Test gegen den hinterlegten Stand läuft.
+    await api("/api/v1/settings/elo", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(eloBody()),
+    });
+    document.getElementById("elo-pw").value = "";
+    await api("/api/v1/settings/elo/test", { method: "POST" });
+    eloStatus("✅ Anmeldung am ELO-Server erfolgreich.", false);
+    loadElo();
+  } catch (e) { eloStatus("❌ " + esc(e.message), true); }
 };
 
 // ---------- KI-Modelle ----------

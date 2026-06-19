@@ -118,6 +118,100 @@ async def set_hostname(body: HostnameRequest, request: Request):
     }
 
 
+# ── ELO-Dokumentensystem (Connector-Verbindung) ─────────────────────────────
+# Gesamtkonzept §3.2 "Konfigurieren": Verbindungsdaten + Secret werden hier in
+# der Admin-Console gepflegt. Das Passwort liegt im Secret-Store (system_settings),
+# wird NIE zurückgegeben; die Connector-Registry hält nur Metadaten + Tenant-
+# Freigaben, kein Klartext-Secret (§7 #3 / ADR-003). Der elo-connector liest diese
+# Werte zur Laufzeit aus dem Store.
+
+class EloConfigRequest(BaseModel):
+    base_url: str | None = None          # None = unverändert lassen
+    user: str | None = None
+    password: str | None = None          # None = unverändert (Maske im UI)
+
+
+@router.get("/settings/elo")
+async def get_elo_config(request: Request):
+    """ELO-Verbindung lesen — Passwort wird NIE zurückgegeben, nur ob gesetzt."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value FROM system_settings "
+            "WHERE key IN ('elo_rest_base_url', 'elo_basic_user', 'elo_basic_password')"
+        )
+    cfg = {r["key"]: r["value"] for r in rows}
+    return {
+        "base_url": cfg.get("elo_rest_base_url", ""),
+        "user": cfg.get("elo_basic_user", "0"),
+        "password_set": bool(cfg.get("elo_basic_password")),
+    }
+
+
+@router.put("/settings/elo")
+async def set_elo_config(body: EloConfigRequest, request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    values = {
+        "elo_rest_base_url": body.base_url,
+        "elo_basic_user": body.user,
+        "elo_basic_password": body.password,   # None = unverändert
+    }
+    async with plain_connection() as conn:
+        for key, value in values.items():
+            if value is not None:
+                await conn.execute(
+                    """
+                    INSERT INTO system_settings (key, value, updated_at, updated_by)
+                    VALUES ($1, $2, now(), $3)
+                    ON CONFLICT (key) DO UPDATE
+                    SET value = $2, updated_at = now(), updated_by = $3
+                    """,
+                    key, value.strip(), request.state.user_id or "",
+                )
+    # AUDIT: nur DASS die Verbindung geändert wurde — niemals das Passwort.
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'settings.elo', 'settings', 'elo', 'ELO-Verbindung geändert')
+            """,
+            request.state.tenant_id, request.state.user_id or "",
+        )
+    logger.info("settings.elo.changed")
+    return {"saved": True}
+
+
+@router.post("/settings/elo/test")
+async def test_elo_config(request: Request):
+    """Anmeldung am ELO REST Service prüfen (Basic-Auth gegen die OpenAPI-Definition)."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value FROM system_settings "
+            "WHERE key IN ('elo_rest_base_url', 'elo_basic_user', 'elo_basic_password')"
+        )
+    cfg = {r["key"]: r["value"] for r in rows}
+    base = (cfg.get("elo_rest_base_url") or "").rstrip("/")
+    if not base:
+        raise HTTPException(status_code=422, detail="Keine ELO-Basis-URL hinterlegt.")
+    auth = httpx.BasicAuth(cfg.get("elo_basic_user", "0"), cfg.get("elo_basic_password", ""))
+    try:
+        async with httpx.AsyncClient(timeout=8, auth=auth) as client:
+            resp = await client.get(f"{base}/v3/api-docs")
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"ELO nicht erreichbar: {type(e).__name__}")
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=401, detail="Anmeldung am ELO-Server fehlgeschlagen (Benutzer/Passwort)."
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"ELO meldete HTTP {resp.status_code}.")
+    return {"ok": True}
+
+
 class ApiKeysRequest(BaseModel):
     openai_api_key: str | None = None      # None = unverändert lassen
     anthropic_api_key: str | None = None
