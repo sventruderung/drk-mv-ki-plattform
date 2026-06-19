@@ -16,6 +16,21 @@ def _ref(repo_hint: str, file_id: Any) -> str:
     return f"elo://{repo_hint}/files/{file_id}"
 
 
+def _fuzzy(value: str) -> str:
+    """Text-/Namensfelder mit ELO-Wildcards versehen, damit unterschiedliche
+    Schreibweisen matchen ('ST Computer' findet 'ST COMPUTER GmbH', 'ST-Computer').
+    Reine Zahlen (Jahr, Rechnungsnr., Betrag) bleiben EXAKT. Bereits gesetzte
+    Wildcards werden nicht angefasst.
+    """
+    v = (value or "").strip()
+    if not v or "*" in v:
+        return v
+    # reine Zahl / Datum / Betrag -> exakt lassen
+    if v.replace(".", "").replace(",", "").replace("-", "").isdigit():
+        return v
+    return "*" + v.replace(" ", "*") + "*"
+
+
 def _date(item: dict[str, Any]) -> str | None:
     raw = item.get("dateArchived") or item.get("dateModified")
     if not raw:
@@ -57,7 +72,9 @@ async def statistik_dokumente_zaehlen(
     client: EloClient, params: StatsParams, repo_hint: str
 ) -> dict[str, Any]:
     """`statistik.dokumente_zaehlen` -> POST /api/search/keywording + Zählung."""
-    items = await client.search_keywording(params.felder)
+    # Text-/Namensfelder unscharf machen (verschiedene Schreibweisen), Zahlen exakt.
+    felder = {k: _fuzzy(v) for k, v in params.felder.items()}
+    items = await client.search_keywording(felder)
     docs = [it for it in items if not it.get("isDir", False)]
     result: dict[str, Any] = {"gesamt": len(docs)}
     if params.aelter_als_tage is not None:
