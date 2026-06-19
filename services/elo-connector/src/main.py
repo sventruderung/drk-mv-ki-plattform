@@ -54,6 +54,34 @@ async def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/system/masks")
+async def system_masks(raw: int = 0):
+    """Diagnose (nur Metadaten): Masken + Indexfeld-Namen der ELO-Instanz.
+
+    Damit erheben wir die echten Feldnamen für die Suche/Statistik (Konzept §8).
+    ?raw=1 liefert die unveränderte ELO-Antwort.
+    """
+    conn = await get_elo_connection()
+    async with EloClient(conn.base_url, conn.user, conn.password, REQUEST_TIMEOUT_S) as client:
+        data = await client.masks()
+    if raw:
+        return data
+
+    masks = data.get("masks", data) if isinstance(data, dict) else data
+    summary = []
+    if isinstance(masks, list):
+        for m in masks:
+            if not isinstance(m, dict):
+                continue
+            fields = m.get("keywords") or m.get("fields") or m.get("index") or []
+            keys = [
+                f.get("key") or f.get("name") or f.get("group")
+                for f in fields if isinstance(f, dict)
+            ]
+            summary.append({"id": m.get("id"), "name": m.get("name"), "fields": keys})
+    return {"count": len(summary), "summary": summary}
+
+
 @app.post("/api/v1/connectors/{connector_id}/invoke", response_model=InvokeResponse)
 async def invoke(
     req: InvokeRequest,

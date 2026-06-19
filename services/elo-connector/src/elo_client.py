@@ -59,6 +59,10 @@ class EloClient:
             raise EloError(str(exc)) from exc
         return data if isinstance(data, list) else data.get("items", [])
 
+    async def masks(self) -> Any:
+        """GET /api/system/masks/_all — Masken + Indexfelder der Instanz (Diagnose)."""
+        return await self._get_json("/api/system/masks/_all")
+
     async def file_info(self, file_id: int | str) -> dict[str, Any]:
         """GET /api/files/{id}/info — Basis-Infos eines Eintrags."""
         return await self._get_json(f"/api/files/{file_id}/info")
