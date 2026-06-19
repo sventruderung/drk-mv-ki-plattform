@@ -38,6 +38,17 @@ class KeycloakAdmin:
         self._token: str | None = None
         self._token_expires: float = 0.0
         self._role_ids: dict[str, str] | None = None
+        self._realm_uuid: str | None = None
+
+    async def _realm_id(self) -> str:
+        """Interne Realm-ID (UUID). Komponenten (z.B. LDAP-Federation) müssen als
+        parentId diese ID tragen — NICHT den Realm-Namen, sonst erkennt Keycloak
+        den Provider nicht (unsichtbar im UI, Sync schlägt fehl)."""
+        if self._realm_uuid is None:
+            resp = await self._request("GET", "")
+            resp.raise_for_status()
+            self._realm_uuid = resp.json()["id"]
+        return self._realm_uuid
 
     async def _get_token(self) -> str:
         if self._token and time.monotonic() < self._token_expires - 10:
@@ -215,7 +226,7 @@ class KeycloakAdmin:
 
     async def _raw_ldap_component(self) -> dict | None:
         resp = await self._request(
-            "GET", f"/components?type={self.LDAP_TYPE}&parent={self._realm}"
+            "GET", f"/components?type={self.LDAP_TYPE}&parent={await self._realm_id()}"
         )
         resp.raise_for_status()
         for c in resp.json():
@@ -299,7 +310,7 @@ class KeycloakAdmin:
             "name": self.LDAP_NAME,
             "providerId": "ldap",
             "providerType": self.LDAP_TYPE,
-            "parentId": self._realm,
+            "parentId": await self._realm_id(),
             "config": base_cfg,
         }
         if existing:
