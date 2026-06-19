@@ -23,10 +23,15 @@ https:// {
 		on_demand
 	}
 
-	# API + Verwaltungs-UI → Gateway
-	handle /api/* {
+	# Plattform-API des Verwaltungs-UI unter EIGENEM Präfix. Open WebUI nutzt /api
+	# für seine eigene Backend-API — daher darf /api NICHT ans Gateway gehen, sonst
+	# meldet der Chat "Backend erforderlich". handle_path entfernt /drk-gw, das
+	# Gateway empfängt wieder /api/v1/... . Das Admin-UI ruft die API unter /drk-gw auf.
+	handle_path /drk-gw/* {
 		reverse_proxy api-gateway:8000
 	}
+
+	# Verwaltungs-UI (statisches HTML/JS) → Gateway
 	handle /admin* {
 		reverse_proxy api-gateway:8000
 	}
@@ -36,7 +41,7 @@ https:// {
 		reverse_proxy keycloak:8080
 	}
 
-	# Alles andere → Open WebUI (Chat)
+	# Alles andere — inkl. Open WebUIs eigener /api → Open WebUI (Chat)
 	handle {
 		reverse_proxy open-webui:8080
 	}

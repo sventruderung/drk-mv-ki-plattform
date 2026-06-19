@@ -481,11 +481,16 @@ function init() {
 
 function hasRole(r) { return (kc.tokenParsed.realm_access?.roles || []).includes(r); }
 
+// Gateway-Präfix: Hinter Caddy (kein Port, z.B. https://ki.drk-dbr.de) läuft die
+// Plattform-API unter /drk-gw, weil /api dort Open WebUI gehört. Direkt am Gateway
+// (z.B. http://<ip>:8000/admin) ist kein Präfix nötig.
+const GW = location.port ? "" : "/drk-gw";
+
 async function api(path, opts = {}) {
   await kc.updateToken(30).catch(() => kc.login());
   opts.headers = Object.assign({}, opts.headers,
     { Authorization: "Bearer " + kc.token });
-  const resp = await fetch(path, opts);
+  const resp = await fetch(GW + path, opts);
   if (!resp.ok) {
     let detail = "HTTP " + resp.status;
     try { detail = (await resp.json()).detail || detail; } catch {}
