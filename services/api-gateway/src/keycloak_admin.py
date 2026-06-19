@@ -354,5 +354,17 @@ class KeycloakAdmin:
             "POST",
             f"/user-storage/{comp['id']}/sync?action=triggerFullSync",
         )
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            # Echte Keycloak-Meldung durchreichen statt sie hinter dem
+            # Exception-Typ zu verstecken.
+            detail = f"Keycloak meldete HTTP {resp.status_code}"
+            try:
+                body = resp.json()
+                kc_msg = (body.get("errorMessage") or body.get("error_description")
+                          or body.get("error"))
+            except Exception:
+                kc_msg = (resp.text or "").strip()[:300]
+            if kc_msg:
+                detail += f": {kc_msg}"
+            raise KeycloakAdminError(resp.status_code, detail)
         return resp.json() if resp.content else {"status": "gestartet"}

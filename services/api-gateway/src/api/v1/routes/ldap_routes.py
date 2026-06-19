@@ -64,6 +64,12 @@ async def get_ldap(request: Request):
         cfg = await admin(request).get_ldap_federation()
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=_perm_hint(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Keycloak meldete HTTP {e.response.status_code}: "
+                   f"{(e.response.text or '').strip()[:300]}",
+        )
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Keycloak nicht erreichbar: {type(e).__name__}")
     return {"configured": cfg is not None, "config": cfg}
@@ -85,6 +91,12 @@ async def save_ldap(body: LdapConfig, request: Request):
         )
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=_perm_hint(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Keycloak meldete HTTP {e.response.status_code}: "
+                   f"{(e.response.text or '').strip()[:300]}",
+        )
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Keycloak nicht erreichbar: {type(e).__name__}")
     await audit(request, "ldap.save",
@@ -105,6 +117,12 @@ async def test_ldap(body: LdapTestRequest, request: Request):
         )
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=_perm_hint(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Keycloak meldete HTTP {e.response.status_code}: "
+                   f"{(e.response.text or '').strip()[:300]}",
+        )
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Keycloak nicht erreichbar: {type(e).__name__}")
     return {"ok": True}
@@ -117,6 +135,12 @@ async def sync_ldap(request: Request):
         result = await admin(request).sync_ldap_federation()
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=_perm_hint(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Keycloak meldete HTTP {e.response.status_code}: "
+                   f"{(e.response.text or '').strip()[:300]}",
+        )
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Keycloak nicht erreichbar: {type(e).__name__}")
     added = result.get("added", 0)
@@ -133,6 +157,12 @@ async def delete_ldap(request: Request):
         removed = await admin(request).delete_ldap_federation()
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=_perm_hint(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Keycloak meldete HTTP {e.response.status_code}: "
+                   f"{(e.response.text or '').strip()[:300]}",
+        )
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Keycloak nicht erreichbar: {type(e).__name__}")
     if removed:
