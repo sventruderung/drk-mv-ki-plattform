@@ -259,6 +259,10 @@ class KeycloakAdmin:
         """
         existing = await self._raw_ldap_component()
         base_cfg: dict[str, list[str]] = dict(existing.get("config", {})) if existing else {}
+        # Keycloak liefert das Bind-Passwort beim Lesen maskiert ("**********").
+        # Diesen maskierten Wert NIE blind zurückschreiben — sonst wird das echte
+        # Passwort durch die Maske ersetzt. Wir setzen bindCredential unten gezielt.
+        base_cfg.pop("bindCredential", None)
 
         base_cfg.update({
             "enabled": ["true" if enabled else "false"],
@@ -283,10 +287,13 @@ class KeycloakAdmin:
             base_cfg["customUserSearchFilter"] = [user_search_filter]
         else:
             base_cfg.pop("customUserSearchFilter", None)
-        # Passwort nur überschreiben, wenn ein neues angegeben wurde — andernfalls
-        # bleibt der bestehende (maskierte) Wert erhalten, den Keycloak unverändert lässt.
+        # Neues Passwort gesetzt -> übernehmen. Kein neues Passwort bei bestehender
+        # Anbindung -> Keycloaks Maske zurücksenden; Keycloak erkennt sie und lässt
+        # das gespeicherte Passwort unverändert (so wird es nie versehentlich gelöscht).
         if bind_credential:
             base_cfg["bindCredential"] = [bind_credential]
+        elif existing:
+            base_cfg["bindCredential"] = ["**********"]
 
         body = {
             "name": self.LDAP_NAME,
