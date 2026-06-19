@@ -22,6 +22,7 @@ PIPES = [
     ("drk_rag_pipe", "DRK Wissensbasis (RAG)", "drk_rag_pipe.py"),
     ("drk_content_pipe", "DRK Social Media (P02)", "drk_content_pipe.py"),
     ("drk_models_pipe", "DRK Externe Modelle", "drk_models_pipe.py"),
+    ("drk_elo_pipe", "DRK Dokumentensystem (ELO)", "drk_elo_pipe.py"),
 ]
 
 
