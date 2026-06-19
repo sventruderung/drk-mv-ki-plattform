@@ -261,7 +261,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
-      - "127.0.0.1:8005:8005"
+      # Host 8006 -> Container 8005 (8005 ist am Host vom content-service belegt)
+      - "127.0.0.1:8006:8005"
     depends_on:
       postgres:
         condition: service_healthy
