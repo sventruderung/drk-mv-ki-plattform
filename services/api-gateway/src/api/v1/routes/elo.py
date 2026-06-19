@@ -13,6 +13,7 @@ nur Metadaten geloggt, nie Frage- oder Dokumentinhalte.
 """
 
 import json
+import re
 
 import httpx
 from fastapi import APIRouter, Request
@@ -53,6 +54,14 @@ def _model(request: Request) -> str:
     return request.app.state.settings.ollama_default_model
 
 
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def _strip_think(text: str) -> str:
+    """qwen3 liefert teils <think>…</think> im Inhalt — entfernen."""
+    return _THINK_RE.sub("", text or "")
+
+
 async def _available_tools(client: httpx.AsyncClient, base: str, tenant_id: str):
     """Freigegebene Capabilities holen und als Ollama-Tools aufbereiten.
 
@@ -89,110 +98,98 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
     ollama = _ollama_url(request)
     model = _model(request)
 
-    async def stream():
+    async def run() -> tuple[str, list[dict]]:
+        """Agentischer Ablauf: Modell darf bis zu 3x Werkzeuge nutzen, danach wird
+        eine Textantwort erzwungen. Gibt (Antworttext, Quellen) zurück."""
         async with httpx.AsyncClient(timeout=300) as client:
-            # 1. Freigegebene Werkzeuge für den Tenant
-            try:
-                tools, name_map = await _available_tools(client, connector, tenant_id)
-            except httpx.HTTPError:
-                yield "⚠️ Die Connector-Verwaltung ist nicht erreichbar.".encode()
-                return
+            tools, name_map = await _available_tools(client, connector, tenant_id)
             if not tools:
-                yield (
-                    "Für Ihren Kreisverband ist aktuell kein Dokumentensystem "
-                    "freigeschaltet."
-                ).encode()
-                return
+                return ("Für Ihren Kreisverband ist aktuell kein Dokumentensystem "
+                        "freigeschaltet.", [])
 
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": body.message},
             ]
-
-            # 2. Modell ein Werkzeug wählen lassen
-            try:
-                first = await client.post(
-                    f"{ollama}/api/chat",
-                    json={"model": model, "messages": messages, "tools": tools, "stream": False},
-                )
-                first.raise_for_status()
-            except httpx.HTTPError:
-                yield "⚠️ Das Sprachmodell ist nicht erreichbar.".encode()
-                return
-
-            msg = first.json().get("message", {})
-            tool_calls = msg.get("tool_calls") or []
-
-            if not tool_calls:
-                # Modell hat ohne Werkzeug geantwortet (z.B. Rückfrage)
-                yield (msg.get("content") or
-                       "Dazu konnte ich kein passendes Werkzeug nutzen. Bitte "
-                       "formulieren Sie die Frage zum Dokumentensystem konkreter.").encode()
-                return
-
-            # 3. Tool-Calls ausführen (tenant-geprüft im Connector-Service)
-            messages.append(msg)
             sources: list[dict] = []
-            for tc in tool_calls:
-                fn = tc.get("function", {}).get("name", "")
-                args = tc.get("function", {}).get("arguments", {})
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except ValueError:
-                        args = {}
-                if fn not in name_map:
-                    messages.append({"role": "tool", "content": "Unbekanntes Werkzeug."})
-                    continue
-                connector_id, capability = name_map[fn]
-                try:
-                    inv = await client.post(
-                        f"{connector}/api/v1/connectors/{connector_id}/invoke",
-                        json={"capability": capability, "params": args},
-                        headers={"X-Tenant-ID": tenant_id},
-                    )
-                    if inv.status_code != 200:
-                        result = {"fehler": "Das Dokumentensystem ist derzeit nicht verfügbar."}
-                    else:
-                        data = inv.json().get("data", {})
-                        result = data.get("result")
-                        sources.extend(data.get("sources", []))
-                except httpx.HTTPError:
-                    result = {"fehler": "Das Dokumentensystem ist derzeit nicht verfügbar."}
-                messages.append(
-                    {"role": "tool", "content": json.dumps(result, ensure_ascii=False)}
-                )
+            answer = ""
 
-            # 4. Endgültige Antwort streamen
-            try:
-                async with client.stream(
-                    "POST",
-                    f"{ollama}/api/chat",
-                    json={"model": model, "messages": messages, "stream": True},
-                ) as resp:
-                    async for line in resp.aiter_lines():
-                        if not line.strip():
-                            continue
+            for round_no in range(4):
+                use_tools = round_no < 3   # letzte Runde erzwingt Textantwort
+                payload = {"model": model, "messages": messages, "stream": False}
+                if use_tools:
+                    payload["tools"] = tools
+                resp = await client.post(f"{ollama}/api/chat", json=payload)
+                resp.raise_for_status()
+                msg = resp.json().get("message", {})
+                tool_calls = (msg.get("tool_calls") or []) if use_tools else []
+
+                if not tool_calls:
+                    answer = msg.get("content", "") or ""
+                    break
+
+                messages.append(msg)
+                for tc in tool_calls:
+                    fn = tc.get("function", {}).get("name", "")
+                    args = tc.get("function", {}).get("arguments", {})
+                    if isinstance(args, str):
                         try:
-                            chunk = json.loads(line)
+                            args = json.loads(args)
                         except ValueError:
-                            continue
-                        text = chunk.get("message", {}).get("content", "")
-                        if text:
-                            yield text.encode()
-            except httpx.HTTPError:
-                yield "\n⚠️ Die Antwort konnte nicht vollständig erzeugt werden.".encode()
-                return
-
-            # 5. Quellen anhängen (Zitierpflicht, Konzept §3.3)
-            if sources:
-                seen, lines = set(), []
-                for s in sources:
-                    ref = s.get("ref", "")
-                    if ref in seen:
+                            args = {}
+                    if fn not in name_map:
+                        messages.append({"role": "tool", "content": "Unbekanntes Werkzeug."})
                         continue
-                    seen.add(ref)
-                    lines.append(f"- {s.get('title', 'Dokument')} ({ref})")
+                    connector_id, capability = name_map[fn]
+                    try:
+                        inv = await client.post(
+                            f"{connector}/api/v1/connectors/{connector_id}/invoke",
+                            json={"capability": capability, "params": args},
+                            headers={"X-Tenant-ID": tenant_id},
+                        )
+                        if inv.status_code != 200:
+                            result: object = {"fehler": "Dokumentensystem nicht verfügbar."}
+                        else:
+                            d = inv.json().get("data", {})
+                            result = d.get("result")
+                            sources.extend(d.get("sources", []))
+                    except httpx.HTTPError:
+                        result = {"fehler": "Dokumentensystem nicht verfügbar."}
+                    messages.append(
+                        {"role": "tool", "content": json.dumps(result, ensure_ascii=False)}
+                    )
+
+            return _strip_think(answer).strip(), sources
+
+    async def stream():
+        try:
+            answer, sources = await run()
+        except httpx.HTTPError as e:
+            logger.info("elo_chat.upstream_error", error=type(e).__name__)
+            yield "⚠️ Dokumentensystem oder Sprachmodell ist nicht erreichbar.".encode()
+            return
+        except Exception as e:  # noqa: BLE001 — letzte Sicherung; Grund wird geloggt
+            logger.info("elo_chat.error", error=f"{type(e).__name__}: {e}")
+            yield "⚠️ Bei der Verarbeitung ist ein Fehler aufgetreten.".encode()
+            return
+
+        logger.info("elo_chat.done", sources=len(sources), answer_len=len(answer))
+
+        if not answer:
+            answer = ("Ich habe das Dokumentensystem abgefragt, konnte aber keine "
+                      "Textantwort erzeugen." if sources else
+                      "Dazu konnte ich im Dokumentensystem nichts finden.")
+        yield answer.encode()
+
+        if sources:
+            seen, lines = set(), []
+            for s in sources:
+                ref = s.get("ref", "")
+                if ref in seen:
+                    continue
+                seen.add(ref)
+                lines.append(f"- {s.get('title', 'Dokument')} ({ref})")
+            if lines:
                 yield ("\n\n---\n📂 Quellen aus dem DMS:\n" + "\n".join(lines)).encode()
 
-    return StreamingResponse(stream(), media_type="text/event-stream")
+    return StreamingResponse(stream(), media_type="text/plain; charset=utf-8")
