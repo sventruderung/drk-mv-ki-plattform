@@ -230,6 +230,42 @@ services:
       - ollama
       - postgres
 
+  # Connector-Registry (Gesamtkonzept §2): verwaltet Connectoren + Tenant-Freigaben,
+  # prüft Mandant/Capability, proxyt an die Adapter. Ports nur lokal (Zugang über Gateway).
+  connector-service:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: services/connector-service/Dockerfile
+    environment:
+      TENANT_ID: ${TENANT_ID:-kv-bad-doberan}
+      ELO_CONNECTOR_URL: http://elo-connector:8005
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "127.0.0.1:8004:8004"
+    depends_on:
+      - elo-connector
+
+  # ELO-DMS-Adapter: liest die ELO-Verbindung aus dem Secret-Store (system_settings,
+  # gepflegt in der Admin-Console), spricht den ELO REST Service an. Read-only.
+  elo-connector:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: services/elo-connector/Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "127.0.0.1:8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # Für den Mono-Piloten deaktiviert: noch ohne Funktionalität (nur Skeleton).
   # Wird mit dem No-Code-Prompt-Management (§5.2) wieder aktiviert.
   admin-service:

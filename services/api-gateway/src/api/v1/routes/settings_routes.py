@@ -234,6 +234,19 @@ async def test_elo_config(request: Request):
             except httpx.HTTPError as e:
                 raise HTTPException(status_code=502, detail=f"ELO nicht erreichbar: {type(e).__name__}")
             if resp.status_code < 400:
+                # Funktionierenden Auth-Modus merken — der elo-connector nutzt ihn
+                # für die /api-Aufrufe (api = REST-API-Credentials, tomcat = Tomcat).
+                mode = "tomcat" if label == "Tomcat" else "api"
+                async with plain_connection() as conn:
+                    await conn.execute(
+                        """
+                        INSERT INTO system_settings (key, value, updated_at, updated_by)
+                        VALUES ('elo_auth_mode', $1, now(), $2)
+                        ON CONFLICT (key) DO UPDATE
+                        SET value = $1, updated_at = now(), updated_by = $2
+                        """,
+                        mode, request.state.user_id or "",
+                    )
                 return {"ok": True, "auth": label}
             last_status = resp.status_code
 
