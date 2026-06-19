@@ -357,12 +357,18 @@
         suchen, zusammenfassen und Kennzahlen bilden. Read-only; das Passwort wird
         verschlüsselt im Secret-Store gehalten und nie wieder angezeigt.</p>
       <div style="display:flex; flex-direction:column; gap:10px; max-width:680px">
-        <label class="fld"><span>Basis-URL (ELO REST Service, ohne /api)</span>
-          <input type="text" id="elo-url" placeholder="z.B. http://elo-host:9090/rest-Archiv"></label>
-        <label class="fld"><span>Benutzer</span>
-          <input type="text" id="elo-user" value="0"></label>
-        <label class="fld"><span>Passwort</span>
-          <input type="password" id="elo-pw" placeholder="Passwort" autocomplete="new-password"></label>
+        <label class="fld"><span>Adresse des ELO-Servers (die .../rest-Archiv/doc-Adresse ist ok)</span>
+          <input type="text" id="elo-url" placeholder="z.B. http://elo-srv.domaene.local:9090/rest-Archiv"></label>
+        <p class="muted" style="margin:4px 0 0">Tomcat-Anmeldung (schützt Server/Doc-Oberfläche)</p>
+        <label class="fld"><span>Tomcat-Benutzer</span>
+          <input type="text" id="elo-tuser" placeholder="Tomcat-Benutzer"></label>
+        <label class="fld"><span>Tomcat-Passwort</span>
+          <input type="password" id="elo-tpw" placeholder="Tomcat-Passwort" autocomplete="new-password"></label>
+        <p class="muted" style="margin:4px 0 0">REST-API (HTTP Basic-Auth, ELO-Benutzer)</p>
+        <label class="fld"><span>API-Benutzer</span>
+          <input type="text" id="elo-auser" value="0"></label>
+        <label class="fld"><span>API-Passwort</span>
+          <input type="password" id="elo-apw" placeholder="API-Passwort" autocomplete="new-password"></label>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
         <button class="small" id="elo-test">Verbindung testen</button>
@@ -1146,20 +1152,31 @@ async function loadElo() {
   try {
     const r = await api("/api/v1/settings/elo");
     document.getElementById("elo-url").value = r.base_url || "";
-    document.getElementById("elo-user").value = r.user || "0";
-    document.getElementById("elo-pw").placeholder =
-      r.password_set ? "(gesetzt — leer lassen = unverändert)" : "Passwort";
+    document.getElementById("elo-tuser").value = r.tomcat_user || "";
+    document.getElementById("elo-auser").value = r.api_user || "0";
+    document.getElementById("elo-tpw").placeholder =
+      r.tomcat_password_set ? "(gesetzt — leer lassen = unverändert)" : "Tomcat-Passwort";
+    document.getElementById("elo-apw").placeholder =
+      r.api_password_set ? "(gesetzt — leer lassen = unverändert)" : "API-Passwort";
     eloStatus(r.base_url ? "Verbindung konfiguriert." : "Noch keine ELO-Verbindung hinterlegt.", false);
   } catch (e) { eloStatus("Laden fehlgeschlagen: " + esc(e.message), true); }
 }
 
 function eloBody() {
-  const pw = document.getElementById("elo-pw").value;
+  const tpw = document.getElementById("elo-tpw").value;
+  const apw = document.getElementById("elo-apw").value;
   return {
     base_url: document.getElementById("elo-url").value.trim(),
-    user: document.getElementById("elo-user").value.trim() || "0",
-    password: pw ? pw : null,
+    tomcat_user: document.getElementById("elo-tuser").value.trim(),
+    tomcat_password: tpw ? tpw : null,
+    api_user: document.getElementById("elo-auser").value.trim() || "0",
+    api_password: apw ? apw : null,
   };
+}
+
+function eloClearPw() {
+  document.getElementById("elo-tpw").value = "";
+  document.getElementById("elo-apw").value = "";
 }
 
 document.getElementById("elo-save").onclick = async () => {
@@ -1168,7 +1185,7 @@ document.getElementById("elo-save").onclick = async () => {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(eloBody()),
     });
-    document.getElementById("elo-pw").value = "";
+    eloClearPw();
     msg("✅ ELO-Verbindung gespeichert.");
     loadElo(); loadAudit();
   } catch (e) { eloStatus("❌ Speichern fehlgeschlagen: " + esc(e.message), true); }
@@ -1182,9 +1199,9 @@ document.getElementById("elo-test").onclick = async () => {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(eloBody()),
     });
-    document.getElementById("elo-pw").value = "";
-    await api("/api/v1/settings/elo/test", { method: "POST" });
-    eloStatus("✅ Anmeldung am ELO-Server erfolgreich.", false);
+    eloClearPw();
+    const r = await api("/api/v1/settings/elo/test", { method: "POST" });
+    eloStatus(`✅ Anmeldung erfolgreich (akzeptiert über: ${esc(r.auth || "?")}).`, false);
     loadElo();
   } catch (e) { eloStatus("❌ " + esc(e.message), true); }
 };

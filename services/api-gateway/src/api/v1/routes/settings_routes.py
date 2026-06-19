@@ -126,26 +126,38 @@ async def set_hostname(body: HostnameRequest, request: Request):
 # Werte zur Laufzeit aus dem Store.
 
 class EloConfigRequest(BaseModel):
-    base_url: str | None = None          # None = unverändert lassen
-    user: str | None = None
-    password: str | None = None          # None = unverändert (Maske im UI)
+    base_url: str | None = None            # None = unverändert lassen
+    tomcat_user: str | None = None         # Tomcat-Login (schützt Server/Doc)
+    tomcat_password: str | None = None     # None = unverändert (Maske im UI)
+    api_user: str | None = None            # REST-API Basic-Auth (ELO-Benutzer)
+    api_password: str | None = None        # None = unverändert (Maske im UI)
+
+
+def _strip_doc(url: str) -> str:
+    """Erlaubt das Einfügen der .../rest-Archiv/doc-Adresse — /doc wird entfernt,
+    sodass die API-Basis (.../rest-Archiv) gespeichert wird."""
+    url = url.strip().rstrip("/")
+    if url.endswith("/doc"):
+        url = url[: -len("/doc")]
+    return url
 
 
 @router.get("/settings/elo")
 async def get_elo_config(request: Request):
-    """ELO-Verbindung lesen — Passwort wird NIE zurückgegeben, nur ob gesetzt."""
+    """ELO-Verbindung lesen — Passwörter werden NIE zurückgegeben, nur ob gesetzt."""
     if "kv-admin" not in request.state.roles:
         raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
     async with plain_connection() as conn:
         rows = await conn.fetch(
-            "SELECT key, value FROM system_settings "
-            "WHERE key IN ('elo_rest_base_url', 'elo_basic_user', 'elo_basic_password')"
+            "SELECT key, value FROM system_settings WHERE key LIKE 'elo_%'"
         )
     cfg = {r["key"]: r["value"] for r in rows}
     return {
         "base_url": cfg.get("elo_rest_base_url", ""),
-        "user": cfg.get("elo_basic_user", "0"),
-        "password_set": bool(cfg.get("elo_basic_password")),
+        "tomcat_user": cfg.get("elo_tomcat_user", ""),
+        "tomcat_password_set": bool(cfg.get("elo_tomcat_password")),
+        "api_user": cfg.get("elo_api_user", "0"),
+        "api_password_set": bool(cfg.get("elo_api_password")),
     }
 
 
@@ -154,9 +166,11 @@ async def set_elo_config(body: EloConfigRequest, request: Request):
     if "kv-admin" not in request.state.roles:
         raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
     values = {
-        "elo_rest_base_url": body.base_url,
-        "elo_basic_user": body.user,
-        "elo_basic_password": body.password,   # None = unverändert
+        "elo_rest_base_url": _strip_doc(body.base_url) if body.base_url is not None else None,
+        "elo_tomcat_user": body.tomcat_user,
+        "elo_tomcat_password": body.tomcat_password,   # None = unverändert
+        "elo_api_user": body.api_user,
+        "elo_api_password": body.api_password,          # None = unverändert
     }
     async with plain_connection() as conn:
         for key, value in values.items():
@@ -168,9 +182,10 @@ async def set_elo_config(body: EloConfigRequest, request: Request):
                     ON CONFLICT (key) DO UPDATE
                     SET value = $2, updated_at = now(), updated_by = $3
                     """,
-                    key, value.strip(), request.state.user_id or "",
+                    key, value.strip() if isinstance(value, str) else value,
+                    request.state.user_id or "",
                 )
-    # AUDIT: nur DASS die Verbindung geändert wurde — niemals das Passwort.
+    # AUDIT: nur DASS die Verbindung geändert wurde — niemals ein Passwort.
     async with tenant_connection(request.state.tenant_id) as conn:
         await conn.execute(
             """
@@ -185,31 +200,50 @@ async def set_elo_config(body: EloConfigRequest, request: Request):
 
 @router.post("/settings/elo/test")
 async def test_elo_config(request: Request):
-    """Anmeldung am ELO REST Service prüfen (Basic-Auth gegen die OpenAPI-Definition)."""
+    """Anmeldung am ELO REST Service prüfen.
+
+    Probiert automatisch aus, mit welchem Zugangsdaten-Paar die /api antwortet
+    (REST-API zuerst, dann Tomcat) — auf einem HTTP-Request kann nur ein
+    Basic-Auth-Header mitgehen.
+    """
     if "kv-admin" not in request.state.roles:
         raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
     async with plain_connection() as conn:
         rows = await conn.fetch(
-            "SELECT key, value FROM system_settings "
-            "WHERE key IN ('elo_rest_base_url', 'elo_basic_user', 'elo_basic_password')"
+            "SELECT key, value FROM system_settings WHERE key LIKE 'elo_%'"
         )
     cfg = {r["key"]: r["value"] for r in rows}
     base = (cfg.get("elo_rest_base_url") or "").rstrip("/")
     if not base:
         raise HTTPException(status_code=422, detail="Keine ELO-Basis-URL hinterlegt.")
-    auth = httpx.BasicAuth(cfg.get("elo_basic_user", "0"), cfg.get("elo_basic_password", ""))
-    try:
-        async with httpx.AsyncClient(timeout=8, auth=auth) as client:
-            resp = await client.get(f"{base}/v3/api-docs")
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"ELO nicht erreichbar: {type(e).__name__}")
-    if resp.status_code == 401:
+
+    candidates: list[tuple[str, str, str]] = []
+    if cfg.get("elo_api_user") or cfg.get("elo_api_password"):
+        candidates.append(("REST-API", cfg.get("elo_api_user", "0"), cfg.get("elo_api_password", "")))
+    if cfg.get("elo_tomcat_user") or cfg.get("elo_tomcat_password"):
+        candidates.append(("Tomcat", cfg.get("elo_tomcat_user", ""), cfg.get("elo_tomcat_password", "")))
+    if not candidates:
+        raise HTTPException(status_code=422, detail="Keine Zugangsdaten hinterlegt.")
+
+    probe = f"{base}/v3/api-docs"   # OpenAPI-Definition der Instanz
+    last_status = None
+    async with httpx.AsyncClient(timeout=8) as client:
+        for label, user, pwd in candidates:
+            try:
+                resp = await client.get(probe, auth=httpx.BasicAuth(user, pwd))
+            except httpx.HTTPError as e:
+                raise HTTPException(status_code=502, detail=f"ELO nicht erreichbar: {type(e).__name__}")
+            if resp.status_code < 400:
+                return {"ok": True, "auth": label}
+            last_status = resp.status_code
+
+    if last_status == 401:
         raise HTTPException(
-            status_code=401, detail="Anmeldung am ELO-Server fehlgeschlagen (Benutzer/Passwort)."
+            status_code=401,
+            detail="Anmeldung am ELO-Server fehlgeschlagen — keines der Zugangsdaten-Paare "
+            "wurde an der /api akzeptiert (Benutzer/Passwort prüfen).",
         )
-    if resp.status_code >= 400:
-        raise HTTPException(status_code=502, detail=f"ELO meldete HTTP {resp.status_code}.")
-    return {"ok": True}
+    raise HTTPException(status_code=502, detail=f"ELO meldete HTTP {last_status}.")
 
 
 class ApiKeysRequest(BaseModel):
