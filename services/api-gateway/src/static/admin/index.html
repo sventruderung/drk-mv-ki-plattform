@@ -47,6 +47,9 @@
   pre.text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee;
              border-radius: 6px; padding: 12px; font-family: inherit; font-size: .92rem; margin-top: 8px; }
   .muted { color: #888; font-size: .85rem; }
+  .fld { display: flex; flex-direction: column; gap: 4px; }
+  .fld > span { font-size: .82rem; color: #555; }
+  .fld > input { padding: 8px 11px; border: 1px solid var(--rand); border-radius: 5px; font-size: .92rem; }
   footer { text-align: center; color: #aaa; font-size: .75rem; padding: 18px 0 24px; }
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4);
              display: flex; align-items: center; justify-content: center; z-index: 10; }
@@ -287,19 +290,64 @@
       <p class="muted" style="margin-bottom:12px">
         Unter diesem Hostnamen ist die Plattform per HTTPS erreichbar.
         Das Zertifikat wird automatisch über Let's Encrypt ausgestellt und
-        erneuert — die Änderung wirkt ohne Neustart.</p>
+        erneuert. Beim Speichern werden die Keycloak-Redirect-URIs automatisch
+        ergänzt; die endgültige Umstellung von Anmeldung und Chat erfordert
+        einen einmaligen Befehl auf dem Server (wird nach dem Speichern angezeigt).</p>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
         <input type="text" id="hostname" placeholder="z.B. ki.kv-name.drk.de"
                style="flex:1; min-width:260px; padding:9px 12px; border:1px solid var(--rand); border-radius:5px; font-size:.95rem">
         <button class="primary" id="savehost">Speichern</button>
       </div>
+      <div id="hosthint" class="hidden" style="margin-top:14px"></div>
       <p class="muted" style="margin-top:14px">
         Voraussetzungen für das Zertifikat:<br>
         1. DNS-Eintrag des Hostnamens zeigt auf diesen Server.<br>
         2. Ports 80 und 443 sind aus dem Internet erreichbar.<br>
-        3. In Keycloak muss <code>https://&lt;hostname&gt;/admin/*</code> als
-           Redirect-URI des Clients <code>drk-admin-ui</code> eingetragen sein.<br>
+        3. Die Redirect-URIs in Keycloak werden beim Speichern automatisch
+           ergänzt. Dafür braucht der Keycloak-Service-Account die Rolle
+           <code>manage-clients</code> (realm-management).<br>
         Hostname-Änderungen werden im Protokoll vermerkt.</p>
+    </div>
+
+    <div class="card">
+      <h2>Windows-Domäne (Active Directory)</h2>
+      <p class="muted" style="margin-bottom:12px">
+        Bindet die Nutzer einer Windows-Domäne über das Active Directory an.
+        Angebundene Konten erscheinen anschließend in der Nutzerliste und erhalten
+        dort ihre Rollen. Konten und Passwörter bleiben im AD (nur Lesezugriff).</p>
+      <div id="ldap-form" style="display:flex; flex-direction:column; gap:10px; max-width:680px">
+        <label class="fld"><span>AD-Server (LDAP-URL)</span>
+          <input type="text" id="ldap-url" placeholder="ldap://dc01.meine-domaene.local:389"></label>
+        <label class="fld"><span>Bind-DN (Dienstkonto)</span>
+          <input type="text" id="ldap-binddn" placeholder="CN=svc-keycloak,OU=Dienste,DC=meine-domaene,DC=local"></label>
+        <label class="fld"><span>Bind-Passwort</span>
+          <input type="password" id="ldap-bindpw" placeholder="(unverändert lassen = leer)" autocomplete="new-password"></label>
+        <label class="fld"><span>Benutzer-Basis-DN</span>
+          <input type="text" id="ldap-usersdn" placeholder="OU=Benutzer,DC=meine-domaene,DC=local"></label>
+        <details style="margin-top:2px">
+          <summary class="muted" style="cursor:pointer">Erweitert</summary>
+          <label class="fld" style="margin-top:8px"><span>Benutzername-Attribut</span>
+            <input type="text" id="ldap-userattr" value="sAMAccountName"></label>
+          <label class="fld"><span>Objektklassen</span>
+            <input type="text" id="ldap-objclasses" value="person, organizationalPerson, user"></label>
+          <label class="fld"><span>Zusätzlicher LDAP-Filter (optional)</span>
+            <input type="text" id="ldap-filter" placeholder="(memberOf=CN=KI-Nutzer,OU=Gruppen,DC=...)"></label>
+        </details>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:2px">
+          <input type="checkbox" id="ldap-enabled" checked> Anbindung aktiv
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+        <button class="small" id="ldap-test">Verbindung testen</button>
+        <button class="primary" id="ldap-save">Speichern</button>
+        <button class="small" id="ldap-sync">Jetzt synchronisieren</button>
+        <button class="small" id="ldap-delete" style="margin-left:auto">Anbindung entfernen</button>
+      </div>
+      <div id="ldap-status" class="hidden" style="margin-top:12px"></div>
+      <p class="muted" style="margin-top:12px">
+        Voraussetzung: der Keycloak-Service-Account besitzt die Rolle
+        <code>manage-realm</code>. Für <code>ldaps://</code> (empfohlen) muss das
+        AD-Zertifikat dem Keycloak-Truststore bekannt sein.</p>
     </div>
   </section>
 </main>
@@ -394,7 +442,7 @@ function init() {
       loadDocs(); loadDrafts(); loadKbs();
       if (hasRole("kv-admin")) {
         loadUsers(); loadAudit(); loadHostname(); loadStatus();
-        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents();
+        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap();
       }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
@@ -954,15 +1002,111 @@ async function loadHostname() {
 document.getElementById("savehost").onclick = async () => {
   const hostname = document.getElementById("hostname").value.trim();
   try {
-    await api("/api/v1/settings/hostname", {
+    const r = await api("/api/v1/settings/hostname", {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hostname }),
     });
-    msg(hostname
-      ? `✅ Hostname gespeichert: ${hostname} — Zertifikat wird beim ersten HTTPS-Aufruf ausgestellt.`
-      : "Hostname entfernt — HTTPS-Zertifikate werden nicht mehr ausgestellt.");
+    const hint = document.getElementById("hosthint");
+    if (!hostname) {
+      msg("Hostname entfernt — HTTPS-Zertifikate werden nicht mehr ausgestellt.");
+      hint.className = "hidden"; hint.innerHTML = "";
+    } else {
+      msg(`✅ Hostname gespeichert: ${hostname}` +
+          (r.redirects_added ? " — Redirect-URIs ergänzt." : ""));
+      let html = "";
+      if (r.redirect_warning)
+        html += `<p class="muted" style="color:#b45309">⚠️ ${esc(r.redirect_warning)}</p>`;
+      if (r.command)
+        html += `<p class="muted" style="margin-bottom:4px">➡️ Nächster Schritt — einmalig auf dem Server ausführen, damit Anmeldung und Chat vollständig auf HTTPS umstellen:</p>` +
+                `<pre class="text">${esc(r.command)}</pre>`;
+      hint.innerHTML = html;
+      hint.className = html ? "" : "hidden";
+    }
     loadAudit();
   } catch (e) { msg("Speichern fehlgeschlagen: " + e.message, true); }
+};
+
+// ---------- Windows-Domäne (Active Directory) ----------
+function ldapBody() {
+  const pw = document.getElementById("ldap-bindpw").value;
+  return {
+    enabled: document.getElementById("ldap-enabled").checked,
+    connection_url: document.getElementById("ldap-url").value.trim(),
+    bind_dn: document.getElementById("ldap-binddn").value.trim(),
+    bind_credential: pw ? pw : null,
+    users_dn: document.getElementById("ldap-usersdn").value.trim(),
+    username_attr: document.getElementById("ldap-userattr").value.trim() || "sAMAccountName",
+    user_object_classes: document.getElementById("ldap-objclasses").value.trim(),
+    user_search_filter: document.getElementById("ldap-filter").value.trim(),
+  };
+}
+
+function ldapStatus(html, isError) {
+  const el = document.getElementById("ldap-status");
+  el.innerHTML = html;
+  el.className = html ? "" : "hidden";
+  el.style.color = isError ? "#b45309" : "#2f6f3e";
+}
+
+async function loadLdap() {
+  try {
+    const r = await api("/api/v1/settings/ldap");
+    const c = r.config;
+    if (!c) { ldapStatus("Noch keine Anbindung konfiguriert.", false); return; }
+    document.getElementById("ldap-url").value = c.connectionUrl || "";
+    document.getElementById("ldap-binddn").value = c.bindDn || "";
+    document.getElementById("ldap-usersdn").value = c.usersDn || "";
+    document.getElementById("ldap-userattr").value = c.usernameLDAPAttribute || "sAMAccountName";
+    document.getElementById("ldap-objclasses").value = c.userObjectClasses || "";
+    document.getElementById("ldap-filter").value = c.customUserSearchFilter || "";
+    document.getElementById("ldap-enabled").checked = !!c.enabled;
+    document.getElementById("ldap-bindpw").placeholder =
+      c.bindCredentialSet ? "(gesetzt — leer lassen = unverändert)" : "Bind-Passwort";
+    ldapStatus(`Anbindung konfiguriert${c.enabled ? "" : " (inaktiv)"}.`, false);
+  } catch (e) { ldapStatus("Laden fehlgeschlagen: " + esc(e.message), true); }
+}
+
+document.getElementById("ldap-test").onclick = async () => {
+  ldapStatus("Teste Verbindung …", false);
+  try {
+    await api("/api/v1/settings/ldap/test", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign(ldapBody(), { authenticate: true })),
+    });
+    ldapStatus("✅ Verbindung und Anmeldung am AD erfolgreich.", false);
+  } catch (e) { ldapStatus("❌ " + esc(e.message), true); }
+};
+
+document.getElementById("ldap-save").onclick = async () => {
+  try {
+    await api("/api/v1/settings/ldap", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ldapBody()),
+    });
+    document.getElementById("ldap-bindpw").value = "";
+    msg("✅ AD-Anbindung gespeichert.");
+    loadLdap(); loadAudit();
+  } catch (e) { ldapStatus("❌ Speichern fehlgeschlagen: " + esc(e.message), true); }
+};
+
+document.getElementById("ldap-sync").onclick = async () => {
+  ldapStatus("Synchronisiere AD-Nutzer …", false);
+  try {
+    const r = await api("/api/v1/settings/ldap/sync", { method: "POST" });
+    ldapStatus(`✅ Synchronisiert: ${r.added} neu, ${r.updated} aktualisiert.`, false);
+    loadUsers(); loadAudit();
+  } catch (e) { ldapStatus("❌ Synchronisation fehlgeschlagen: " + esc(e.message), true); }
+};
+
+document.getElementById("ldap-delete").onclick = async () => {
+  if (!confirm("AD-Anbindung wirklich entfernen? Importierte Konten verlieren den Zugang.")) return;
+  try {
+    await api("/api/v1/settings/ldap", { method: "DELETE" });
+    ["ldap-url","ldap-binddn","ldap-bindpw","ldap-usersdn","ldap-filter"]
+      .forEach(id => document.getElementById(id).value = "");
+    msg("AD-Anbindung entfernt.");
+    loadLdap(); loadAudit();
+  } catch (e) { ldapStatus("❌ Entfernen fehlgeschlagen: " + esc(e.message), true); }
 };
 
 // ---------- KI-Modelle ----------

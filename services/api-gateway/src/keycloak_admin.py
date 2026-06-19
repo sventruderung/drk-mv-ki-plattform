@@ -158,6 +158,40 @@ class KeycloakAdmin:
                 "DELETE", f"/users/{user_id}/role-mappings/realm", json=to_remove
             )).raise_for_status()
 
+    async def add_https_redirects(self, hostname: str) -> dict[str, list[str]]:
+        """Ergänzt die HTTPS-Redirect-URIs + Web-Origins beider Clients.
+
+        Idempotent: bestehende URIs (z.B. interne IP) bleiben erhalten, damit der
+        Zugriff in beiden Netzen weiter funktioniert. Spiegelt scripts/set_host.py
+        --https, ohne Secret/Mapper anzufassen. Voraussetzung: der Service-Account
+        besitzt zusätzlich die Rolle 'manage-clients' (realm-management).
+
+        Returns:
+            Pro Client die neue, vollständige Redirect-URI-Liste.
+        """
+        targets = {
+            "drk-platform": [f"https://{hostname}/*"],
+            "drk-admin-ui": [f"https://{hostname}/admin/*"],
+        }
+        web_origin = f"https://{hostname}"
+        result: dict[str, list[str]] = {}
+        for client_id, uris in targets.items():
+            resp = await self._request("GET", f"/clients?clientId={client_id}")
+            resp.raise_for_status()
+            arr = resp.json()
+            if not arr:
+                raise KeycloakAdminError(404, f"Keycloak-Client '{client_id}' nicht gefunden.")
+            cl = arr[0]
+            merged = sorted(set(cl.get("redirectUris", [])) | set(uris))
+            origins = sorted(set(cl.get("webOrigins", [])) | {web_origin})
+            # Volle Repräsentation zurückschreiben, aber Secret + Mapper auslassen
+            payload = {k: v for k, v in cl.items() if k not in ("secret", "protocolMappers")}
+            payload["redirectUris"] = merged
+            payload["webOrigins"] = origins
+            (await self._request("PUT", f"/clients/{cl['id']}", json=payload)).raise_for_status()
+            result[client_id] = merged
+        return result
+
     async def set_enabled(self, user_id: str, enabled: bool) -> None:
         (await self._request(
             "PUT", f"/users/{user_id}", json={"enabled": enabled}
@@ -168,3 +202,157 @@ class KeycloakAdmin:
             "PUT", f"/users/{user_id}/reset-password",
             json={"type": "password", "value": password, "temporary": True},
         )).raise_for_status()
+
+    # ── Windows-Domäne / Active Directory (LDAP-User-Federation) ──────────────
+    #
+    # Keycloak verwaltet die AD-Anbindung als "Component" (UserStorageProvider).
+    # Voraussetzung: der Service-Account hat zusätzlich die Rolle 'manage-realm'
+    # (realm-management). editMode=READ_ONLY → Konten/Passwörter bleiben im AD,
+    # die Plattform vergibt nur Rollen (passt zur federated-Behandlung in users.py).
+
+    LDAP_NAME = "ad-federation"
+    LDAP_TYPE = "org.keycloak.storage.UserStorageProvider"
+
+    async def _raw_ldap_component(self) -> dict | None:
+        resp = await self._request(
+            "GET", f"/components?type={self.LDAP_TYPE}&parent={self._realm}"
+        )
+        resp.raise_for_status()
+        for c in resp.json():
+            if c.get("providerId") == "ldap" and c.get("name") == self.LDAP_NAME:
+                return c
+        return None
+
+    async def get_ldap_federation(self) -> dict | None:
+        """Aktuelle AD-Konfiguration (ohne Passwort) oder None."""
+        comp = await self._raw_ldap_component()
+        if not comp:
+            return None
+        cfg = comp.get("config", {})
+
+        def first(key: str, default: str = "") -> str:
+            v = cfg.get(key)
+            return v[0] if v else default
+
+        return {
+            "id": comp["id"],
+            "enabled": first("enabled", "true") == "true",
+            "connectionUrl": first("connectionUrl"),
+            "bindDn": first("bindDn"),
+            "usersDn": first("usersDn"),
+            "usernameLDAPAttribute": first("usernameLDAPAttribute", "sAMAccountName"),
+            "userObjectClasses": first("userObjectClasses"),
+            "customUserSearchFilter": first("customUserSearchFilter"),
+            # Keycloak maskiert das Passwort beim Lesen — wir geben es nie zurück,
+            # melden nur, OB eines hinterlegt ist.
+            "bindCredentialSet": bool(cfg.get("bindCredential")),
+        }
+
+    async def save_ldap_federation(
+        self, *, enabled: bool, connection_url: str, bind_dn: str,
+        bind_credential: str | None, users_dn: str, username_attr: str,
+        user_object_classes: str, user_search_filter: str,
+    ) -> str:
+        """AD-Federation anlegen oder aktualisieren. Gibt die Component-ID zurück.
+
+        bind_credential=None bei Updates lässt das hinterlegte Passwort unangetastet.
+        """
+        existing = await self._raw_ldap_component()
+        base_cfg: dict[str, list[str]] = dict(existing.get("config", {})) if existing else {}
+
+        base_cfg.update({
+            "enabled": ["true" if enabled else "false"],
+            "vendor": ["ad"],
+            "connectionUrl": [connection_url],
+            "bindDn": [bind_dn],
+            "usersDn": [users_dn],
+            "usernameLDAPAttribute": [username_attr or "sAMAccountName"],
+            "rdnLDAPAttribute": ["cn"],
+            "uuidLDAPAttribute": ["objectGUID"],
+            "userObjectClasses": [
+                user_object_classes or "person, organizationalPerson, user"
+            ],
+            "editMode": ["READ_ONLY"],
+            "importEnabled": ["true"],
+            "syncRegistrations": ["false"],
+            "searchScope": ["2"],
+            "trustEmail": ["true"],
+            "pagination": ["true"],
+        })
+        if user_search_filter:
+            base_cfg["customUserSearchFilter"] = [user_search_filter]
+        else:
+            base_cfg.pop("customUserSearchFilter", None)
+        # Passwort nur überschreiben, wenn ein neues angegeben wurde — andernfalls
+        # bleibt der bestehende (maskierte) Wert erhalten, den Keycloak unverändert lässt.
+        if bind_credential:
+            base_cfg["bindCredential"] = [bind_credential]
+
+        body = {
+            "name": self.LDAP_NAME,
+            "providerId": "ldap",
+            "providerType": self.LDAP_TYPE,
+            "parentId": self._realm,
+            "config": base_cfg,
+        }
+        if existing:
+            body["id"] = existing["id"]
+            (await self._request(
+                "PUT", f"/components/{existing['id']}", json=body
+            )).raise_for_status()
+            return existing["id"]
+        resp = await self._request("POST", "/components", json=body)
+        if resp.status_code not in (201, 204):
+            resp.raise_for_status()
+        return resp.headers["Location"].rsplit("/", 1)[-1]
+
+    async def delete_ldap_federation(self) -> bool:
+        comp = await self._raw_ldap_component()
+        if not comp:
+            return False
+        (await self._request("DELETE", f"/components/{comp['id']}")).raise_for_status()
+        return True
+
+    async def test_ldap_connection(
+        self, *, connection_url: str, bind_dn: str, bind_credential: str | None,
+        authenticate: bool,
+    ) -> None:
+        """Ruft Keycloaks testLDAPConnection auf. Wirft KeycloakAdminError bei Fehler.
+
+        authenticate=False prüft nur die Erreichbarkeit, True zusätzlich den Bind.
+        Ohne neues Passwort wird gegen das hinterlegte getestet (Keycloak-Maske).
+        """
+        action = "testAuthentication" if authenticate else "testConnection"
+        payload = {
+            "action": action,
+            "connectionUrl": connection_url,
+            "bindDn": bind_dn,
+            "bindCredential": bind_credential or "**********",
+            "useTruststoreSpi": "ldapsOnly",
+            "connectionTimeout": "10000",
+            "startTls": "false",
+            "authType": "simple" if bind_dn else "none",
+        }
+        resp = await self._request(
+            "POST", "/testLDAPConnection", json=payload
+        )
+        if resp.status_code not in (200, 204):
+            detail = "LDAP-Test fehlgeschlagen — Adresse, Bind-DN oder Passwort prüfen."
+            try:
+                body = resp.json()
+                detail = body.get("errorMessage") or body.get("error") or detail
+            except Exception:
+                pass
+            raise KeycloakAdminError(resp.status_code, detail)
+
+    async def sync_ldap_federation(self) -> dict:
+        """Vollsynchronisation der AD-Nutzer anstoßen. Gibt Keycloaks Ergebnis zurück."""
+        comp = await self._raw_ldap_component()
+        if not comp:
+            raise KeycloakAdminError(404, "Keine AD-Anbindung konfiguriert.")
+        resp = await self._request(
+            "POST",
+            f"/user-storage/{comp['id']}/sync?action=triggerFullSync",
+        )
+        resp.raise_for_status()
+        return resp.json() if resp.content else {"status": "gestartet"}

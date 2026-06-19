@@ -4,7 +4,8 @@
 Erledigt über die Keycloak-Admin-API:
   1. Neues Client-Secret für drk-platform generieren → direkt in .env schreiben
   2. tenant_id-Mapper auf den echten KV-Namen setzen (beide Clients)
-  3. Service-Account-Rollen view-users/manage-users zuweisen (Nutzer-Tab)
+  3. Service-Account-Rollen view-users/manage-users/manage-clients/manage-realm
+     zuweisen (Nutzerverwaltung, HTTPS-Redirects, AD-Federation)
   4. Optional: HTTPS-Redirect-URIs für den öffentlichen Hostnamen eintragen
   5. Ersten Mandanten-Admin (kv-admin) anlegen
 
@@ -23,7 +24,9 @@ import httpx
 ENV_FILE = Path(".env")
 KEYCLOAK_BASE = "http://localhost:8080/auth"
 REALM = "drk-kv"
-ADMIN_ROLES = ["view-users", "manage-users"]
+# view-users/manage-users: Nutzerverwaltung · manage-clients: HTTPS-Redirect-URIs
+# automatisch ergänzen · manage-realm: AD-/LDAP-Federation verwalten
+ADMIN_ROLES = ["view-users", "manage-users", "manage-clients", "manage-realm"]
 
 
 def fail(text: str) -> None:
@@ -173,7 +176,8 @@ def main() -> None:
     if to_assign:
         kc.req("POST", f"/users/{sa_user['id']}/role-mappings/clients/{realm_mgmt['id']}",
                json=to_assign)
-    print("✅ Service-Account-Rollen (view-users, manage-users) zugewiesen.")
+    print("✅ Service-Account-Rollen (view-users, manage-users, manage-clients, "
+          "manage-realm) zugewiesen.")
 
     # --- 4. Redirect-URIs (interne IP immer; HTTPS-Hostname falls angegeben) ---
     local_ip = subprocess.run(

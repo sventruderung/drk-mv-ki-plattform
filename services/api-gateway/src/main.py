@@ -11,7 +11,8 @@ from .config import Settings
 from . import db
 from .middleware.auth import JWTMiddleware
 from .api.v1.routes import (
-    audit, chat, content, health, kbs, models, rag, settings_routes, system, users,
+    audit, chat, content, health, kbs, ldap_routes, models, rag, settings_routes,
+    system, users,
 )
 
 settings = Settings()
@@ -60,6 +61,7 @@ app.include_router(rag.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(settings_routes.router, prefix="/api/v1")
+app.include_router(ldap_routes.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(system.router, prefix="/api/v1")
 app.include_router(models.router, prefix="/api/v1")
