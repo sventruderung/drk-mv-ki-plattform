@@ -14,7 +14,7 @@ from ....keycloak_admin import KeycloakAdmin, KeycloakAdminError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-REQUIRED_MODELS = ["qwen3:32b", "nomic-embed-text"]
+REQUIRED_MODELS = ["qwen3:32b", "qwen3:8b", "nomic-embed-text"]
 DISK_WARN_FREE_GB = 50  # Warnen, wenn weniger frei (Modelle + DB brauchen Luft)
 
 
