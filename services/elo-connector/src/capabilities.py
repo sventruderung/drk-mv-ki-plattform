@@ -68,8 +68,18 @@ async def statistik_dokumente_zaehlen(
             if d and (today - datetime.fromisoformat(d).date()).days > params.aelter_als_tage:
                 aelter += 1
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
+
     label = "Keywording-Suche: " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
-    return {"result": result, "sources": [{"title": label, "ref": f"elo://{repo_hint}/search"}]}
+    sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
+    # Beispiel-Treffer mitgeben, damit "finde …" auch eine Liste zeigen kann
+    # (nicht nur eine Zahl). Begrenzt, um das Kontextfenster zu schonen.
+    beispiele = []
+    for it in docs[:10]:
+        fid, name = it.get("id"), it.get("name", "")
+        beispiele.append({"id": fid, "name": name, "datum": _date(it)})
+        sources.append({"title": name, "ref": _ref(repo_hint, fid)})
+    result["beispiele"] = beispiele
+    return {"result": result, "sources": sources}
 
 
 def _extract_text(raw: bytes) -> str:
