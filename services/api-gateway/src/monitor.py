@@ -90,8 +90,10 @@ async def run(settings) -> None:
                 if cfg.get("alerts_enabled") == "true":
                     down = [c for c in changed if not c["ok"]]
                     up = [c for c in changed if c["ok"]]
-                    subject = "⚠️ DRK KI-Plattform: Störung" if down \
-                        else "✅ DRK KI-Plattform: wiederhergestellt"
+                    from .branding import BRAND_NAME
+
+                    subject = f"⚠️ {BRAND_NAME}: Störung" if down \
+                        else f"✅ {BRAND_NAME}: wiederhergestellt"
                     lines = [
                         f"{'❌' if not c['ok'] else '✅'} {c['name']}"
                         + (f" — {c['detail']}" if c.get("detail") else "")
@@ -99,7 +101,7 @@ async def run(settings) -> None:
                     ]
                     err = await send_alert(
                         subject,
-                        "Statuswechsel der DRK KI-Plattform:\n\n"
+                        f"Statuswechsel der Plattform {BRAND_NAME}:\n\n"
                         + "\n".join(lines)
                         + "\n\nDetails: Verwaltungs-UI → Einstellungen → Systemstatus",
                     )

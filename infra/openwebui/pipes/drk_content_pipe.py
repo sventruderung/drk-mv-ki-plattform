@@ -1,5 +1,5 @@
 """
-title: DRK Social Media (P02)
+title: Social Media (P02)
 author: ST COMPUTER GmbH
 version: 0.1.0
 description: Erstellt Social-Media-Entwürfe über den content-service.
@@ -24,7 +24,7 @@ class Pipe:
     class Valves(BaseModel):
         gateway_url: str = Field(
             default="http://api-gateway:8000",
-            description="Basis-URL des DRK API-Gateways (Docker-intern)",
+            description="Basis-URL des API-Gateways (Docker-intern)",
         )
         timeout_seconds: int = Field(default=300)
 
@@ -33,7 +33,7 @@ class Pipe:
 
     def pipes(self):
         return [
-            {"id": f"drk-content-{key}", "name": f"🔒 DRK Social Media ({label}, lokal)"}
+            {"id": f"drk-content-{key}", "name": f"🔒 Social Media ({label}, lokal)"}
             for key, label in CHANNELS.items()
         ]
 
@@ -53,7 +53,7 @@ class Pipe:
         token = __request__.cookies.get("oauth_id_token")
         if not token:
             return (
-                "⚠️ Kein OIDC-Token gefunden. Bitte über 'DRK Login' (Keycloak) "
+                "⚠️ Kein OIDC-Token gefunden. Bitte über den Login "
                 "anmelden."
             )
 
@@ -80,7 +80,7 @@ class Pipe:
                     headers={"Authorization": f"Bearer {token}"},
                 )
         except httpx.ConnectError:
-            return "⚠️ DRK API-Gateway nicht erreichbar. Bitte Administrator informieren."
+            return "⚠️ API-Gateway nicht erreichbar. Bitte Administrator informieren."
 
         if resp.status_code == 401:
             return "⚠️ Sitzung abgelaufen. Bitte ab- und wieder anmelden."
@@ -100,6 +100,6 @@ class Pipe:
             f"{CHANNELS[channel]}, Status: **{draft['status']}**).\n"
             f"Der Beitrag wird erst nach Freigabe durch eine zweite Person "
             f"veröffentlicht — nichts geht automatisch online.\n"
-            f"🔒 *Lokal erstellt — Ihre Stichpunkte haben die DRK-Plattform "
+            f"🔒 *Lokal erstellt — Ihre Stichpunkte haben die Plattform "
             f"nicht verlassen.*"
         )

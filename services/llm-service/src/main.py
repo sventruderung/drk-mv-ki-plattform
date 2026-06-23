@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="DRK MV KI-Plattform — LLM Service", version="0.1.0", lifespan=lifespan
+    title="KI-Plattform — LLM Service", version="0.1.0", lifespan=lifespan
 )
 
 

@@ -5,7 +5,7 @@ from .config import Settings
 settings = Settings()
 configure_logging(level=settings.log_level, service_name="admin-service")
 
-app = FastAPI(title="DRK MV KI-Plattform — Admin Service", version="0.1.0")
+app = FastAPI(title="KI-Plattform — Admin Service", version="0.1.0")
 
 
 @app.get("/api/v1/health")

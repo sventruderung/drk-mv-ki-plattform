@@ -1,5 +1,5 @@
 """
-title: DRK Externe Modelle
+title: Externe Modelle
 author: ST COMPUTER GmbH
 version: 0.1.0
 description: Stellt vom Administrator aktivierte externe KI-Modelle (OpenAI,
@@ -20,7 +20,7 @@ class Pipe:
     class Valves(BaseModel):
         gateway_url: str = Field(
             default="http://api-gateway:8000",
-            description="Basis-URL des DRK API-Gateways (Docker-intern)",
+            description="Basis-URL des API-Gateways (Docker-intern)",
         )
         timeout_seconds: int = Field(default=300)
 
@@ -37,9 +37,9 @@ class Pipe:
             resp.raise_for_status()
             models = [m for m in resp.json() if m["provider"] != "local"]
         except httpx.HTTPError:
-            return [{"id": "drk-extern-offline", "name": "DRK Extern (Gateway nicht erreichbar)"}]
+            return [{"id": "drk-extern-offline", "name": "Externe Modelle (Gateway nicht erreichbar)"}]
         if not models:
-            return [{"id": "drk-extern-none", "name": "DRK Extern (keine Modelle aktiviert)"}]
+            return [{"id": "drk-extern-none", "name": "Externe Modelle (keine Modelle aktiviert)"}]
         # Unmissverständliche Kennzeichnung in der Modellauswahl
         provider_label = {"openai": "OpenAI", "anthropic": "Anthropic"}
         return [
@@ -66,7 +66,7 @@ class Pipe:
     async def pipe(self, body: dict, __user__: dict, __request__):
         token = __request__.cookies.get("oauth_id_token")
         if not token:
-            yield "⚠️ Bitte über 'DRK Login' (Keycloak) anmelden."
+            yield "⚠️ Bitte über den Login anmelden."
             return
 
         model_id = body.get("model", "")
@@ -83,7 +83,7 @@ class Pipe:
         # Transparenz: Jede Antwort beginnt mit dem Extern-Hinweis
         yield (
             "> 🌐 **Externes Modell** — Ihre Eingabe wurde an einen "
-            "Drittanbieter außerhalb der DRK-Plattform übertragen.\n\n"
+            "Drittanbieter außerhalb der Plattform übertragen.\n\n"
         )
 
         try:
@@ -116,4 +116,4 @@ class Pipe:
                         except ValueError:
                             yield line
         except httpx.ConnectError:
-            yield "⚠️ DRK API-Gateway nicht erreichbar. Bitte Administrator informieren."
+            yield "⚠️ API-Gateway nicht erreichbar. Bitte Administrator informieren."

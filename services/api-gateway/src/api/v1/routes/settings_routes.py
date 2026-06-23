@@ -382,10 +382,11 @@ async def set_smtp(body: SmtpRequest, request: Request):
 async def smtp_test(request: Request):
     if "kv-admin" not in request.state.roles:
         raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    from ....branding import BRAND_NAME
     from ....monitor import send_alert
 
     err = await send_alert(
-        "DRK KI-Plattform: Testnachricht",
+        f"{BRAND_NAME}: Testnachricht",
         "Diese Testnachricht bestätigt, dass der E-Mail-Alarm korrekt "
         "konfiguriert ist.\n\nVerwaltungs-UI → Einstellungen → Monitoring",
     )

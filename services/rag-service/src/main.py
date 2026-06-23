@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="DRK MV KI-Plattform — RAG Service", version="0.1.0", lifespan=lifespan
+    title="KI-Plattform — RAG Service", version="0.1.0", lifespan=lifespan
 )
 
 app.include_router(documents.router, prefix="/api/v1")

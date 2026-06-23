@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="DRK MV KI-Plattform — API Gateway",
+    title="KI-Plattform — API Gateway",
     version="0.1.0",
     lifespan=lifespan,
     # OpenAPI nur in Dev exponieren

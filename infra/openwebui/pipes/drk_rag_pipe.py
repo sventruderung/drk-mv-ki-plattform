@@ -1,8 +1,8 @@
 """
-title: DRK Wissensbasis (RAG)
+title: Wissensbasis (RAG)
 author: ST COMPUTER GmbH
 version: 0.1.0
-description: Rechtegeprüfte RAG-Suche über das DRK API-Gateway. Reicht das
+description: Rechtegeprüfte RAG-Suche über das API-Gateway. Reicht das
              OIDC-Token des eingeloggten Nutzers durch, damit der ACL-Filter
              (§4.2 Lastenheft) pro Nutzer greift.
 requirements: httpx
@@ -24,7 +24,7 @@ class Pipe:
     class Valves(BaseModel):
         gateway_url: str = Field(
             default="http://api-gateway:8000",
-            description="Basis-URL des DRK API-Gateways (Docker-intern)",
+            description="Basis-URL des API-Gateways (Docker-intern)",
         )
         timeout_seconds: int = Field(default=300)
 
@@ -33,7 +33,7 @@ class Pipe:
 
     def pipes(self):
         """Eine Auswahl pro Wissensdatenbank + 'alle' (Namen vom Gateway)."""
-        entries = [{"id": "drk-rag", "name": "🔒 DRK Wissensbasis — alle (lokal)"}]
+        entries = [{"id": "drk-rag", "name": "🔒 Wissensbasis — alle (lokal)"}]
         try:
             resp = httpx.get(f"{self.valves.gateway_url}/api/v1/kbs/public", timeout=10)
             resp.raise_for_status()
@@ -68,7 +68,7 @@ class Pipe:
         token = __request__.cookies.get("oauth_id_token")
         if not token:
             yield (
-                "⚠️ Kein OIDC-Token gefunden. Bitte über 'DRK Login' (Keycloak) "
+                "⚠️ Kein OIDC-Token gefunden. Bitte über den Login "
                 "anmelden — lokale Open-WebUI-Konten haben keinen Zugriff auf "
                 "die Wissensbasis."
             )
@@ -125,10 +125,10 @@ class Pipe:
                     # Transparenz: lokale Verarbeitung sichtbar machen
                     yield (
                         "\n\n---\n🔒 *Lokal verarbeitet — Frage und Dokumente "
-                        "haben die DRK-Plattform nicht verlassen.*"
+                        "haben die Plattform nicht verlassen.*"
                     )
         except httpx.ConnectError:
             yield (
-                "⚠️ DRK API-Gateway nicht erreichbar. Bitte Administrator "
+                "⚠️ API-Gateway nicht erreichbar. Bitte Administrator "
                 "informieren (Dienst api-gateway prüfen)."
             )

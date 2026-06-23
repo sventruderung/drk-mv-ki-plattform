@@ -119,7 +119,7 @@ class RagChatRequest(BaseModel):
 
 
 RAG_SYSTEM_PROMPT = (
-    "Du bist der KI-Assistent des DRK. Beantworte die Frage ausschließlich "
+    "Du bist ein KI-Assistent. Beantworte die Frage ausschließlich "
     "auf Basis der folgenden Quellen. Zitiere jede verwendete Quelle im Format "
     "[Quelle: Dokumentname, Seite X]. Wenn die Quellen keine Antwort enthalten, "
     "sage das klar — erfinde nichts.\n\nQuellen:\n{context}"

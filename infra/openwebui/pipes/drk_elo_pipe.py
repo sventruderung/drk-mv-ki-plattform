@@ -1,8 +1,8 @@
 """
-title: DRK Dokumentensystem (ELO)
+title: Dokumentensystem (ELO)
 author: ST COMPUTER GmbH
 version: 0.1.0
-description: Dokumentenassistent für das ELO-DMS über das DRK API-Gateway. Das
+description: Dokumentenassistent für das ELO-DMS über das API-Gateway. Das
              Modell wählt selbst ein Werkzeug (suchen, zusammenfassen, zählen);
              die Mandanten- und Rechteprüfung liegt im Gateway/Connector-Service.
              Reicht das OIDC-Token des eingeloggten Nutzers durch.
@@ -25,7 +25,7 @@ class Pipe:
     class Valves(BaseModel):
         gateway_url: str = Field(
             default="http://api-gateway:8000",
-            description="Basis-URL des DRK API-Gateways (Docker-intern)",
+            description="Basis-URL des API-Gateways (Docker-intern)",
         )
         timeout_seconds: int = Field(default=300)
 
@@ -57,7 +57,7 @@ class Pipe:
         token = __request__.cookies.get("oauth_id_token")
         if not token:
             yield (
-                "⚠️ Kein OIDC-Token gefunden. Bitte über 'DRK Login' (Keycloak) "
+                "⚠️ Kein OIDC-Token gefunden. Bitte über den Login "
                 "anmelden — lokale Open-WebUI-Konten haben keinen Zugriff auf das "
                 "Dokumentensystem."
             )
@@ -93,10 +93,10 @@ class Pipe:
                         yield text
                     yield (
                         "\n\n---\n🔒 *Lokal verarbeitet — Frage und Dokumente "
-                        "haben die DRK-Plattform nicht verlassen.*"
+                        "haben die Plattform nicht verlassen.*"
                     )
         except httpx.ConnectError:
             yield (
-                "⚠️ DRK API-Gateway nicht erreichbar. Bitte Administrator "
+                "⚠️ API-Gateway nicht erreichbar. Bitte Administrator "
                 "informieren (Dienst api-gateway prüfen)."
             )

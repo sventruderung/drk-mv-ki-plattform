@@ -32,10 +32,10 @@ class EloChatRequest(BaseModel):
 
 
 # HINWEIS: Die Indexfelder unten sind die des aktuellen Demo-Archivs (Maske
-# 'Incoming Invoice'). Für die echte DRK-Installation hier die dortigen Felder
+# 'Incoming Invoice'). Für die echte Installation hier die dortigen Felder
 # eintragen (oder später dynamisch aus /system/masks beziehen).
 SYSTEM_PROMPT = (
-    "Du bist der Dokumentenassistent des DRK und arbeitest mit dem ELO-"
+    "Du bist ein Dokumentenassistent und arbeitest mit dem ELO-"
     "Dokumentenmanagementsystem.\n"
     "WERKZEUGE:\n"
     "- 'statistik.dokumente_zaehlen': filtert und zählt Dokumente über echte "
