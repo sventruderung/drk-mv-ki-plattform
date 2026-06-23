@@ -110,7 +110,9 @@ services:
       OAUTH_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       OAUTH_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       OPENID_PROVIDER_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
-      OAUTH_PROVIDER_NAME: "DRK Login"
+      OAUTH_PROVIDER_NAME: "${BRAND_NAME:-kv-brain} Login"
+      # Markenname als Anwendungsname (Titel, Tab, PWA)
+      WEBUI_NAME: ${BRAND_NAME:-kv-brain}
       # Deutsche Oberfläche als Standard für neue Nutzer
       DEFAULT_LOCALE: "de-DE"
       # Deutsche Prompt-Vorschläge auf der Startseite (greift bei Erstinstallation;
@@ -177,7 +179,7 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
       # White-Label: Markenname, Farbe, Logo, Sichtbarkeits-Gruppen (.env)
       BRAND_NAME: ${BRAND_NAME:-kv-brain}
-      BRAND_COLOR: ${BRAND_COLOR:-#1A4F8A}
+      BRAND_COLOR: ${BRAND_COLOR:-#235FA6}
       BRAND_LOGO: ${BRAND_LOGO:-logo.svg}
       ACL_GROUPS: ${ACL_GROUPS:-}
       LOG_LEVEL: ${LOG_LEVEL}

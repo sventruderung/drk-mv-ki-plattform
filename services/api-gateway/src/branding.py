@@ -8,7 +8,7 @@ UI-Checkboxen und Filter leiten sich davon ab.
 import os
 
 BRAND_NAME = os.environ.get("BRAND_NAME", "kv-brain")
-BRAND_COLOR = os.environ.get("BRAND_COLOR", "#1A4F8A")  # bis Logo-Farbe feststeht
+BRAND_COLOR = os.environ.get("BRAND_COLOR", "#235FA6")  # bis Logo-Farbe feststeht
 BRAND_LOGO = os.environ.get("BRAND_LOGO", "logo.svg")   # Datei in static/admin/
 
 # Funktionale Rollen — organisationsunabhängig, immer vorhanden
