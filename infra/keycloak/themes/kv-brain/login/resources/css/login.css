@@ -1,0 +1,49 @@
+/* kv-brain Login-Theme — Logo + Markenfarbe auf der Keycloak-Anmeldeseite */
+
+.login-pf body {
+  background: #f4f4f4;
+}
+
+/* Kopfbereich: Keycloak-Schriftzug ausblenden, kv-brain-Logo zeigen */
+#kc-header-wrapper {
+  font-size: 0;
+  padding: 24px 0;
+  background-image: url("../img/logo.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  height: 56px;
+}
+
+/* Anmelde-Karte */
+.card-pf {
+  border-top: 4px solid #235FA6;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+#kc-page-title,
+#kc-header-wrapper {
+  color: #235FA6;
+}
+
+/* Primär-Button in Markenfarbe */
+.btn-primary {
+  background-color: #235FA6;
+  border-color: #235FA6;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #1b4c85;
+  border-color: #1b4c85;
+}
+
+/* Links + Fokus in Markenfarbe */
+a { color: #235FA6; }
+.pf-c-form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: #235FA6;
+  box-shadow: 0 0 0 1px #235FA6;
+}

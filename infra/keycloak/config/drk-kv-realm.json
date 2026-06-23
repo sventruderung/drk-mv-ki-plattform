@@ -2,6 +2,7 @@
   "realm": "drk-kv",
   "enabled": true,
   "displayName": "kv-brain",
+  "loginTheme": "kv-brain",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": true,

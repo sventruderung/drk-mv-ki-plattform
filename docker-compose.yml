@@ -55,6 +55,7 @@ services:
       KC_HOSTNAME_STRICT: "false"
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
+      - ./infra/keycloak/themes:/opt/keycloak/themes:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -142,6 +143,13 @@ services:
       ENABLE_LOGIN_FORM: "false"
     volumes:
       - open_webui_data:/app/backend/data
+      # kv-brain-Branding: Splash/Logo/Favicon über die Open-WebUI-Assets legen
+      - ./infra/openwebui/branding/splash.png:/app/build/static/splash.png:ro
+      - ./infra/openwebui/branding/splash.png:/app/backend/open_webui/static/splash.png:ro
+      - ./infra/openwebui/branding/favicon.png:/app/build/static/favicon.png:ro
+      - ./infra/openwebui/branding/favicon.png:/app/build/favicon.png:ro
+      - ./infra/openwebui/branding/favicon.png:/app/backend/open_webui/static/favicon.png:ro
+      - ./infra/openwebui/branding/logo.png:/app/build/static/logo.png:ro
     ports:
       - "3000:8080"
     depends_on:
