@@ -7,12 +7,14 @@
 
 import re
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from drk_shared.logging import get_logger
 
 from ....db import plain_connection, tenant_connection
+from ....keycloak_admin import KeycloakAdmin, KeycloakAdminError
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["settings"])
@@ -73,7 +75,47 @@ async def set_hostname(body: HostnameRequest, request: Request):
             request.state.tenant_id, request.state.user_id or "", hostname or "(leer)",
         )
     logger.info("settings.hostname.changed", hostname=hostname)
-    return {"hostname": hostname}
+
+    # Beim Setzen eines Hostnamens die HTTPS-Redirect-URIs in Keycloak ergänzen,
+    # damit der Login direkt nach dem Umschalten nicht an einer Redirect-URI-
+    # Abweichung scheitert. Schlägt das fehl (z.B. fehlende Rolle 'manage-clients'),
+    # bleibt der Hostname gespeichert — wir melden den Hinweis nur zurück.
+    redirects_added = False
+    redirect_warning = ""
+    if hostname:
+        try:
+            admin = KeycloakAdmin(request.app.state.settings)
+            await admin.add_https_redirects(hostname)
+            redirects_added = True
+            async with tenant_connection(request.state.tenant_id) as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+                    VALUES ($1, $2, 'settings.hostname.redirects', 'settings',
+                            'keycloak_clients', $3)
+                    """,
+                    request.state.tenant_id, request.state.user_id or "",
+                    f"HTTPS-Redirect-URIs ergänzt für {hostname}",
+                )
+        except (KeycloakAdminError, httpx.HTTPError) as e:
+            detail = getattr(e, "detail", str(e)) or type(e).__name__
+            redirect_warning = (
+                "Redirect-URIs konnten nicht automatisch gesetzt werden "
+                f"({detail}). Dem Keycloak-Service-Account fehlt vermutlich die "
+                "Rolle 'manage-clients'. Ersatzweise auf dem Server ausführen: "
+                f"python3 scripts/set_host.py {hostname} --https"
+            )
+            logger.info("settings.hostname.redirects_failed", detail=detail)
+
+    # Issuer-/Env-Umstellung (KEYCLOAK_PUBLIC_URL) und Neustart laufen außerhalb
+    # des Containers — ein einmaliger Host-Schritt, den nur set_host.py kann.
+    command = f"python3 scripts/set_host.py {hostname} --https" if hostname else ""
+    return {
+        "hostname": hostname,
+        "redirects_added": redirects_added,
+        "redirect_warning": redirect_warning,
+        "command": command,
+    }
 
 
 class ApiKeysRequest(BaseModel):
