@@ -19,10 +19,9 @@ import httpx
 BASE = "http://localhost:3000"
 PIPES_DIR = Path("infra/openwebui/pipes")
 PIPES = [
-    ("drk_rag_pipe", "DRK Wissensbasis (RAG)", "drk_rag_pipe.py"),
-    ("drk_content_pipe", "DRK Social Media (P02)", "drk_content_pipe.py"),
-    ("drk_models_pipe", "DRK Externe Modelle", "drk_models_pipe.py"),
-    ("drk_elo_pipe", "DRK Dokumentensystem (ELO)", "drk_elo_pipe.py"),
+    ("drk_rag_pipe", "Wissensbasis (RAG)", "drk_rag_pipe.py"),
+    ("drk_models_pipe", "Externe Modelle", "drk_models_pipe.py"),
+    ("drk_elo_pipe", "Dokumentensystem (ELO)", "drk_elo_pipe.py"),
 ]
 
 
@@ -105,7 +104,7 @@ def main() -> None:
 
     print("\n=== Fertig. Die Pipes erscheinen jetzt in der Modellauswahl. ===")
     print("Hinweis: Nutzer müssen über 'DRK Login' (Keycloak) angemeldet sein,")
-    print("damit Wissensbasis und Social Media funktionieren.")
+    print("damit die Wissensbasis und das Dokumentensystem funktionieren.")
 
 
 if __name__ == "__main__":

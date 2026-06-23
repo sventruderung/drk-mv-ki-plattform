@@ -72,7 +72,6 @@
 </header>
 <nav>
   <button id="tab-docs" class="active" onclick="show('docs')">📄 Dokumente</button>
-  <button id="tab-drafts" onclick="show('drafts')">📣 Social-Media-Freigaben</button>
   <button id="tab-users" onclick="show('users')">👥 Nutzer</button>
   <button id="tab-audit" onclick="show('audit')">📋 Protokoll</button>
   <button id="tab-settings" onclick="show('settings')">⚙️ Einstellungen</button>
@@ -154,23 +153,7 @@
     </div>
   </section>
 
-  <!-- ================= Social Media ================= -->
-  <section id="view-drafts" class="hidden">
-    <div class="card">
-      <h2>Entwürfe im Freigabe-Workflow</h2>
-      <p class="muted" style="margin-bottom:12px">
-        Beiträge werden erst nach Freigabe durch eine zweite Person veröffentlicht.
-        Eigene Entwürfe können nicht selbst freigegeben werden.</p>
-      <table><thead><tr><th>Kanal</th><th>Thema</th><th>Status</th><th>Geändert</th><th>Aktionen</th></tr></thead>
-      <tbody id="draftlist"></tbody></table>
-    </div>
-    <div class="card hidden" id="draftdetail">
-      <h2 id="dd-title"></h2>
-      <pre class="text" id="dd-text"></pre>
-      <p class="muted" id="dd-meta" style="margin:10px 0"></p>
-      <div id="dd-actions"></div>
-    </div>
-  </section>
+  <!-- Social-Media-Modul (P02) im White-Label-Branch entfernt -->
 
   <!-- ================= Audit ================= -->
   <section id="view-audit" class="hidden">
@@ -480,7 +463,7 @@ function init() {
       }
       // Gruppen zuerst laden — Checkboxen, Filter und Rollen-Labels hängen davon ab
       loadGroups().then(() => {
-        loadDocs(); loadDrafts(); loadKbs();
+        loadDocs(); loadKbs();
         if (hasRole("kv-admin")) {
           loadUsers(); loadAudit(); loadHostname(); loadStatus();
           loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap(); loadElo();
@@ -542,7 +525,7 @@ function msg(text, isError) {
 }
 
 function show(view) {
-  for (const v of ["docs", "drafts", "users", "audit", "settings"]) {
+  for (const v of ["docs", "users", "audit", "settings"]) {
     document.getElementById("view-" + v).classList.toggle("hidden", v !== view);
     document.getElementById("tab-" + v).classList.toggle("active", v === view);
   }

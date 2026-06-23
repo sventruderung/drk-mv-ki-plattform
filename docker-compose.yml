@@ -183,7 +183,6 @@ services:
       RAG_SERVICE_URL: http://rag-service:${RAG_SERVICE_PORT}
       LLM_SERVICE_URL: http://llm-service:${LLM_SERVICE_PORT}
       ADMIN_SERVICE_URL: http://admin-service:${ADMIN_SERVICE_PORT}
-      CONTENT_SERVICE_URL: http://content-service:${CONTENT_SERVICE_PORT:-8005}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
       # White-Label: Markenname, Farbe, Logo, Sichtbarkeits-Gruppen (.env)
       BRAND_NAME: ${BRAND_NAME:-kv-brain}
@@ -309,24 +308,8 @@ services:
       postgres:
         condition: service_healthy
 
-  content-service:
-    restart: unless-stopped
-    build:
-      context: .
-      dockerfile: services/content-service/Dockerfile
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      LLM_SERVICE_URL: http://llm-service:${LLM_SERVICE_PORT}
-      LOG_LEVEL: ${LOG_LEVEL}
-    ports:
-      - "${CONTENT_SERVICE_PORT:-8005}:8005"
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # content-service (Social Media / P02) im White-Label-Branch entfernt —
+  # Source bleibt im Repo, wird hier nur nicht deployt.
 
 volumes:
   postgres_data:
