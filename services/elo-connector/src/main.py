@@ -111,8 +111,14 @@ async def invoke(
     except EloNotConfigured:
         status = "not_configured"
         raise HTTPException(status_code=503, detail="ELO-Verbindung nicht konfiguriert")
-    except EloError:
+    except EloError as e:
         status = "elo_error"
+        # Diagnose: Fehlerklasse + Kurztext (kein Dokumentinhalt) protokollieren
+        logger.warning(
+            "elo_error",
+            extra={"request_id": request_id, "error_type": type(e).__name__,
+                   "error": str(e)[:300]},
+        )
         raise HTTPException(status_code=502, detail="DMS derzeit nicht verfügbar")
     except HTTPException:
         status = "client_error"
