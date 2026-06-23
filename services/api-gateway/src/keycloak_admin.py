@@ -10,16 +10,8 @@ import time
 import httpx
 
 # Nur diese Rollen dürfen über das Admin-UI vergeben werden — niemals
-# Keycloak-interne Rollen oder realm-management.
-ALLOWED_ROLES = [
-    "kv-admin",
-    "kv-vorstand",
-    "kv-pflege",
-    "kv-rettungsdienst",
-    "kv-alle",
-    "content-editor",
-    "content-approver",
-]
+# Keycloak-interne Rollen oder realm-management. Quelle: branding.py (.env).
+from .branding import ALLOWED_ROLES  # noqa: F401  (re-export für Bestandscode)
 
 
 class KeycloakAdminError(Exception):

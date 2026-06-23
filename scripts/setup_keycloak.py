@@ -107,7 +107,8 @@ def main() -> None:
         fail(f"Name '{raw_name}' ergibt keine gültige Kennung.")
     tenant_id = f"kv-{kv_name}"
     # Anzeigename behält Groß-/Kleinschreibung (Login-Seite, Oberfläche)
-    display_name = f"DRK KV {raw_name}"
+    brand = env().get("BRAND_NAME", "kv-brain")
+    display_name = f"{brand} {raw_name}".strip()
     print(f"   → Technische Kennung: {tenant_id} | Anzeigename: {display_name}")
 
     hostname = input("Öffentlicher Hostname für HTTPS (leer = später): ").strip().lower()
@@ -238,10 +239,10 @@ def main() -> None:
     else:
         user_id = resp.headers["Location"].rsplit("/", 1)[-1]
     all_roles = kc.req("GET", "/roles").json()
-    wanted = [r for r in all_roles if r["name"] in ("kv-admin", "kv-alle")]
+    wanted = [r for r in all_roles if r["name"] in ("kv-admin", "alle")]
     kc.req("POST", f"/users/{user_id}/role-mappings/realm",
            json=[{"id": r["id"], "name": r["name"]} for r in wanted])
-    print(f"✅ Mandanten-Admin '{admin_user}' angelegt (Rollen: kv-admin, kv-alle).")
+    print(f"✅ Administrator '{admin_user}' angelegt (Rollen: kv-admin, alle).")
 
     # --- End-Verifikation: gilt das rotierte Secret nach ALLEN Schritten noch? ---
     final = httpx.post(

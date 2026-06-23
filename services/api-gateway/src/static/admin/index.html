@@ -62,7 +62,10 @@
 </head>
 <body>
 <header>
-  <h1>DRK KI-Plattform — Verwaltung</h1>
+  <h1 style="display:flex; align-items:center; gap:12px">
+    <img id="brand-logo" alt="" style="height:32px; width:auto; display:none">
+    <span id="brand-title">Verwaltung</span>
+  </h1>
   <div class="user"><span id="username"></span><button onclick="kc.logout()">Abmelden</button></div>
 </header>
 <nav>
@@ -97,12 +100,9 @@
         <button class="small" id="renamekb">✏️ Umbenennen</button>
         <button class="small" id="kbaclbtn">🔐 Zugriff</button>
       </div>
-      <div class="acl-row">
+      <div class="acl-row" id="upload-acl">
         <strong>Sichtbar für:</strong>
-        <label><input type="checkbox" value="kv-alle" checked> Alle Mitarbeitenden</label>
-        <label><input type="checkbox" value="kv-vorstand"> Vorstand</label>
-        <label><input type="checkbox" value="kv-pflege"> Fachbereich Pflege</label>
-        <label><input type="checkbox" value="kv-rettungsdienst"> Rettungsdienst</label>
+        <!-- Gruppen werden dynamisch aus /api/v1/kbs/groups befüllt -->
       </div>
       <button class="primary" id="uploadbtn" disabled>Hochladen</button>
       <span class="muted" id="filename"></span>
@@ -118,10 +118,7 @@
         </select>
         <select id="f-group" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
           <option value="">Alle Gruppen</option>
-          <option value="kv-alle">Alle Mitarbeitenden</option>
-          <option value="kv-vorstand">Vorstand</option>
-          <option value="kv-pflege">Pflege</option>
-          <option value="kv-rettungsdienst">Rettungsdienst</option>
+          <!-- Gruppen dynamisch -->
         </select>
         <select id="f-ext" style="padding:7px 10px; border:1px solid var(--rand); border-radius:5px">
           <option value="">Alle Typen</option>
@@ -415,10 +412,7 @@
   <div class="modal">
     <h3 id="acl-title">Sichtbarkeit ändern</h3>
     <div class="acl-row" id="acl-checks">
-      <label><input type="checkbox" value="kv-alle"> Alle Mitarbeitenden</label>
-      <label><input type="checkbox" value="kv-vorstand"> Vorstand</label>
-      <label><input type="checkbox" value="kv-pflege"> Fachbereich Pflege</label>
-      <label><input type="checkbox" value="kv-rettungsdienst"> Rettungsdienst</label>
+      <!-- Gruppen dynamisch aus /api/v1/kbs/groups -->
     </div>
     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
       <button class="small" onclick="closeAcl()">Abbrechen</button>
@@ -431,9 +425,21 @@
 <script>
 const C = window.DRK_CONFIG;
 let kc, selectedFile = null;
+let ACL_GROUPS = [];   // [{id,label}] — dynamisch vom Gateway
 
+// --- Branding anwenden (Name, Farbe, Logo aus .env via config.js) ---
+const BRAND = C.brandName || "KI-Plattform";
+document.title = `${BRAND} — Verwaltung`;
+document.getElementById("brand-title").textContent = `${BRAND} — Verwaltung`;
+if (C.brandColor) document.documentElement.style.setProperty("--drk-rot", C.brandColor);
+if (C.brandLogo) {
+  const img = document.getElementById("brand-logo");
+  img.src = "/admin/" + C.brandLogo;
+  img.alt = BRAND;
+  img.onload = () => { img.style.display = "block"; };
+}
 document.getElementById("buildinfo").textContent =
-  `DRK KI-Plattform v${C.version} · Entwicklungsstand: ${C.buildDate}`;
+  `${BRAND} v${C.version} · Entwicklungsstand: ${C.buildDate}`;
 
 // Selbstheilung bei IP-/Hostwechsel: Zeigt die hinterlegte Keycloak-URL auf
 // einen ANDEREN Host als den, über den diese Seite gerade aufgerufen wurde
@@ -470,16 +476,43 @@ function init() {
         document.getElementById("tab-audit").style.display = "none";
         document.getElementById("tab-settings").style.display = "none";
       }
-      loadDocs(); loadDrafts(); loadKbs();
-      if (hasRole("kv-admin")) {
-        loadUsers(); loadAudit(); loadHostname(); loadStatus();
-        loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap(); loadElo();
-      }
+      // Gruppen zuerst laden — Checkboxen, Filter und Rollen-Labels hängen davon ab
+      loadGroups().then(() => {
+        loadDocs(); loadDrafts(); loadKbs();
+        if (hasRole("kv-admin")) {
+          loadUsers(); loadAudit(); loadHostname(); loadStatus();
+          loadModels(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap(); loadElo();
+        }
+      });
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
 }
 
 function hasRole(r) { return (kc.tokenParsed.realm_access?.roles || []).includes(r); }
+
+// Sichtbarkeits-Gruppen vom Gateway holen und ALLE Checkbox-/Filterlisten füllen
+async function loadGroups() {
+  try {
+    ACL_GROUPS = await api("/api/v1/kbs/groups");
+  } catch (e) { ACL_GROUPS = []; }
+  const first = ACL_GROUPS[0]?.id;
+  // Upload: Checkboxen (Standardgruppe vorausgewählt)
+  document.getElementById("upload-acl").innerHTML =
+    `<strong>Sichtbar für:</strong>` + ACL_GROUPS.map(g =>
+      `<label><input type="checkbox" value="${g.id}" ${g.id === first ? "checked" : ""}> ${esc(g.label)}</label>`
+    ).join("");
+  // ACL-Modal (Dokument/KB): Checkboxen ohne Vorauswahl
+  document.getElementById("acl-checks").innerHTML = ACL_GROUPS.map(g =>
+    `<label><input type="checkbox" value="${g.id}"> ${esc(g.label)}</label>`).join("");
+  // Filter-Dropdown
+  document.getElementById("f-group").innerHTML =
+    `<option value="">Alle Gruppen</option>` +
+    ACL_GROUPS.map(g => `<option value="${g.id}">${esc(g.label)}</option>`).join("");
+  // Labels für die Nutzer-Rollenanzeige ergänzen
+  for (const g of ACL_GROUPS) ROLE_LABELS[g.id] = g.label;
+}
+
+function defaultGroup() { return ACL_GROUPS[0]?.id || "alle"; }
 
 // Gateway-Präfix: Hinter Caddy (kein Port, z.B. https://ki.drk-dbr.de) läuft die
 // Plattform-API unter /drk-gw, weil /api dort Open WebUI gehört. Direkt am Gateway
@@ -586,7 +619,7 @@ function setQueue(files) {
 }
 
 document.getElementById("uploadbtn").onclick = async () => {
-  const acl = [...document.querySelectorAll(".acl-row input:checked")].map(c => c.value);
+  const acl = [...document.querySelectorAll("#upload-acl input:checked")].map(c => c.value);
   if (!acl.length) return msg("Bitte mindestens eine Gruppe auswählen.", true);
   const queue = uploadQueue; uploadQueue = [];
   document.getElementById("uploadbtn").disabled = true;
@@ -739,8 +772,8 @@ async function loadKbs() {
 // Zugriffsgruppen vorbelegen — verhindert vergessene Einschränkungen
 document.getElementById("kbselect").onchange = () => {
   const kb = kbCache.find(k => k.id === document.getElementById("kbselect").value);
-  const groups = kb ? kb.acl_groups : ["kv-alle"];
-  for (const c of document.querySelectorAll(".acl-row input[type=checkbox]"))
+  const groups = kb ? kb.acl_groups : [defaultGroup()];
+  for (const c of document.querySelectorAll("#upload-acl input[type=checkbox]"))
     c.checked = groups.includes(c.value);
 };
 
@@ -765,12 +798,12 @@ document.getElementById("newkb").onclick = async () => {
   const name = prompt("Name der neuen Wissensdatenbank (z.B. Satzungen, Pflege):");
   if (!name || !name.trim()) return;
   // Aktuell angehakte Gruppen als Zugriffsgruppen der neuen KB übernehmen
-  const groups = [...document.querySelectorAll(".acl-row input[type=checkbox]:checked")]
+  const groups = [...document.querySelectorAll("#upload-acl input[type=checkbox]:checked")]
     .map(c => c.value);
   try {
     const r = await api("/api/v1/kbs/", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), acl_groups: groups.length ? groups : ["kv-alle"] }),
+      body: JSON.stringify({ name: name.trim(), acl_groups: groups.length ? groups : [defaultGroup()] }),
     });
     await loadKbs();
     document.getElementById("kbselect").value = r.id;
@@ -807,7 +840,7 @@ document.getElementById("kbaclbtn").onclick = () => {
   aclTarget = { kind: "kb", id: sel.value };
   document.getElementById("acl-title").textContent = `Zugriff auf Wissensdatenbank: ${kb ? kb.name : ""}`;
   for (const c of document.querySelectorAll("#acl-checks input"))
-    c.checked = (kb ? kb.acl_groups : ["kv-alle"]).includes(c.value);
+    c.checked = (kb ? kb.acl_groups : [defaultGroup()]).includes(c.value);
   document.getElementById("aclmodal").classList.remove("hidden");
 };
 
@@ -917,12 +950,9 @@ function addAction(container, id, target) {
 }
 
 // ---------- Nutzerverwaltung ----------
+// Funktionale Rollen fest; ACL-Gruppen-Labels kommen dynamisch dazu (loadGroups)
 const ROLE_LABELS = {
-  "kv-admin": "Mandanten-Administrator",
-  "kv-vorstand": "Vorstand",
-  "kv-pflege": "Fachbereich Pflege",
-  "kv-rettungsdienst": "Rettungsdienst",
-  "kv-alle": "Alle Mitarbeitenden",
+  "kv-admin": "Administrator",
   "content-editor": "Social-Media-Redaktion",
   "content-approver": "Social-Media-Freigabe",
 };
@@ -938,7 +968,7 @@ async function loadUsers() {
   try {
     if (!assignableRoles.length) {
       assignableRoles = await api("/api/v1/users/roles");
-      roleCheckboxes(document.getElementById("nu-roles"), ["kv-alle"]);
+      roleCheckboxes(document.getElementById("nu-roles"), [defaultGroup()]);
     }
     const users = await api("/api/v1/users/");
     document.getElementById("userlist").innerHTML = users.map(u => `<tr>

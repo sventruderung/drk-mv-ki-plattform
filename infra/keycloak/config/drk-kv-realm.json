@@ -1,7 +1,7 @@
 {
   "realm": "drk-kv",
   "enabled": true,
-  "displayName": "DRK Kreisverband",
+  "displayName": "kv-brain",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": true,
@@ -10,16 +10,20 @@
   "accessTokenLifespan": 28800,
   "roles": {
     "realm": [
-      { "name": "kv-admin", "description": "Mandanten-Administrator (§4.1): Nutzer- und Rechteverwaltung, Dokumentenordner" },
-      { "name": "kv-vorstand", "description": "ACL-Gruppe: Nur Kreisverbands-Vorstand (§4.2)" },
-      { "name": "kv-pflege", "description": "ACL-Gruppe: Fachbereich Pflege (§4.2)" },
-      { "name": "kv-rettungsdienst", "description": "ACL-Gruppe: Bereichsleitung Rettungsdienst (§4.2)" },
-      { "name": "kv-alle", "description": "ACL-Gruppe: Offen für alle Mitarbeitenden (§4.2)" },
-      { "name": "content-editor", "description": "P02: Darf Social-Media-Entwürfe erstellen und bearbeiten" },
-      { "name": "content-approver", "description": "P02: Darf Entwürfe freigeben/ablehnen (nicht eigene)" }
+      { "name": "kv-admin", "description": "Administrator: Nutzer- und Rechteverwaltung" },
+      { "name": "alle", "description": "ACL-Gruppe: Alle Mitarbeitenden (Standard)" },
+      { "name": "gf", "description": "ACL-Gruppe: GF" },
+      { "name": "verwaltung", "description": "ACL-Gruppe: Verwaltung" },
+      { "name": "datenschutz", "description": "ACL-Gruppe: Datenschutz" },
+      { "name": "esf-brb", "description": "ACL-Gruppe: ESF BRB" },
+      { "name": "panel", "description": "ACL-Gruppe: Panel" },
+      { "name": "rehapro", "description": "ACL-Gruppe: Rehapro" },
+      { "name": "my-turn", "description": "ACL-Gruppe: my turn" },
+      { "name": "content-editor", "description": "Darf Social-Media-Entwürfe erstellen und bearbeiten" },
+      { "name": "content-approver", "description": "Darf Entwürfe freigeben/ablehnen (nicht eigene)" }
     ]
   },
-  "defaultRoles": ["kv-alle"],
+  "defaultRoles": ["alle"],
   "clients": [
     {
       "clientId": "drk-admin-ui",

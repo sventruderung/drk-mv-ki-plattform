@@ -79,12 +79,17 @@ def _build_date() -> str:
 
 @app.get("/admin/config.js", response_class=PlainTextResponse)
 async def admin_config() -> str:
-    """Laufzeit-Konfiguration fürs Admin-UI (Keycloak-Adresse aus der .env)."""
+    """Laufzeit-Konfiguration fürs Admin-UI (Keycloak-Adresse + Branding aus .env)."""
+    from . import branding
+
     return (
         f'window.DRK_CONFIG = {{\n'
         f'  keycloakUrl: "{settings.keycloak_public_url}",\n'
         f'  realm: "{settings.keycloak_realm}",\n'
         f'  clientId: "drk-admin-ui",\n'
+        f'  brandName: "{branding.BRAND_NAME}",\n'
+        f'  brandColor: "{branding.BRAND_COLOR}",\n'
+        f'  brandLogo: "{branding.BRAND_LOGO}",\n'
         f'  version: "{app.version}",\n'
         f'  buildDate: "{_build_date()}"\n'
         f'}};\n'

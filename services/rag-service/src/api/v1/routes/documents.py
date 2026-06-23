@@ -143,7 +143,7 @@ async def _ingest(
 @router.post("/")
 async def upload_document(
     file: UploadFile,
-    acl_groups: str = Form("kv-alle"),  # kommasepariert, z.B. "kv-vorstand,kv-pflege"
+    acl_groups: str = Form("alle"),  # kommasepariert; Gateway setzt die Gruppen explizit
     kb_id: str = Form(""),              # Ziel-Wissensdatenbank (leer = Allgemein)
     x_tenant_id: str = Header(...),
     x_user_id: str = Header(...),

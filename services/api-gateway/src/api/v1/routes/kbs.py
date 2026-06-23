@@ -17,6 +17,14 @@ from ....db import plain_connection, tenant_connection
 router = APIRouter(prefix="/kbs", tags=["kbs"])
 
 
+@router.get("/groups")
+async def list_groups(request: Request):
+    """Sichtbarkeits-Gruppen (ACL) für UI-Checkboxen — jeder angemeldete Nutzer."""
+    from ....branding import ACL_GROUPS
+
+    return ACL_GROUPS
+
+
 @router.get("/public")
 async def list_kbs_public():
     async with plain_connection() as conn:
