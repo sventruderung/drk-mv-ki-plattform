@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     llm_service_url: str = "http://llm-service:8002"
     admin_service_url: str = "http://admin-service:8003"
     content_service_url: str = "http://content-service:8005"
+    connector_service_url: str = "http://connector-service:8004"
     ollama_base_url: str = "http://ollama:11434"
+    ollama_default_model: str = "qwen3:32b"
+    # Eigenes, kleineres Modell für den ELO-Tool-Ablauf (mehrere Generierungen je
+    # Anfrage) — 32b ist dafür zu langsam. Tool-fähig sein muss es.
+    ollama_elo_model: str = "qwen3:8b"
     minio_health_url: str = "http://minio:9000/minio/health/live"
 
     cors_origins: list[str] = ["http://localhost:3000"]
