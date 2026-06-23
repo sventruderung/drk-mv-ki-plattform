@@ -89,6 +89,22 @@ python3 scripts/set_host.py            # neue IP automatisch erkennen + nachzieh
 Danach im Browser ab- und neu anmelden. Das Skript ergänzt die neue Adresse,
 ohne die alte zu entfernen — die Plattform funktioniert dann in beiden Netzen.
 
+## ELO-Anbindung: Namensauflösung dauerhaft
+
+Der ELO-Server hat einen internen Namen (`elo-srv.drkkvdbr.local`), den der
+Container ohne KV-DNS nicht auflöst. Statt einer flüchtigen Host-Konfiguration
+die IP fest in der `.env` hinterlegen — überlebt Reboot und OS-Update:
+
+```bash
+ELO_SERVER_HOST=elo-srv.drkkvdbr.local
+ELO_SERVER_IP=192.168.x.y        # feste IP des ELO-Servers im KV-Netz
+```
+Danach: `docker compose up -d --force-recreate elo-connector`
+
+Voraussetzung bleibt eine **Netzwerk-Route** vom DGX zum ELO-Server (gleiches
+Netz oder geroutet). Test: `docker compose exec elo-connector python3 -c
+"import httpx; print(httpx.get('http://elo-srv.drkkvdbr.local:9090/rest-Archiv', timeout=5).status_code)"`
+
 ## Update-Prozedur (bei jedem neuen Stand)
 
 ```bash

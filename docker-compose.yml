@@ -260,6 +260,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       LOG_LEVEL: ${LOG_LEVEL}
+    # Interner ELO-Server-Name dauerhaft auflösen (überlebt Reboot/OS-Update).
+    # IP in .env pflegen: ELO_SERVER_HOST + ELO_SERVER_IP
+    extra_hosts:
+      - "${ELO_SERVER_HOST:-elo-srv.drkkvdbr.local}:${ELO_SERVER_IP:-127.0.0.1}"
     ports:
       # Host 8006 -> Container 8005 (8005 ist am Host vom content-service belegt)
       - "127.0.0.1:8006:8005"
