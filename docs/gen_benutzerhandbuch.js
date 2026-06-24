@@ -173,10 +173,25 @@ C.push(info("Wichtig zu wissen", [
 // 3 Anmeldung & Rollen
 // ════════════════════════════════════════════════════════════════════
 C.push(h1("3  Anmeldung und Rollenkonzept"));
-C.push(h2("3.1  Single Sign-On (Keycloak)"));
+C.push(h2("3.1  Zugangsadressen"));
+C.push(para("Die Plattform ist über zwei Oberflächen erreichbar: den Chat (für Anwender) und die Verwaltung (für Administratoren). Im HTTPS-Betrieb laufen beide über den Hostnamen; im rein internen Betrieb ohne HTTPS direkt über die IP und den jeweiligen Port."));
+C.push(table(["Zweck", "Mit HTTPS (Hostname)", "Intern ohne HTTPS (IP)"], [
+  ["Chat (Anwender)", "https://<hostname>", "http://<IP>:3000"],
+  ["Verwaltung (Admin)", "https://<hostname>/admin", "http://<IP>:8000/admin"],
+  ["Keycloak-Konsole", "https://<hostname>/auth/admin/", "http://<IP>:8080/auth/admin/"],
+], [2600, Math.floor((CW - 2600) / 2), Math.ceil((CW - 2600) / 2)]));
+C.push(para("Beispiel intern: http://192.168.126.25:8000/admin (Verwaltung) und http://192.168.126.25:3000 (Chat)."));
+C.push(tip("Hinweise", [
+  "Die Verwaltung liegt unter /admin (mit Schraegstrich: /admin/). Die Wurzel",
+  "http://<IP>:8000 ist tokengeschuetzt und zeigt 'Token fehlt' - das ist normal.",
+  "Die Keycloak-Konsole ist /auth/admin/ (Anmeldung 'admin' + KEYCLOAK_ADMIN_PASSWORD),",
+  "nicht zu verwechseln mit der App-Anmeldeseite.",
+]));
+C.push(spacer(40, 40));
+C.push(h2("3.2  Single Sign-On (Keycloak)"));
 C.push(para("Die Anmeldung erfolgt zentral über Keycloak. Wer angemeldet ist, kann Chat und Wissensbasis nutzen, ohne sich erneut anzumelden. Die Anmeldedaten kommen entweder aus lokal in Keycloak angelegten Konten oder — falls angebunden — aus dem Active Directory."));
 C.push(spacer(40, 40));
-C.push(h2("3.2  Rollen und Sichtbarkeitsgruppen"));
+C.push(h2("3.3  Rollen und Sichtbarkeitsgruppen"));
 C.push(table(["Rolle / Gruppe", "Bedeutung"], [
   ["kv-admin", "Administrator: voller Zugriff auf das Verwaltungs-UI"],
   ["alle", "Standard-Sichtbarkeitsgruppe (alle Mitarbeitenden)"],
@@ -185,7 +200,7 @@ C.push(table(["Rolle / Gruppe", "Bedeutung"], [
 ], [3600, Math.floor(CW - 3600)]));
 C.push(para("Sichtbarkeitsgruppen steuern, welche Wissensdatenbanken eine Person sehen und durchsuchen darf. Sie werden zentral konfiguriert (in der .env über ACL_GROUPS) und stehen automatisch als Rollen, Auswahlfelder und Filter zur Verfügung."));
 C.push(spacer(40, 40));
-C.push(h2("3.3  Erste Anmeldung als Administrator"));
+C.push(h2("3.4  Erste Anmeldung als Administrator"));
 C.push(numbered("Verwaltungs-UI öffnen: https://<hostname>/admin (intern: http://<ip>:8000/admin)"));
 C.push(numbered("Mit dem kv-admin-Konto anmelden (im Setup angelegt)"));
 C.push(numbered("Nach Rollenänderungen immer ab- und neu anmelden — Rollen stehen im Anmelde-Token"));
@@ -418,7 +433,7 @@ C.push(h1("Teil C — Nutzung (für Anwenderinnen und Anwender)"));
 C.push(para("Dieser Teil beschreibt die tägliche Arbeit mit kv-brain im Browser. Sie benötigen nur Ihre Anmeldedaten — alles andere läuft im Hintergrund."));
 
 C.push(h1("16  Anmelden und Oberfläche"));
-C.push(numbered("Die Adresse der Plattform im Browser öffnen (z.B. https://<hostname>)"));
+C.push(numbered("Die Adresse der Plattform im Browser öffnen — mit HTTPS: https://<hostname> · intern ohne HTTPS: http://<IP>:3000"));
 C.push(numbered("Auf der Anmeldeseite mit Benutzername und Passwort anmelden"));
 C.push(numbered("Danach öffnet sich die Chat-Oberfläche"));
 C.push(para("Links wählen Sie oben das gewünschte Modell, in der Mitte führen Sie das Gespräch, frühere Unterhaltungen finden Sie in der Seitenleiste."));
