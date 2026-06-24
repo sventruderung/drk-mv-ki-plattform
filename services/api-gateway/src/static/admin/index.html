@@ -511,7 +511,8 @@ const C = window.DRK_CONFIG;
 let kc, selectedFile = null;
 
 document.getElementById("buildinfo").textContent =
-  `DRK KI-Plattform v${C.version} · Entwicklungsstand: ${C.buildDate}`;
+  `DRK KI-Plattform v${C.version} · Entwicklungsstand: ${C.buildDate}` +
+  (C.branch ? ` · Branch: ${C.branch}` : "");
 
 // Selbstheilung bei IP-/Hostwechsel: Zeigt die hinterlegte Keycloak-URL auf
 // einen ANDEREN Host als den, über den diese Seite gerade aufgerufen wurde

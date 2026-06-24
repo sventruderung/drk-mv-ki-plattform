@@ -77,6 +77,14 @@ def _build_date() -> str:
         return "dev"
 
 
+def _build_branch() -> str:
+    """Verwendete Git-Branch, beim Docker-Build aus .git/HEAD gesetzt; lokal: 'dev'."""
+    try:
+        return Path("/app/build_branch").read_text().strip() or "dev"
+    except OSError:
+        return "dev"
+
+
 @app.get("/admin/config.js", response_class=PlainTextResponse)
 async def admin_config() -> str:
     """Laufzeit-Konfiguration fürs Admin-UI (Keycloak-Adresse aus der .env)."""
@@ -86,7 +94,8 @@ async def admin_config() -> str:
         f'  realm: "{settings.keycloak_realm}",\n'
         f'  clientId: "drk-admin-ui",\n'
         f'  version: "{app.version}",\n'
-        f'  buildDate: "{_build_date()}"\n'
+        f'  buildDate: "{_build_date()}",\n'
+        f'  branch: "{_build_branch()}"\n'
         f'}};\n'
     )
 
