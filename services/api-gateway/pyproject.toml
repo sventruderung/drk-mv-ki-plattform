@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=24.2",
     "python-multipart>=0.0.9",
     "asyncpg>=0.29",
+    "smbprotocol>=1.12",
     "drk-shared",
 ]
 

@@ -5,6 +5,7 @@
   aufgerufen — 200 nur für den hinterlegten Hostnamen (On-Demand-TLS)
 """
 
+import asyncio
 import re
 
 import httpx
@@ -393,6 +394,147 @@ async def smtp_test(request: Request):
     if err:
         raise HTTPException(status_code=502, detail=f"Versand fehlgeschlagen: {err}")
     return {"sent": True}
+
+
+# ── Backup auf NAS (SMB/CIFS, z.B. Synology) ────────────────────────────────
+# Zugangsdaten liegen verschlüsselt im Secret-Store (system_settings); das
+# Passwort wird NIE zurückgegeben. Die geplante Sicherung läuft per cron auf dem
+# Host (scripts/backup.sh liest diese Werte und lädt per smbclient hoch); der
+# Test hier prüft Verbindung + Schreibrecht direkt aus dem Gateway.
+
+TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def _parse_nas_url(url: str) -> tuple[str, str, str]:
+    """//server/freigabe/unterordner → (server, freigabe, unterordner).
+    Akzeptiert auch Backslashes (\\\\nas\\backup)."""
+    clean = url.strip().replace("\\", "/").lstrip("/")
+    parts = [p for p in clean.split("/") if p]
+    if len(parts) < 2:
+        raise ValueError("NAS-URL muss mindestens //server/freigabe enthalten.")
+    return parts[0], parts[1], "/".join(parts[2:])
+
+
+def _smb_write_test(server: str, share: str, sub: str, user: str, pwd: str) -> None:
+    """Blockierender SMB-Test: Sitzung öffnen, Testdatei schreiben + löschen."""
+    import smbclient
+
+    base = rf"\\{server}\{share}"
+    folder = base + ("\\" + sub.replace("/", "\\") if sub else "")
+    target = folder + r"\.drk_backup_test"
+    smbclient.register_session(server, username=user, password=pwd, connection_timeout=8)
+    try:
+        if sub:
+            smbclient.makedirs(folder, exist_ok=True)
+        with smbclient.open_file(target, mode="wb") as fh:
+            fh.write(b"drk-backup-test")
+        smbclient.remove(target)
+    finally:
+        smbclient.delete_session(server)
+
+
+class BackupConfigRequest(BaseModel):
+    nas_url: str | None = None
+    nas_user: str | None = None
+    nas_password: str | None = None        # None = unverändert (Maske im UI)
+    schedule_enabled: bool | None = None
+    schedule_freq: str | None = None       # 'daily' | 'weekly'
+    schedule_time: str | None = None       # 'HH:MM'
+    schedule_weekday: str | None = None    # '1'..'7' (Mo..So), nur bei weekly
+
+
+@router.get("/settings/backup")
+async def get_backup_config(request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value FROM system_settings WHERE key LIKE 'backup_%' "
+            "OR key = 'last_backup_at'"
+        )
+    cfg = {r["key"]: r["value"] for r in rows}
+    return {
+        "nas_url": cfg.get("backup_nas_url", ""),
+        "nas_user": cfg.get("backup_nas_user", ""),
+        "nas_password_set": bool(cfg.get("backup_nas_password")),
+        "schedule_enabled": cfg.get("backup_schedule_enabled") == "true",
+        "schedule_freq": cfg.get("backup_schedule_freq", "daily"),
+        "schedule_time": cfg.get("backup_schedule_time", "02:30"),
+        "schedule_weekday": cfg.get("backup_schedule_weekday", "1"),
+        "last_backup_at": cfg.get("last_backup_at", ""),
+    }
+
+
+@router.put("/settings/backup")
+async def set_backup_config(body: BackupConfigRequest, request: Request):
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    if body.schedule_freq is not None and body.schedule_freq not in ("daily", "weekly"):
+        raise HTTPException(status_code=422, detail="Frequenz muss 'daily' oder 'weekly' sein.")
+    if body.schedule_time is not None and not TIME_RE.match(body.schedule_time):
+        raise HTTPException(status_code=422, detail="Uhrzeit im Format HH:MM angeben.")
+    if body.schedule_weekday is not None and body.schedule_weekday not in [str(d) for d in range(1, 8)]:
+        raise HTTPException(status_code=422, detail="Wochentag 1 (Mo) bis 7 (So).")
+    values = {
+        "backup_nas_url": body.nas_url,
+        "backup_nas_user": body.nas_user,
+        "backup_nas_password": body.nas_password,   # None = unverändert
+        "backup_schedule_enabled": None if body.schedule_enabled is None
+        else ("true" if body.schedule_enabled else "false"),
+        "backup_schedule_freq": body.schedule_freq,
+        "backup_schedule_time": body.schedule_time,
+        "backup_schedule_weekday": body.schedule_weekday,
+    }
+    async with plain_connection() as conn:
+        for key, value in values.items():
+            if value is not None:
+                await conn.execute(
+                    """
+                    INSERT INTO system_settings (key, value, updated_at, updated_by)
+                    VALUES ($1, $2, now(), $3)
+                    ON CONFLICT (key) DO UPDATE
+                    SET value = $2, updated_at = now(), updated_by = $3
+                    """,
+                    key, value.strip() if isinstance(value, str) else value,
+                    request.state.user_id or "",
+                )
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'settings.backup', 'settings', 'backup', 'NAS-Backup-Konfiguration geändert')
+            """,
+            request.state.tenant_id, request.state.user_id or "",
+        )
+    logger.info("settings.backup.changed")
+    return {"saved": True}
+
+
+@router.post("/settings/backup/test")
+async def test_backup_nas(request: Request):
+    """Verbindung + Schreibrecht zum NAS prüfen (Testdatei schreiben + löschen)."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    async with plain_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT key, value FROM system_settings WHERE key LIKE 'backup_nas_%'"
+        )
+    cfg = {r["key"]: r["value"] for r in rows}
+    url = cfg.get("backup_nas_url", "")
+    user = cfg.get("backup_nas_user", "")
+    pwd = cfg.get("backup_nas_password", "")
+    if not url or not user:
+        raise HTTPException(status_code=422, detail="NAS-URL und Benutzer müssen gesetzt sein.")
+    try:
+        server, share, sub = _parse_nas_url(url)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    try:
+        await asyncio.to_thread(_smb_write_test, server, share, sub, user, pwd)
+    except Exception as e:  # noqa: BLE001 — Fehlertext zurückmelden (SMB-Bibliothek)
+        logger.info("settings.backup.test_failed", error=type(e).__name__)
+        raise HTTPException(status_code=502, detail=f"NAS-Test fehlgeschlagen: {e}")
+    return {"ok": True}
 
 
 @router.get("/tls/check")

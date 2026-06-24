@@ -52,6 +52,10 @@
   .fld { display: flex; flex-direction: column; gap: 4px; }
   .fld > span { font-size: .82rem; color: #555; }
   .fld > input { padding: 8px 11px; border: 1px solid var(--rand); border-radius: 5px; font-size: .92rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-bottom: 6px; }
+  .grid2 > label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: #555; }
+  .grid2 input, .grid2 select { padding: 8px 11px; border: 1px solid var(--rand); border-radius: 5px; font-size: .92rem; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
   footer { text-align: center; color: #aaa; font-size: .75rem; padding: 18px 0 24px; }
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4);
              display: flex; align-items: center; justify-content: center; z-index: 10; }
@@ -288,6 +292,60 @@
       <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
     </div>
     <div class="card">
+      <h2>Backup auf NAS (Synology · SMB)</h2>
+      <p class="muted" style="margin-top:0">
+        Zusätzlich zur lokalen Sicherung wird das Backup (Datenbank, Dokumente,
+        Konfiguration) auf ein NAS kopiert. Das Passwort wird verschlüsselt
+        gespeichert und nie wieder angezeigt.
+      </p>
+      <div class="grid2">
+        <label>NAS-Freigabe (URL)
+          <input id="bk-url" placeholder="//192.168.1.10/backup/drk-ki">
+        </label>
+        <label>Benutzer
+          <input id="bk-user" placeholder="backup-user">
+        </label>
+        <label>Passwort
+          <input id="bk-pass" type="password" placeholder="(unverändert lassen = leer)">
+        </label>
+        <label>&nbsp;
+          <button class="small" onclick="testBackup()">Verbindung testen</button>
+        </label>
+      </div>
+      <h3 style="margin-bottom:6px">Zeitplan</h3>
+      <div class="grid2">
+        <label style="display:flex; align-items:center; gap:8px">
+          <input type="checkbox" id="bk-enabled" style="width:auto"> Automatische Sicherung aktiv
+        </label>
+        <label>Häufigkeit
+          <select id="bk-freq" onchange="bkFreqChange()">
+            <option value="daily">täglich</option>
+            <option value="weekly">wöchentlich</option>
+          </select>
+        </label>
+        <label>Uhrzeit
+          <input id="bk-time" type="time" value="02:30">
+        </label>
+        <label id="bk-weekday-wrap">Wochentag
+          <select id="bk-weekday">
+            <option value="1">Montag</option><option value="2">Dienstag</option>
+            <option value="3">Mittwoch</option><option value="4">Donnerstag</option>
+            <option value="5">Freitag</option><option value="6">Samstag</option>
+            <option value="7">Sonntag</option>
+          </select>
+        </label>
+      </div>
+      <p style="margin-top:12px">
+        <button onclick="saveBackup()">Speichern</button>
+        <span class="muted" id="bk-last" style="margin-left:12px"></span>
+      </p>
+      <p class="muted" style="font-size:.9em">
+        Hinweis: Die geplante Sicherung läuft auf dem Server. Einmalig einrichten:
+        <code>sudo bash scripts/backup.sh --install</code> (benötigt
+        <code>smbclient</code> für den NAS-Upload).
+      </p>
+    </div>
+    <div class="card">
       <h2>HTTPS / Öffentlicher Hostname</h2>
       <p class="muted" style="margin-bottom:12px">
         Unter diesem Hostnamen ist die Plattform per HTTPS erreichbar.
@@ -487,7 +545,7 @@ function init() {
         loadDocs(); loadKbs();
         if (hasRole("kv-admin")) {
           loadUsers(); loadAudit(); loadHostname(); loadStatus();
-          loadModels(); loadOllama(); loadKeyStatus(); loadSmtp(); loadEvents(); loadLdap(); loadElo();
+          loadModels(); loadOllama(); loadKeyStatus(); loadSmtp(); loadBackup(); loadEvents(); loadLdap(); loadElo();
         }
       });
     })
@@ -1313,6 +1371,65 @@ async function pollPull() {
     try { renderInstalled(await api("/api/v1/models/ollama/installed")); } catch (e) {}
     loadModels();
   }
+}
+
+// ---------- Backup auf NAS ----------
+function bkFreqChange() {
+  document.getElementById("bk-weekday-wrap").style.display =
+    document.getElementById("bk-freq").value === "weekly" ? "" : "none";
+}
+async function loadBackup() {
+  try {
+    const c = await api("/api/v1/settings/backup");
+    document.getElementById("bk-url").value = c.nas_url || "";
+    document.getElementById("bk-user").value = c.nas_user || "";
+    document.getElementById("bk-pass").placeholder =
+      c.nas_password_set ? "•••••••• (unverändert lassen = leer)" : "(noch nicht gesetzt)";
+    document.getElementById("bk-enabled").checked = c.schedule_enabled;
+    document.getElementById("bk-freq").value = c.schedule_freq || "daily";
+    document.getElementById("bk-time").value = c.schedule_time || "02:30";
+    document.getElementById("bk-weekday").value = c.schedule_weekday || "1";
+    document.getElementById("bk-last").textContent =
+      c.last_backup_at ? "Letzte Sicherung: " + c.last_backup_at : "Noch keine Sicherung gelaufen.";
+    bkFreqChange();
+  } catch (e) { msg("Backup-Konfiguration laden fehlgeschlagen: " + e.message, true); }
+}
+function bkPayload() {
+  const pass = document.getElementById("bk-pass").value;
+  const p = {
+    nas_url: document.getElementById("bk-url").value.trim(),
+    nas_user: document.getElementById("bk-user").value.trim(),
+    schedule_enabled: document.getElementById("bk-enabled").checked,
+    schedule_freq: document.getElementById("bk-freq").value,
+    schedule_time: document.getElementById("bk-time").value,
+    schedule_weekday: document.getElementById("bk-weekday").value,
+  };
+  if (pass) p.nas_password = pass;   // leer = unverändert
+  return p;
+}
+async function saveBackup() {
+  try {
+    await api("/api/v1/settings/backup", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bkPayload()),
+    });
+    document.getElementById("bk-pass").value = "";
+    msg("✅ Backup-Konfiguration gespeichert.");
+    loadBackup();
+  } catch (e) { msg(e.message, true); }
+}
+async function testBackup() {
+  msg("Teste NAS-Verbindung …");
+  try {
+    await api("/api/v1/settings/backup", {   // erst speichern, dann gegen den Stand testen
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bkPayload()),
+    });
+    document.getElementById("bk-pass").value = "";
+    await api("/api/v1/settings/backup/test", { method: "POST" });
+    msg("✅ NAS erreichbar und beschreibbar.");
+    loadBackup();
+  } catch (e) { msg("NAS-Test: " + e.message, true); }
 }
 
 async function setModel(id, enabled, defaultAllowed) {
