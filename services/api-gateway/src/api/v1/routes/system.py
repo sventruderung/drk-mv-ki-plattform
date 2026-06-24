@@ -36,8 +36,6 @@ async def collect_checks(s) -> list[dict]:
                     "Container prüfen: docker compose ps rag-service"),
         _check_http("Sprachmodell-Dienst (llm-service)", f"{s.llm_service_url}/api/v1/health",
                     "Container prüfen: docker compose ps llm-service"),
-        _check_http("Social Media (content-service)", f"{s.content_service_url}/api/v1/health",
-                    "Container prüfen: docker compose ps content-service"),
         _check_http("Anmeldung (Keycloak)",
                     f"{s.keycloak_url}/realms/{s.keycloak_realm}/.well-known/openid-configuration",
                     "Keycloak-Container und Realm-Import prüfen"),
