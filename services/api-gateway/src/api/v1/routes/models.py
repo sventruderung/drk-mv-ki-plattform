@@ -10,12 +10,26 @@ COMPLIANCE: Externe Modelle übertragen Eingaben an Drittanbieter — die
 Aktivierung setzt die DSB-Freigabe voraus (Warnhinweis im UI).
 """
 
+import asyncio
+import json
+import re
+
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from drk_shared.logging import get_logger
+
 from ....db import plain_connection, tenant_connection
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["models"])
+
+# Fortschritt des laufenden Ollama-Downloads. api-gateway läuft als einzelner
+# Prozess (ein uvicorn-Worker), daher genügt ein Modul-globaler Zustand.
+_PULL: dict = {"model": None, "status": "", "percent": 0, "done": True, "error": None}
+# Ollama-Modellnamen: Buchstaben/Ziffern plus . _ : / - (z.B. qwen3:14b)
+_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,99}$")
 
 
 def require_kv_admin(request: Request) -> None:
@@ -107,6 +121,108 @@ async def update_model(model_id: str, body: ModelUpdateRequest, request: Request
             + (" | EXTERNER PROVIDER" if row["provider"] != "local" else ""),
         )
     return {"id": model_id, "enabled": body.enabled, "default_allowed": body.default_allowed}
+
+
+# ── Lokale Modelle herunterladen (Ollama) ───────────────────────────────────
+# COMPLIANCE: betrifft nur LOKALE Modelle (provider='local'); Dokumenteninhalte
+# verlassen das System nie. Externe Modelle werden hier nicht angelegt.
+
+@router.get("/models/ollama/installed")
+async def ollama_installed(request: Request):
+    """Auf dem Server installierte Ollama-Modelle + ob sie schon im Katalog sind."""
+    require_kv_admin(request)
+    base = request.app.state.settings.ollama_base_url
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"{base}/api/tags")
+        resp.raise_for_status()
+        installed = [m["name"] for m in resp.json().get("models", [])]
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Ollama nicht erreichbar: {type(e).__name__}")
+    async with plain_connection() as conn:
+        rows = await conn.fetch("SELECT id FROM ai_models WHERE provider = 'local'")
+    in_catalog = {r["id"] for r in rows}
+    return [{"name": n, "in_catalog": n in in_catalog} for n in sorted(installed)]
+
+
+class PullRequest(BaseModel):
+    name: str
+
+
+async def _do_pull(base: str, name: str, tenant_id: str, user_id: str) -> None:
+    """Lädt ein Modell über die Ollama-Pull-API (NDJSON-Stream) und nimmt es
+    danach in den Katalog auf (deaktiviert — Aktivierung bewusst durch Admin)."""
+    global _PULL
+    _PULL = {"model": name, "status": "Lade Manifest …", "percent": 0,
+             "done": False, "error": None}
+    try:
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST", f"{base}/api/pull", json={"model": name, "stream": True}
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        continue
+                    if d.get("error"):
+                        _PULL.update(error=d["error"], done=True, status="Fehler")
+                        logger.info("model.pull.error", model=name, error=d["error"])
+                        return
+                    if d.get("total"):
+                        _PULL["percent"] = round((d.get("completed") or 0) / d["total"] * 100)
+                    _PULL["status"] = d.get("status", "")
+    except httpx.HTTPError as e:
+        _PULL.update(error=type(e).__name__, done=True, status="Fehler")
+        logger.info("model.pull.failed", model=name, error=type(e).__name__)
+        return
+
+    # Erfolg: in den Katalog aufnehmen (aktiv/Freigabe setzt der Admin separat)
+    async with plain_connection() as conn:
+        await conn.execute(
+            """INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed)
+               VALUES ($1, 'local', $1, false, false) ON CONFLICT (id) DO NOTHING""",
+            name,
+        )
+    _PULL.update(status="Fertig", percent=100, done=True)
+    logger.info("model.pull.done", model=name)
+    try:
+        async with tenant_connection(tenant_id) as conn:
+            await conn.execute(
+                """INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+                   VALUES ($1, $2, 'model.pull', 'model', $3, $4)""",
+                tenant_id, user_id or "", name, f"Lokales Modell geladen: {name}",
+            )
+    except Exception:  # noqa: BLE001 — Audit darf den Download-Erfolg nicht kippen
+        pass
+
+
+@router.post("/models/ollama/pull")
+async def ollama_pull(body: PullRequest, request: Request):
+    """Startet den Download im Hintergrund (Fortschritt via /pull/status)."""
+    require_kv_admin(request)
+    name = body.name.strip()
+    if not _NAME_RE.match(name):
+        raise HTTPException(
+            status_code=422,
+            detail="Ungültiger Modellname (erlaubt: Buchstaben, Ziffern, . _ : / -).",
+        )
+    if not _PULL["done"]:
+        raise HTTPException(status_code=409, detail=f"Es läuft bereits ein Download ({_PULL['model']}).")
+    base = request.app.state.settings.ollama_base_url
+    asyncio.create_task(
+        _do_pull(base, name, request.state.tenant_id, request.state.user_id)
+    )
+    return {"started": True, "model": name}
+
+
+@router.get("/models/ollama/pull/status")
+async def ollama_pull_status(request: Request):
+    require_kv_admin(request)
+    return _PULL
 
 
 class UserModelsRequest(BaseModel):
