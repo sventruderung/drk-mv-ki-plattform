@@ -44,6 +44,8 @@ docker compose exec ollama ollama pull nomic-embed-text
 # 5. Smoke-Test (httpx via apt — pip ist auf Ubuntu/DGX OS systemweit gesperrt, PEP 668)
 echo "→ Smoke-Test ..."
 python3 -c "import httpx" 2>/dev/null || sudo apt install -y python3-httpx
+# smbclient: für den optionalen Backup-Upload auf ein NAS (Einstellungen → Backup)
+command -v smbclient >/dev/null 2>&1 || sudo apt install -y smbclient
 python3 scripts/smoke_test.py
 
 cat <<'EOF'

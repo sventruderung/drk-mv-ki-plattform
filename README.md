@@ -52,6 +52,15 @@ cp .env.example .env   # CHANGE_ME-Werte setzen!
 docker compose up -d --build
 ```
 
+## Betrieb
+
+```bash
+bash scripts/migrate.sh                       # DB-Schema nachziehen (nach git pull)
+sudo bash scripts/backup.sh --install         # Backup-Dispatcher (Zeitplan + NAS im UI)
+sudo apt install -y smbclient                  # nur falls Backup auf NAS genutzt wird
+python3 scripts/set_host.py <host> [--https]  # nach IP-/Netzwechsel
+```
+
 Konventionen: `CONVENTIONS.md` · Projekt-Regeln: `CLAUDE.md`
 
 ## Compliance-Grundsätze
