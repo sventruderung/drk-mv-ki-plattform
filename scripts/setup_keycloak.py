@@ -107,7 +107,7 @@ def main() -> None:
         fail(f"Name '{raw_name}' ergibt keine gültige Kennung.")
     tenant_id = f"kv-{kv_name}"
     # Anzeigename behält Groß-/Kleinschreibung (Login-Seite, Oberfläche)
-    brand = env().get("BRAND_NAME", "kv-brain")
+    brand = env.get("BRAND_NAME", "kv-brain")
     display_name = f"{brand} {raw_name}".strip()
     print(f"   → Technische Kennung: {tenant_id} | Anzeigename: {display_name}")
 
