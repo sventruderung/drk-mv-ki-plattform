@@ -71,6 +71,8 @@ Ausführliche Anleitung: `docs/Installationsanleitung-kv-brain-DGX.docx` und `do
 bash scripts/migrate.sh                       # DB-Schema nachziehen (nach git pull)
 sudo bash scripts/backup.sh --install         # Backup-Dispatcher (Zeitplan + NAS im UI)
 sudo apt install -y smbclient                  # nur falls Backup auf NAS genutzt wird
+bash scripts/restore.sh --nas //nas/backup/drk-ki --user backup-user  # Voll-Restore vom NAS
+bash scripts/restore.sh --local /var/backups/drk-ki                   # Voll-Restore lokal
 python3 scripts/set_host.py <host> [--https]  # nach IP-/Netzwechsel
 ```
 
