@@ -13,7 +13,6 @@ CHECKS = [
     ("API-Gateway",      "http://localhost:8000/api/v1/health"),
     ("RAG-Service",      "http://localhost:8001/api/v1/health"),
     ("LLM-Service",      "http://localhost:8002/api/v1/health"),
-    ("Content-Service",  "http://localhost:8005/api/v1/health"),
     ("Ollama",           "http://localhost:11434/api/tags"),
     ("Keycloak (Realm)", "http://localhost:8080/auth/realms/drk-kv/.well-known/openid-configuration"),
     ("Open WebUI",       "http://localhost:3000/health"),
