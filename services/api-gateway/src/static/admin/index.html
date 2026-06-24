@@ -229,6 +229,24 @@
       <tbody id="modellist"></tbody></table>
     </div>
     <div class="card">
+      <h2>Lokales Modell herunterladen</h2>
+      <p class="muted" style="margin-top:0">
+        Lädt ein weiteres Modell über Ollama auf den Server (z.B.
+        <code>qwen3:14b</code>, <code>gemma3</code>, <code>llama3.3</code>).
+        Nach dem Download erscheint es oben in der Modell-Liste und kann dort
+        aktiviert und freigegeben werden. Große Modelle können einige Minuten und
+        mehrere GB benötigen.
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <input id="pull-name" placeholder="Modellname, z.B. qwen3:14b"
+               style="flex:1; min-width:220px">
+        <button id="pull-btn" onclick="startPull()">Herunterladen</button>
+      </div>
+      <div id="pull-status" class="muted" style="margin-top:10px"></div>
+      <h3 style="margin-bottom:6px">Installierte Modelle</h3>
+      <ul id="ollama-installed" class="muted" style="margin-top:0"></ul>
+    </div>
+    <div class="card">
       <h2>API-Keys externer Anbieter</h2>
       <p class="muted" style="margin-bottom:12px">
         Keys werden verschlüsselt auf diesem Server gespeichert und nie wieder
@@ -531,7 +549,7 @@ function init() {
       loadDocs(); loadDrafts(); loadKbs();
       if (hasRole("kv-admin")) {
         loadUsers(); loadAudit(); loadHostname(); loadStatus();
-        loadModels(); loadKeyStatus(); loadSmtp(); loadBackup(); loadEvents(); loadLdap(); loadElo();
+        loadModels(); loadOllama(); loadKeyStatus(); loadSmtp(); loadBackup(); loadEvents(); loadLdap(); loadElo();
       }
     })
     .catch(() => msg("Anmeldung fehlgeschlagen.", true));
@@ -1344,6 +1362,57 @@ async function testBackup() {
     msg("✅ NAS erreichbar und beschreibbar.");
     loadBackup();
   } catch (e) { msg("NAS-Test: " + e.message, true); }
+}
+
+// ---------- Lokales Modell herunterladen (Ollama) ----------
+let pullTimer = null, pullActive = false;
+function renderInstalled(list) {
+  document.getElementById("ollama-installed").innerHTML = list.length
+    ? list.map(m => `<li>${esc(m.name)}${m.in_catalog ? ""
+        : ' <span class="muted">(noch nicht im Katalog)</span>'}</li>`).join("")
+    : "<li>Keine Modelle installiert.</li>";
+}
+async function loadOllama() {
+  try { renderInstalled(await api("/api/v1/models/ollama/installed")); }
+  catch (e) { document.getElementById("ollama-installed").innerHTML =
+    "<li>" + esc(e.message) + "</li>"; }
+  pollPull();
+}
+async function startPull() {
+  const name = document.getElementById("pull-name").value.trim();
+  if (!name) { msg("Bitte einen Modellnamen eingeben.", true); return; }
+  try {
+    await api("/api/v1/models/ollama/pull", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    msg("Download gestartet: " + name);
+    document.getElementById("pull-btn").disabled = true;
+    pollPull();
+  } catch (e) { msg(e.message, true); }
+}
+async function pollPull() {
+  let s;
+  try { s = await api("/api/v1/models/ollama/pull/status"); }
+  catch (e) { return; }   // transienter Fehler — beim nächsten Tick erneut
+  const el = document.getElementById("pull-status");
+  const btn = document.getElementById("pull-btn");
+  if (s.model && !s.done) {
+    pullActive = true;
+    el.textContent = `⏳ ${s.model}: ${s.status} (${s.percent}%)`;
+    btn.disabled = true;
+    clearTimeout(pullTimer); pullTimer = setTimeout(pollPull, 1500);
+    return;
+  }
+  btn.disabled = false;
+  if (s.model && s.error) el.textContent = `❌ ${s.model}: ${s.error}`;
+  else if (s.model) el.textContent = `✅ ${s.model}: fertig`;
+  else el.textContent = "";
+  if (pullActive) {            // gerade fertig geworden → Listen auffrischen
+    pullActive = false;
+    try { renderInstalled(await api("/api/v1/models/ollama/installed")); } catch (e) {}
+    loadModels();
+  }
 }
 
 async function setModel(id, enabled, defaultAllowed) {
