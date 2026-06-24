@@ -1,7 +1,7 @@
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   Header, Footer, AlignmentType, HeadingLevel, BorderStyle,
-  WidthType, ShadingType, PageNumber, LevelFormat, TableOfContents, PageBreak,
+  WidthType, ShadingType, PageNumber, LevelFormat, TableOfContents, PageBreak, ImageRun,
 } = require('docx');
 const fs = require('fs');
 const path = require('path');
@@ -149,6 +149,19 @@ C.push(bullet("Dokumentensystem (ELO, optional): Lesezugriff auf ein angebundene
 C.push(h1("2  Überblick und Architektur"));
 C.push(para("Die Plattform besteht aus mehreren Diensten (Docker-Containern), die zusammenarbeiten. Für die tägliche Nutzung müssen Sie diese nicht kennen — für Administration und Betrieb hilft der Überblick."));
 C.push(spacer(40, 40));
+C.push(h2("2.1  Architekturschema"));
+C.push(para("Das Schema zeigt den Aufbau von oben (Zugriff per Browser) nach unten (Daten und KI). Grün gestrichelt ist die On-Premise-Grenze: Alles darin läuft lokal auf dem DGX Spark. Orange gestrichelt und außerhalb dieser Grenze sind die optionalen externen Systeme (Cloud-Modelle und das ELO-Bestandssystem)."));
+const archPng = path.join(__dirname, "architecture.png");
+if (fs.existsSync(archPng)) {
+  C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 40 },
+    children: [new ImageRun({ type: "png", data: fs.readFileSync(archPng),
+      transformation: { width: 640, height: 402 },
+      altText: { title: "Architekturschema kv-brain", name: "architecture",
+        description: "Schichten von Browser über Caddy, Open WebUI, API-Gateway, Keycloak, RAG-/LLM-/Connector-Diensten bis PostgreSQL, MinIO und Ollama; externe Modelle und ELO-DMS außerhalb der On-Premise-Grenze." } })] }));
+  C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 },
+    children: [new TextRun({ text: "Abbildung 1: Systemarchitektur der kv-brain-Plattform", font: "Arial", size: 16, italics: true, color: GRAY_MID })] }));
+}
+C.push(h2("2.2  Komponenten"));
 C.push(table(["Dienst", "Zweck (vereinfacht)"], [
   ["Open WebUI", "Die Oberfläche, in der Anwender chatten und die Wissensbasis nutzen"],
   ["API-Gateway", "Zentrale Steuerung, Anmeldeprüfung, Verwaltungs-UI unter /admin"],
@@ -161,6 +174,15 @@ C.push(table(["Dienst", "Zweck (vereinfacht)"], [
   ["ELO-Connector", "Verbindung zum ELO-Dokumentensystem (nur lesend)"],
   ["Caddy", "Verschlüsselte Verbindung (HTTPS) nach außen"],
 ], [2400, Math.floor(CW - 2400)]));
+C.push(spacer(60, 40));
+C.push(h2("2.3  Ablauf einer Anfrage"));
+C.push(numbered("Anmeldung: Der Browser meldet sich über Keycloak an (SSO) und erhält ein Token mit Rollen und Mandant (tenant_id)."));
+C.push(numbered("Anfrage: Die Frage geht über Caddy an Open WebUI; die passende Pipe reicht das Token an das API-Gateway weiter."));
+C.push(numbered("Prüfung: Das API-Gateway prüft das Token, bestimmt tenant_id und Rollen und leitet an den richtigen Dienst."));
+C.push(numbered("Wissensbasis: Der RAG-Service sucht rechtegeprüft in PostgreSQL/pgvector, holt die Texte und lässt Ollama (lokal) eine Antwort mit Quellen formulieren."));
+C.push(numbered("Externe Modelle (nur falls freigegeben): Der LLM-Service leitet die Anfrage an OpenAI/Anthropic — in der Antwort klar als extern gekennzeichnet."));
+C.push(numbered("Dokumentensystem: Der ELO-Connector fragt das ELO-DMS lesend ab; Ollama formuliert die Antwort."));
+C.push(numbered("Rückweg: Die Antwort fließt denselben Weg zurück in den Browser."));
 C.push(spacer(60, 40));
 C.push(info("Wichtig zu wissen", [
   "Wissensbasis (RAG) und Dokumentensystem (ELO) nutzen IMMER das lokale Modell.",
