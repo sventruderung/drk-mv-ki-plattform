@@ -292,12 +292,13 @@
       <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
     </div>
     <div class="card">
-      <h2>Backup auf NAS (Synology · SMB)</h2>
+      <h2>Backup auf NAS (SMB)</h2>
       <p class="muted" style="margin-top:0">
         Zusätzlich zur lokalen Sicherung wird das Backup (Datenbank, Dokumente,
         Konfiguration) auf ein NAS kopiert. Das Passwort wird verschlüsselt
         gespeichert und nie wieder angezeigt.
       </p>
+      <p id="bk-last" style="margin:0 0 12px; font-weight:600">🕔 Letzte Sicherung: –</p>
       <div class="grid2">
         <label>NAS-Freigabe (URL)
           <input id="bk-url" placeholder="//192.168.1.10/backup/drk-ki">
@@ -337,7 +338,6 @@
       </div>
       <p style="margin-top:12px">
         <button onclick="saveBackup()">Speichern</button>
-        <span class="muted" id="bk-last" style="margin-left:12px"></span>
       </p>
       <p class="muted" style="font-size:.9em">
         Hinweis: Die geplante Sicherung läuft auf dem Server. Einmalig einrichten:
@@ -1389,8 +1389,9 @@ async function loadBackup() {
     document.getElementById("bk-freq").value = c.schedule_freq || "daily";
     document.getElementById("bk-time").value = c.schedule_time || "02:30";
     document.getElementById("bk-weekday").value = c.schedule_weekday || "1";
-    document.getElementById("bk-last").textContent =
-      c.last_backup_at ? "Letzte Sicherung: " + c.last_backup_at : "Noch keine Sicherung gelaufen.";
+    document.getElementById("bk-last").textContent = c.last_backup_at
+      ? "🕔 Letzte Sicherung: " + c.last_backup_at
+      : "🕔 Letzte Sicherung: noch keine gelaufen";
     bkFreqChange();
   } catch (e) { msg("Backup-Konfiguration laden fehlgeschlagen: " + e.message, true); }
 }
