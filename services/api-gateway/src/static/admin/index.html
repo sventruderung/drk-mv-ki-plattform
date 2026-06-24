@@ -444,7 +444,8 @@ if (C.brandLogo) {
   img.onload = () => { img.style.display = "block"; };
 }
 document.getElementById("buildinfo").textContent =
-  `${BRAND} v${C.version} · Entwicklungsstand: ${C.buildDate}`;
+  `${BRAND} v${C.version} · Entwicklungsstand: ${C.buildDate}` +
+  (C.branch ? ` · Branch: ${C.branch}` : "");
 
 // Selbstheilung bei IP-/Hostwechsel: Zeigt die hinterlegte Keycloak-URL auf
 // einen ANDEREN Host als den, über den diese Seite gerade aufgerufen wurde
