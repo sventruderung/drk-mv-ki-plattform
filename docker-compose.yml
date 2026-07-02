@@ -151,10 +151,14 @@ services:
       SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
     # Beim Start die interne Caddy-Root-CA (falls vorhanden) ins System-
     # Truststore übernehmen — nötig für den OIDC-Token-Tausch über https.
+    # Zusätzlich IPv4 bevorzugen (gai.conf): sonst gewinnt eine externe
+    # AAAA-Auflösung (DynDNS/IPv6) gegen den IPv4-hosts-Eintrag von extra_hosts.
     command: >-
       bash -c "if [ -f /caddy-data/caddy/pki/authorities/local/root.crt ]; then
       cp /caddy-data/caddy/pki/authorities/local/root.crt /usr/local/share/ca-certificates/caddy-root-ca.crt
-      && update-ca-certificates; fi; exec bash start.sh"
+      && update-ca-certificates; fi;
+      printf 'precedence ::ffff:0:0/96  100\n' > /etc/gai.conf;
+      exec bash start.sh"
     # Öffentlichen Hostnamen IM Container auf den eigenen Host (Caddy) zeigen
     # lassen. Ohne das kann externes DNS (z.B. DynDNS/IPv6) den Token-Tausch
     # zum falschen Server schicken. In .env: PUBLIC_HOSTNAME=<hostname>.
