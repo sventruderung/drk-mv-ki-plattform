@@ -13,7 +13,9 @@ services:
     environment:
       ACME_EMAIL: ${ACME_EMAIL:-admin@example.org}
     volumes:
-      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Rein internes Netz ohne Internet: CADDY_CONFIG=Caddyfile-internal in
+      # der .env setzen (interne CA statt Let's Encrypt, siehe Datei-Kopf)
+      - ./infra/caddy/${CADDY_CONFIG:-Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -143,8 +145,20 @@ services:
       # Nur DRK Login anzeigen — lokales E-Mail/Passwort-Formular ausblenden
       # (das technische Admin-Konto meldet sich via API an, setup_openwebui.py)
       ENABLE_LOGIN_FORM: "false"
+      # Interne Caddy-CA (CADDY_CONFIG=Caddyfile-internal): httpx im Container
+      # nutzt sonst nur das certifi-Bündel und lehnt die interne CA ab →
+      # OIDC-Token-Tausch scheitert mit CERTIFICATE_VERIFY_FAILED.
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+    # Beim Start die interne Caddy-Root-CA (falls vorhanden) ins System-
+    # Truststore übernehmen — nötig für den OIDC-Token-Tausch über https.
+    command: >-
+      bash -c "if [ -f /caddy-data/caddy/pki/authorities/local/root.crt ]; then
+      cp /caddy-data/caddy/pki/authorities/local/root.crt /usr/local/share/ca-certificates/caddy-root-ca.crt
+      && update-ca-certificates; fi; exec bash start.sh"
     volumes:
       - open_webui_data:/app/backend/data
+      # Caddy-Datenverzeichnis (nur lesend) — enthält die interne Root-CA
+      - caddy_data:/caddy-data:ro
     ports:
       - "3000:8080"
     depends_on:

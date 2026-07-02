@@ -1,0 +1,52 @@
+# DRK MV KI-Plattform — HTTPS-Reverse-Proxy für REIN INTERNE Netze
+#
+# Variante ohne Internet-Zugang: Let's Encrypt kann hier nicht ausstellen.
+# Stattdessen stellt Caddy die Zertifikate über seine EIGENE interne CA aus
+# (local_certs). Damit Browser und Dienste nicht warnen:
+#
+#  1. Root-Zertifikat vom Server exportieren:
+#       docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./kv-root-ca.crt
+#  2. kv-root-ca.crt per Gruppenrichtlinie (GPO) als "Vertrauenswürdige
+#     Stammzertifizierungsstelle" an alle PCs verteilen.
+#  3. Open WebUI vertraut der CA automatisch (docker-compose.yml bindet das
+#     Root-Zertifikat ein — nötig für den OIDC-Token-Tausch mit Keycloak).
+#
+# Aktivierung über die .env:  CADDY_CONFIG=Caddyfile-internal
+# (danach: docker compose up -d --force-recreate caddy open-webui)
+
+{
+	# Alle Zertifikate aus der internen Caddy-CA (kein ACME/Let's Encrypt)
+	local_certs
+	on_demand_tls {
+		ask http://api-gateway:8000/api/v1/tls/check
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+
+	# Plattform-API des Verwaltungs-UI unter EIGENEM Präfix. Open WebUI nutzt /api
+	# für seine eigene Backend-API — daher darf /api NICHT ans Gateway gehen, sonst
+	# meldet der Chat "Backend erforderlich". handle_path entfernt /drk-gw, das
+	# Gateway empfängt wieder /api/v1/... . Das Admin-UI ruft die API unter /drk-gw auf.
+	handle_path /drk-gw/* {
+		reverse_proxy api-gateway:8000
+	}
+
+	# Verwaltungs-UI (statisches HTML/JS) → Gateway
+	handle /admin* {
+		reverse_proxy api-gateway:8000
+	}
+
+	# Keycloak unter /auth
+	handle /auth* {
+		reverse_proxy keycloak:8080
+	}
+
+	# Alles andere — inkl. Open WebUIs eigener /api → Open WebUI (Chat)
+	handle {
+		reverse_proxy open-webui:8080
+	}
+}
