@@ -56,6 +56,11 @@ services:
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
       - ./infra/keycloak/themes:/opt/keycloak/themes:ro
+    # Domänencontroller-Name dauerhaft auflösen (AD/LDAP-Federation) — sonst
+    # scheitern AD-Logins UND das Anlegen lokaler Nutzer (Duplikat-Prüfung
+    # fragt das AD). IP in .env pflegen: AD_SERVER_HOST + AD_SERVER_IP.
+    extra_hosts:
+      - "${AD_SERVER_HOST:-dc01.drkkvdbr.local}:${AD_SERVER_IP:-127.0.0.1}"
     ports:
       - "8080:8080"
     depends_on:
