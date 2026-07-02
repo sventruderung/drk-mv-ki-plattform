@@ -155,6 +155,11 @@ services:
       bash -c "if [ -f /caddy-data/caddy/pki/authorities/local/root.crt ]; then
       cp /caddy-data/caddy/pki/authorities/local/root.crt /usr/local/share/ca-certificates/caddy-root-ca.crt
       && update-ca-certificates; fi; exec bash start.sh"
+    # Öffentlichen Hostnamen IM Container auf den eigenen Host (Caddy) zeigen
+    # lassen. Ohne das kann externes DNS (z.B. DynDNS/IPv6) den Token-Tausch
+    # zum falschen Server schicken. In .env: PUBLIC_HOSTNAME=<hostname>.
+    extra_hosts:
+      - "${PUBLIC_HOSTNAME:-public-hostname.invalid}:host-gateway"
     volumes:
       - open_webui_data:/app/backend/data
       # Caddy-Datenverzeichnis (nur lesend) — enthält die interne Root-CA
