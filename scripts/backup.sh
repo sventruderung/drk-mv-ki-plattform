@@ -91,8 +91,11 @@ upload_to_nas() {
         smbclient "//$server/$share" -U "$user%$pass" -c "mkdir \"$sub\"" >/dev/null 2>&1 || true
         cd_prefix="cd \"$sub\"; "
     fi
+    local branding_put=""
+    [ -f "$BACKUP_DIR/branding_$TS.tgz" ] && \
+        branding_put="; put \"$BACKUP_DIR/branding_$TS.tgz\" \"branding_$TS.tgz\""
     smbclient "//$server/$share" -U "$user%$pass" -c \
-        "prompt OFF; ${cd_prefix}put \"$BACKUP_DIR/db_$TS.sql.gz\" \"db_$TS.sql.gz\"; put \"$BACKUP_DIR/minio_$TS.tgz\" \"minio_$TS.tgz\"; put \"$BACKUP_DIR/env_$TS\" \"env_$TS\""
+        "prompt OFF; ${cd_prefix}put \"$BACKUP_DIR/db_$TS.sql.gz\" \"db_$TS.sql.gz\"; put \"$BACKUP_DIR/minio_$TS.tgz\" \"minio_$TS.tgz\"; put \"$BACKUP_DIR/env_$TS\" \"env_$TS\"$branding_put"
 }
 
 umask 077   # Backups enthalten Dokumenttexte + Secrets — nur Besitzer liest
@@ -117,8 +120,14 @@ echo "✓ MinIO: $(du -h "$BACKUP_DIR/minio_$TS.tgz" | cut -f1)"
 install -m 600 .env "$BACKUP_DIR/env_$TS"
 echo "✓ .env gesichert"
 
+# 3b. Branding (eigenes Logo aus dem Verwaltungs-UI — liegt nicht in Git)
+if [ -d data/branding ]; then
+    tar czf "$BACKUP_DIR/branding_$TS.tgz" -C data branding
+    echo "✓ Branding (eigenes Logo) gesichert"
+fi
+
 # 4. Aufbewahrung: alles älter als $RETENTION_DAYS Tage löschen
-find "$BACKUP_DIR" -maxdepth 1 \( -name 'db_*' -o -name 'minio_*' -o -name 'env_*' \) \
+find "$BACKUP_DIR" -maxdepth 1 \( -name 'db_*' -o -name 'minio_*' -o -name 'env_*' -o -name 'branding_*' \) \
     -mtime +"$RETENTION_DAYS" -delete
 
 # 5. Optional: auf NAS hochladen (Fehler hier kippt die lokale Sicherung nicht)
