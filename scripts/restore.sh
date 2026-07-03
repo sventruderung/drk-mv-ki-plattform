@@ -54,6 +54,9 @@ if [ -n "$NAS_URL" ]; then
     echo "→ Lade Stand $TS vom NAS …"
     smbclient "//$server/$share" -U "$NAS_USER%$NAS_PASS" -c \
         "lcd \"$RESTORE_DIR\"; ${cdcmd}get db_$TS.sql.gz; get minio_$TS.tgz; get env_$TS"
+    # Branding (eigenes Logo) — optional, ältere Sicherungen haben es nicht
+    smbclient "//$server/$share" -U "$NAS_USER%$NAS_PASS" -c \
+        "lcd \"$RESTORE_DIR\"; ${cdcmd}get branding_$TS.tgz" >/dev/null 2>&1 || true
 else
     if [ -z "$TS" ]; then
         TS="$(ls "$LOCAL_DIR"/db_*.sql.gz 2>/dev/null | sed 's#.*/db_##; s/\.sql\.gz$//' | sort | tail -1)"
@@ -61,6 +64,7 @@ else
     fi
     echo "→ Verwende lokalen Stand $TS aus $LOCAL_DIR"
     cp "$LOCAL_DIR/db_$TS.sql.gz" "$LOCAL_DIR/minio_$TS.tgz" "$LOCAL_DIR/env_$TS" "$RESTORE_DIR/"
+    [ -f "$LOCAL_DIR/branding_$TS.tgz" ] && cp "$LOCAL_DIR/branding_$TS.tgz" "$RESTORE_DIR/"
 fi
 
 # --- 2. Prüfen, dass alle drei Teile da und plausibel sind ------------------
@@ -118,6 +122,17 @@ MINIO_VOL="$(docker volume ls -q | grep -m1 'minio_data')"
 docker run --rm -v "$MINIO_VOL":/data -v "$RESTORE_DIR":/backup:ro alpine sh -c \
     "find /data -mindepth 1 -delete && tar xzf /backup/minio_$TS.tgz -C /"
 echo "✓ MinIO wiederhergestellt"
+
+# --- 6b. Branding (eigenes Logo) wiederherstellen ---------------------------
+# MUSS vor dem Start von open-webui liegen (Datei-Mounts aus data/branding).
+mkdir -p data/branding
+if [ -f "$RESTORE_DIR/branding_$TS.tgz" ]; then
+    tar xzf "$RESTORE_DIR/branding_$TS.tgz" -C data
+    echo "✓ Branding (eigenes Logo) wiederhergestellt"
+else
+    # Ältere Sicherung ohne Branding: Standard-Logos sicherstellen
+    cp -n infra/openwebui/branding/*.png data/branding/ 2>/dev/null || true
+fi
 
 # --- 7. Alles starten -------------------------------------------------------
 echo "→ Starte alle Dienste …"
