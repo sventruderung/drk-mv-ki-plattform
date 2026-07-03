@@ -34,3 +34,10 @@ docs/Lastenheft*.docx
 infra/keycloak/truststore/*.crt
 infra/keycloak/truststore/*.pem
 infra/keycloak/truststore/*.der
+
+# Laufzeit-Daten (eigenes Logo etc. — Standards liegen in infra/, nicht committen)
+data/
+
+# Wurzel-Arbeitskopien der White-Label-Handbücher (Originale unter docs/)
+/Benutzerhandbuch-kv-brain.docx
+/Installationsanleitung-kv-brain-DGX.docx

@@ -32,7 +32,13 @@ if [ ! -f .env ]; then
     fi
 fi
 
-# 3. Stack bauen und starten
+# 3. Branding-Datenverzeichnis befüllen (eigenes Logo via UI änderbar).
+# MUSS vor dem ersten compose up existieren — Docker legt fehlende
+# Datei-Mounts sonst als Verzeichnisse an und Open WebUI startet nicht.
+mkdir -p data/branding
+cp -n infra/openwebui/branding/*.png data/branding/ 2>/dev/null || true
+
+# 4. Stack bauen und starten
 echo "→ Baue und starte Container (erster Lauf dauert einige Minuten) ..."
 docker compose up -d --build
 

@@ -186,6 +186,19 @@ services:
       - open_webui_data:/app/backend/data
       # Caddy-Datenverzeichnis (nur lesend) — enthält die interne Root-CA
       - caddy_data:/caddy-data:ro
+      # Branding: Splash/Logo/Favicon über die Open-WebUI-Assets legen.
+      # Quelle ist das Datenverzeichnis ./data/branding (im UI änderbar,
+      # Einstellungen → Eigenes Logo); Standard-Dateien werden beim ersten
+      # Gateway-Start aus infra/openwebui/branding dorthin kopiert.
+      # WICHTIG: ./data/branding muss VOR dem ersten Start befüllt sein
+      # (macht setup_dgx.sh) — Docker legt fehlende Datei-Mounts sonst als
+      # Verzeichnisse an.
+      - ./data/branding/splash.png:/app/build/static/splash.png:ro
+      - ./data/branding/splash.png:/app/backend/open_webui/static/splash.png:ro
+      - ./data/branding/favicon.png:/app/build/static/favicon.png:ro
+      - ./data/branding/favicon.png:/app/build/favicon.png:ro
+      - ./data/branding/favicon.png:/app/backend/open_webui/static/favicon.png:ro
+      - ./data/branding/logo.png:/app/build/static/logo.png:ro
     ports:
       - "3000:8080"
     depends_on:
@@ -205,6 +218,11 @@ services:
       # System-Steuerung (Neustart/Herunterfahren) aus dem Verwaltungs-UI —
       # root-aequivalent, daher kv-admin-geschuetzt und auditiert
       - /var/run/docker.sock:/var/run/docker.sock
+      # Branding: Standard-Logos (ro) + Datenverzeichnis für eigene Logos (rw).
+      # Upload im UI (Einstellungen → Eigenes Logo) schreibt in-place nach
+      # /app/branding — Keycloak-Theme und Open WebUI lesen dieselben Dateien.
+      - ./infra/openwebui/branding:/app/branding-defaults:ro
+      - ./data/branding:/app/branding
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: ${POSTGRES_PORT}
