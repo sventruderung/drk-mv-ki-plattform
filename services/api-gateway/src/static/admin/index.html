@@ -292,12 +292,10 @@
       <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
     </div>
     <div class="card">
-      <h2>Eigenes Logo</h2>
-      <p class="muted" style="margin-top:0">
-        Ersetzt das Standard-Logo überall: Verwaltungs-UI (Kopfzeile),
-        Anmeldeseite und Chat (Startbild + Favicon). Empfohlen: PNG mit
-        transparentem Hintergrund, mindestens 500 px Breite, max. 2 MB.
-      </p>
+      <h2 style="display:flex; align-items:center; gap:10px">Eigenes Logo
+        <button class="small" title="Hinweise zum Logo-Wechsel"
+                onclick="document.getElementById('logoinfomodal').classList.remove('hidden')">ℹ️ Hinweise</button>
+      </h2>
       <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap">
         <img id="logo-preview" alt="Aktuelles Logo"
              style="height:48px; width:auto; background:#f5f5f5; border:1px solid var(--rand); border-radius:5px; padding:6px 10px">
@@ -305,10 +303,6 @@
         <button onclick="document.getElementById('logo-file').click()">PNG auswählen …</button>
         <button class="small" onclick="resetLogo()">Auf Standard zurücksetzen</button>
       </div>
-      <p class="muted" id="logo-hint" style="font-size:.9em; margin-bottom:0">
-        Die Anmeldeseite übernimmt das Logo sofort; im Chat und beim Favicon
-        ggf. die Seite neu laden (Strg+F5, Browser-Cache).
-      </p>
     </div>
     <div class="card">
       <h2>Backup auf NAS (SMB)</h2>
@@ -462,6 +456,29 @@
   </section>
 </main>
 <footer id="buildinfo"></footer>
+
+<!-- Modal: Hinweise zum eigenen Logo -->
+<div class="overlay hidden" id="logoinfomodal">
+  <div class="modal">
+    <h3>Eigenes Logo — Hinweise</h3>
+    <p style="margin:10px 0 6px"><strong>PNG auswählen …</strong> → Logo wird
+      hochgeladen (max. 2 MB, PNG mit transparentem Hintergrund empfohlen,
+      ≥ 500 px breit) und ersetzt sofort:</p>
+    <ul style="margin:0 0 10px 20px; line-height:1.6">
+      <li>die <strong>Kopfzeile im Verwaltungs-UI</strong> (Vorschau in der Karte)</li>
+      <li>das Logo auf der <strong>Anmeldeseite</strong> (Keycloak)</li>
+      <li><strong>Startbild + Favicon im Chat</strong> (Open WebUI) — dort ggf.
+        Strg+F5 wegen Browser-Cache</li>
+    </ul>
+    <p style="margin:0 0 6px"><strong>Auf Standard zurücksetzen</strong> →
+      stellt das kv-brain-Logo wieder her.</p>
+    <p class="muted" style="margin:0">Jeder Logo-Wechsel wird im Protokoll vermerkt.</p>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px">
+      <button class="primary"
+              onclick="document.getElementById('logoinfomodal').classList.add('hidden')">Verstanden</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Nutzer-Modelle -->
 <div class="overlay hidden" id="umodelsmodal">
