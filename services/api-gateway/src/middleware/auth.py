@@ -14,6 +14,9 @@ SKIP_PATHS = {
     "/api/v1/health", "/api/v1/tls/check",
     "/api/v1/models/public", "/api/v1/kbs/public",
 }
+# Nur lesend ohne Token: <img>-Tags senden kein Bearer-Token; das Logo ist
+# ohnehin öffentlich sichtbar (Login-Seite). Upload/Reset (POST) bleiben geschützt.
+SKIP_GET_PATHS = {"/api/v1/branding/logo"}
 # Statisches Admin-UI: HTML/JS ohne Token ausliefern — alle API-Aufrufe
 # aus dem UI heraus laufen weiterhin durch die JWT-Prüfung.
 SKIP_PREFIXES = ("/admin",)
@@ -26,7 +29,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self._jwks: dict | None = None
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in SKIP_PATHS or request.url.path.startswith(SKIP_PREFIXES):
+        if (request.url.path in SKIP_PATHS
+                or request.url.path.startswith(SKIP_PREFIXES)
+                or (request.method == "GET" and request.url.path in SKIP_GET_PATHS)):
             return await call_next(request)
 
         # HTTPException in Middleware würde als 500 enden — daher JSONResponse

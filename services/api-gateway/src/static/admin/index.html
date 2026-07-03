@@ -1413,8 +1413,13 @@ async function installModel(id) {
 const GW_PREFIX = location.port ? "" : "/drk-gw";
 function refreshLogos() {
   const ts = "?ts=" + Date.now();
-  document.getElementById("logo-preview").src =
-    GW_PREFIX + "/api/v1/branding/logo" + ts;
+  const preview = document.getElementById("logo-preview");
+  // Fallback: nie ein kaputtes Bild-Symbol zeigen — Standard-Datei einsetzen
+  preview.onerror = () => {
+    preview.onerror = null;
+    preview.src = "/admin/" + (C.brandLogo || "logo.svg");
+  };
+  preview.src = GW_PREFIX + "/api/v1/branding/logo" + ts;
   document.getElementById("brand-logo").src =
     GW_PREFIX + "/api/v1/branding/logo" + ts;
 }
