@@ -7,9 +7,12 @@
 
 import asyncio
 import re
+import shutil
+from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from drk_shared.logging import get_logger
@@ -535,6 +538,98 @@ async def test_backup_nas(request: Request):
         logger.info("settings.backup.test_failed", error=type(e).__name__)
         raise HTTPException(status_code=502, detail=f"NAS-Test fehlgeschlagen: {e}")
     return {"ok": True}
+
+
+# ── Eigenes Logo (White-Label) ───────────────────────────────────────────────
+# Ein PNG-Upload versorgt alle drei Stellen: Verwaltungs-UI (dieser Endpoint),
+# Keycloak-Login (Theme-img-Mount) und Open WebUI (Splash/Favicon/Logo-Mounts).
+# Dateien liegen im Datenverzeichnis /app/branding (./data/branding auf dem
+# Host, NICHT im Git) — Standard-Logos in /app/branding-defaults (Repo).
+# WICHTIG: in-place schreiben (öffnen + truncate), NICHT ersetzen/umbenennen —
+# Open WebUI mountet die Dateien einzeln, ein neuer Inode wäre dort unsichtbar.
+
+BRANDING_DIR = Path("/app/branding")
+BRANDING_DEFAULTS = Path("/app/branding-defaults")
+_LOGO_TARGETS = ("logo.png", "splash.png", "favicon.png")
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_MAX_LOGO_BYTES = 2 * 1024 * 1024
+
+
+def _write_in_place(path: Path, data: bytes) -> None:
+    with open(path, "wb") as fh:   # truncate erhält den Inode (Datei-Mounts!)
+        fh.write(data)
+
+
+@router.get("/branding/logo")
+async def get_brand_logo():
+    """Aktuelles Logo fürs Verwaltungs-UI (eigenes oder Standard)."""
+    for base in (BRANDING_DIR, BRANDING_DEFAULTS):
+        p = base / "logo.png"
+        if p.is_file():
+            return FileResponse(p, media_type="image/png",
+                                headers={"Cache-Control": "no-store"})
+    raise HTTPException(status_code=404, detail="Kein Logo vorhanden.")
+
+
+async def _audit_branding(request: Request, info: str) -> None:
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'settings.branding', 'settings', 'logo', $3)
+            """,
+            request.state.tenant_id, request.state.user_id or "", info,
+        )
+
+
+@router.post("/branding/logo")
+async def upload_brand_logo(file: UploadFile, request: Request):
+    """Eigenes Logo hochladen (PNG) — ersetzt Logo, Splash und Favicon."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    data = await file.read()
+    if len(data) > _MAX_LOGO_BYTES:
+        raise HTTPException(status_code=422, detail="Logo zu groß (max. 2 MB).")
+    if not data.startswith(_PNG_MAGIC):
+        raise HTTPException(
+            status_code=422,
+            detail="Bitte eine PNG-Datei hochladen (transparenter Hintergrund empfohlen).",
+        )
+    if not BRANDING_DIR.is_dir():
+        raise HTTPException(status_code=500, detail="Branding-Verzeichnis nicht eingebunden.")
+    for name in _LOGO_TARGETS:
+        _write_in_place(BRANDING_DIR / name, data)
+    await _audit_branding(request, f"Eigenes Logo hochgeladen ({len(data) // 1024} KB)")
+    logger.info("settings.branding.logo_uploaded", size=len(data))
+    return {"ok": True, "hint": "Login-Seite sofort aktiv; Chat/Favicon nach "
+                                "Neuladen der Seite (Browser-Cache)."}
+
+
+@router.post("/branding/logo/reset")
+async def reset_brand_logo(request: Request):
+    """Zurück zum Standard-Logo (kv-brain bzw. BRAND_NAME-Standard)."""
+    if "kv-admin" not in request.state.roles:
+        raise HTTPException(status_code=403, detail="Rolle 'kv-admin' erforderlich.")
+    if not BRANDING_DEFAULTS.is_dir():
+        raise HTTPException(status_code=500, detail="Standard-Logos nicht eingebunden.")
+    for name in _LOGO_TARGETS:
+        src = BRANDING_DEFAULTS / name
+        if src.is_file():
+            _write_in_place(BRANDING_DIR / name, src.read_bytes())
+    await _audit_branding(request, "Logo auf Standard zurückgesetzt")
+    return {"ok": True}
+
+
+def init_branding_dir() -> None:
+    """Beim Gateway-Start: Datenverzeichnis einmalig mit den Standards befüllen
+    (idempotent — vorhandene, ggf. eigene Logos werden NIE überschrieben)."""
+    if not BRANDING_DEFAULTS.is_dir():
+        return   # lokale Entwicklung ohne Mounts
+    BRANDING_DIR.mkdir(parents=True, exist_ok=True)
+    for name in _LOGO_TARGETS:
+        src, dst = BRANDING_DEFAULTS / name, BRANDING_DIR / name
+        if src.is_file() and not dst.is_file():
+            shutil.copyfile(src, dst)
 
 
 @router.get("/tls/check")

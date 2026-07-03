@@ -25,7 +25,9 @@ async def lifespan(app: FastAPI):
     import asyncio
 
     from . import monitor
+    from .api.v1.routes.settings_routes import init_branding_dir
 
+    init_branding_dir()   # ./data/branding einmalig mit Standard-Logos befüllen
     await db.init_pool(settings)
     monitor_task = asyncio.create_task(monitor.run(settings))
     logger.info("api-gateway.startup", environment=settings.environment)

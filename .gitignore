@@ -30,3 +30,6 @@ Thumbs.db
 .vscode/
 *.iml
 docs/Lastenheft*.docx
+
+# Laufzeit-Daten (eigenes Logo etc. — Standards liegen in infra/, nicht committen)
+data/

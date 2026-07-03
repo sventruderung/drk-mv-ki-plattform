@@ -292,6 +292,25 @@
       <tbody id="eventlist"><tr><td colspan="4" class="muted">Keine Ereignisse — gut so.</td></tr></tbody></table>
     </div>
     <div class="card">
+      <h2>Eigenes Logo</h2>
+      <p class="muted" style="margin-top:0">
+        Ersetzt das Standard-Logo überall: Verwaltungs-UI (Kopfzeile),
+        Anmeldeseite und Chat (Startbild + Favicon). Empfohlen: PNG mit
+        transparentem Hintergrund, mindestens 500 px Breite, max. 2 MB.
+      </p>
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap">
+        <img id="logo-preview" alt="Aktuelles Logo"
+             style="height:48px; width:auto; background:#f5f5f5; border:1px solid var(--rand); border-radius:5px; padding:6px 10px">
+        <input type="file" id="logo-file" accept="image/png" class="hidden">
+        <button onclick="document.getElementById('logo-file').click()">PNG auswählen …</button>
+        <button class="small" onclick="resetLogo()">Auf Standard zurücksetzen</button>
+      </div>
+      <p class="muted" id="logo-hint" style="font-size:.9em; margin-bottom:0">
+        Die Anmeldeseite übernimmt das Logo sofort; im Chat und beim Favicon
+        ggf. die Seite neu laden (Strg+F5, Browser-Cache).
+      </p>
+    </div>
+    <div class="card">
       <h2>Backup auf NAS (SMB)</h2>
       <p class="muted" style="margin-top:0">
         Zusätzlich zur lokalen Sicherung wird das Backup (Datenbank, Dokumente,
@@ -495,11 +514,17 @@ const BRAND = C.brandName || "KI-Plattform";
 document.title = `${BRAND} — Verwaltung`;
 document.getElementById("brand-title").textContent = `${BRAND} — Verwaltung`;
 if (C.brandColor) document.documentElement.style.setProperty("--drk-rot", C.brandColor);
-if (C.brandLogo) {
+{
+  // Logo vom Gateway (eigenes Logo aus dem UI oder Standard); Fallback auf die
+  // statische Datei, falls der Endpoint (noch) nicht antwortet.
   const img = document.getElementById("brand-logo");
-  img.src = "/admin/" + C.brandLogo;
+  const gwPrefix = location.port ? "" : "/drk-gw";
+  img.src = gwPrefix + "/api/v1/branding/logo?ts=" + Date.now();
   img.alt = BRAND;
   img.onload = () => { img.style.display = "block"; };
+  img.onerror = () => {
+    if (C.brandLogo) { img.onerror = null; img.src = "/admin/" + C.brandLogo; }
+  };
 }
 document.getElementById("buildinfo").textContent =
   `${BRAND} v${C.version} · Entwicklungsstand: ${C.buildDate}` +
@@ -546,6 +571,7 @@ function init() {
         if (hasRole("kv-admin")) {
           loadUsers(); loadAudit(); loadHostname(); loadStatus();
           loadModels(); loadOllama(); loadKeyStatus(); loadSmtp(); loadBackup(); loadEvents(); loadLdap(); loadElo();
+          refreshLogos();
         }
       });
     })
@@ -1371,6 +1397,35 @@ async function pollPull() {
     try { renderInstalled(await api("/api/v1/models/ollama/installed")); } catch (e) {}
     loadModels();
   }
+}
+
+// ---------- Eigenes Logo ----------
+const GW_PREFIX = location.port ? "" : "/drk-gw";
+function refreshLogos() {
+  const ts = "?ts=" + Date.now();
+  document.getElementById("logo-preview").src =
+    GW_PREFIX + "/api/v1/branding/logo" + ts;
+  document.getElementById("brand-logo").src =
+    GW_PREFIX + "/api/v1/branding/logo" + ts;
+}
+document.getElementById("logo-file").addEventListener("change", async (ev) => {
+  const f = ev.target.files[0];
+  ev.target.value = "";
+  if (!f) return;
+  const fd = new FormData();
+  fd.append("file", f);
+  try {
+    const r = await api("/api/v1/branding/logo", { method: "POST", body: fd });
+    msg("✅ Logo übernommen. " + (r.hint || ""));
+    refreshLogos(); loadAudit();
+  } catch (e) { msg("Logo-Upload: " + e.message, true); }
+});
+async function resetLogo() {
+  try {
+    await api("/api/v1/branding/logo/reset", { method: "POST" });
+    msg("✅ Standard-Logo wiederhergestellt.");
+    refreshLogos(); loadAudit();
+  } catch (e) { msg(e.message, true); }
 }
 
 // ---------- Backup auf NAS ----------

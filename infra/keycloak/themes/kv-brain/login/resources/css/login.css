@@ -4,11 +4,13 @@
   background: #f4f4f4;
 }
 
-/* Kopfbereich: Keycloak-Schriftzug ausblenden, kv-brain-Logo zeigen */
+/* Kopfbereich: Keycloak-Schriftzug ausblenden, Logo zeigen.
+   logo.png kommt aus ./data/branding (Compose-Mount) — im Verwaltungs-UI
+   unter Einstellungen → Eigenes Logo austauschbar. */
 #kc-header-wrapper {
   font-size: 0;
   padding: 24px 0;
-  background-image: url("../img/logo.svg");
+  background-image: url("../img/logo.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
