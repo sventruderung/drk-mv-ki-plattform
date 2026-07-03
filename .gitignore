@@ -33,3 +33,7 @@ docs/Lastenheft*.docx
 
 # Laufzeit-Daten (eigenes Logo etc. — Standards liegen in infra/, nicht committen)
 data/
+
+# Arbeitskopien im Wurzelverzeichnis (Original liegt unter docs/)
+/Benutzerhandbuch-kv-brain.docx
+/Installationsanleitung-kv-brain-DGX.docx
