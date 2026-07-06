@@ -60,9 +60,13 @@ services:
       KC_HOSTNAME_STRICT: "false"
       # Truststore für ausgehendes TLS — nötig für LDAPS zum DC. Ab Server 2019
       # erzwingt AD LDAP-Signing; unsignierte Binds auf 389 werden abgelehnt
-      # (error code 8). DC-LDAPS-Zertifikat als PEM in infra/keycloak/truststore/
-      # ablegen, dann connectionUrl der Federation auf ldaps://<dc>:636 stellen.
-      KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/truststore
+      # (error code 8). Ablauf: DC-LDAPS-Zertifikat als PEM in
+      # infra/keycloak/truststore/ ablegen, dann in .env aktivieren:
+      #   KC_TRUSTSTORE_PATHS=/opt/keycloak/conf/truststore
+      # und die Federation-connectionUrl auf ldaps://<dc>:636 stellen.
+      # Leer (Standard) = kein Truststore, damit Installationen ohne AD sauber
+      # starten.
+      KC_TRUSTSTORE_PATHS: ${KC_TRUSTSTORE_PATHS:-}
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
       - ./infra/keycloak/truststore:/opt/keycloak/conf/truststore:ro
