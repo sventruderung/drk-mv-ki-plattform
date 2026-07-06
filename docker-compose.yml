@@ -51,6 +51,9 @@ services:
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Log-Level. Für die Fehlersuche in der AD-Federation in .env setzen:
+      # KC_LOG_LEVEL=INFO,org.keycloak.storage.ldap:debug  (danach wieder leeren)
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-INFO}
       # Hinter Caddy unter /auth erreichbar (HTTPS terminiert am Proxy)
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
