@@ -293,6 +293,12 @@ class KeycloakAdmin:
             "searchScope": ["2"],
             "trustEmail": ["true"],
             "pagination": ["true"],
+            # AD verweist bei Subtree-Suchen (Nutzerliste, objectGUID-Validierung)
+            # auf andere Naming-Contexts -> JNDI PartialResultException -> "LDAP
+            # Query failed" (HTTP 400). Bei einer Single-Domain sind Referrals
+            # unnötig; ignorieren behebt die 400 beim Auflisten. Login (Einzel-
+            # suche) war nie betroffen.
+            "referral": ["ignore"],
         })
         if user_search_filter:
             base_cfg["customUserSearchFilter"] = [user_search_filter]
