@@ -58,8 +58,14 @@ services:
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
+      # Truststore für ausgehendes TLS — nötig für LDAPS zum DC. Ab Server 2019
+      # erzwingt AD LDAP-Signing; unsignierte Binds auf 389 werden abgelehnt
+      # (error code 8). DC-LDAPS-Zertifikat als PEM in infra/keycloak/truststore/
+      # ablegen, dann connectionUrl der Federation auf ldaps://<dc>:636 stellen.
+      KC_TRUSTSTORE_PATHS: /opt/keycloak/conf/truststore
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
+      - ./infra/keycloak/truststore:/opt/keycloak/conf/truststore:ro
     # Domänencontroller-Name dauerhaft auflösen (AD/LDAP-Federation) — sonst
     # scheitern AD-Logins UND das Anlegen lokaler Nutzer (Duplikat-Prüfung
     # fragt das AD). IP in .env pflegen: AD_SERVER_HOST + AD_SERVER_IP.

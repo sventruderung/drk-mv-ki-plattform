@@ -30,3 +30,7 @@ Thumbs.db
 .vscode/
 *.iml
 docs/Lastenheft*.docx
+# Installationsspezifische DC-Zertifikate nicht committen
+infra/keycloak/truststore/*.crt
+infra/keycloak/truststore/*.pem
+infra/keycloak/truststore/*.der
