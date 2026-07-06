@@ -4,6 +4,7 @@ Alle Aktionen werden auditiert. Vergeben werden können ausschließlich die
 fachlichen Rollen (ALLOWED_ROLES) — keine Keycloak-internen Rollen.
 """
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -75,6 +76,27 @@ async def list_users(request: Request):
         return await get_admin(request).list_users()
     except KeycloakAdminError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except httpx.HTTPStatusError as e:
+        # Keycloak antwortete mit einem Fehlerstatus (nicht 403 → sonst schon oben)
+        logger.info("users.list.keycloak_status", status=e.response.status_code,
+                    body=e.response.text[:200])
+        raise HTTPException(
+            status_code=502,
+            detail=f"Keycloak meldete HTTP {e.response.status_code} beim Laden der "
+                   "Nutzer. Service-Account-Rollen prüfen: scripts/setup_keycloak.py.",
+        )
+    except httpx.HTTPError as e:
+        logger.info("users.list.unreachable", error=type(e).__name__)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Keycloak nicht erreichbar ({type(e).__name__}).",
+        )
+    except Exception as e:  # noqa: BLE001 — sonst opaker 500; echten Grund melden
+        logger.info("users.list.error", error=f"{type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Nutzerliste konnte nicht geladen werden: {type(e).__name__}.",
+        )
 
 
 @router.post("/")
