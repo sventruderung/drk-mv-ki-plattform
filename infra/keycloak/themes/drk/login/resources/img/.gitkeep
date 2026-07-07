@@ -1,0 +1,4 @@
+# Mountpoint für das Login-Logo.
+# Zur Laufzeit wird hier data/branding read-only eingehängt (logo.png etc.);
+# dieses Verzeichnis MUSS im Repo existieren, sonst kann Docker den Mount nicht
+# anlegen (übergeordnetes themes-Verzeichnis ist read-only gemountet).
