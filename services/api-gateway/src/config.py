@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     # Eigenes, kleineres Modell für den ELO-Tool-Ablauf (mehrere Generierungen je
     # Anfrage) — 32b ist dafür zu langsam. Tool-fähig sein muss es.
     ollama_elo_model: str = "qwen3:8b"
+    # Embedding-Modell für die RAG-Suche (muss zum Index passen)
+    embedding_model: str = "nomic-embed-text"
     minio_health_url: str = "http://minio:9000/minio/health/live"
 
     cors_origins: list[str] = ["http://localhost:3000"]

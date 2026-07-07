@@ -14,8 +14,23 @@ from ....keycloak_admin import KeycloakAdmin, KeycloakAdminError
 
 router = APIRouter(prefix="/system", tags=["system"])
 
-REQUIRED_MODELS = ["qwen3:32b", "qwen3:8b", "nomic-embed-text"]
 DISK_WARN_FREE_GB = 50  # Warnen, wenn weniger frei (Modelle + DB brauchen Luft)
+
+
+def _required_models(s) -> list[str]:
+    """Benötigte Ollama-Modelle aus der Konfiguration (dedupliziert, Reihenfolge
+    erhalten): Chat/RAG-Modell, Embedding-Modell, ELO-Tool-Modell. So bleibt der
+    Status auf jedem Server grün, egal ob qwen3, llama3.3 o.ä."""
+    wanted = [
+        getattr(s, "ollama_default_model", None),
+        getattr(s, "embedding_model", None),
+        getattr(s, "ollama_elo_model", None),
+    ]
+    out: list[str] = []
+    for m in wanted:
+        if m and m not in out:
+            out.append(m)
+    return out
 
 
 async def _check_http(name: str, url: str, hint: str) -> dict:
@@ -50,7 +65,7 @@ async def collect_checks(s) -> list[dict]:
         resp.raise_for_status()
         present = [m["name"] for m in resp.json().get("models", [])]
         checks.append({"name": "KI-Laufzeit (Ollama)", "ok": True, "detail": ""})
-        for model in REQUIRED_MODELS:
+        for model in _required_models(s):
             base = model.split(":")[0]
             ok = any(p.startswith(base) for p in present)
             checks.append({
