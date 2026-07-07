@@ -22,13 +22,15 @@ def _line(text: str, done: bool = False) -> bytes:
 async def stream_local(
     prompt: str, model: str, ollama_base_url: str
 ) -> AsyncIterator[bytes]:
+    payload = {"model": model, "prompt": prompt, "stream": True}
+    # think=False nur fuer Modelle mit "Thinking" (Qwen3) — sonst wuerde der
+    # Nutzer erst sekundenlang nichts sehen. Andere Modelle (z.B. llama3.3)
+    # kennen den Parameter NICHT und Ollama bricht damit ab -> leere Antwort.
+    if "qwen3" in model.lower():
+        payload["think"] = False
     async with httpx.AsyncClient(timeout=300) as client:
         async with client.stream(
-            "POST",
-            f"{ollama_base_url}/api/generate",
-            # think=False: Qwen3 wuerde sonst erst unsichtbar "nachdenken" —
-            # der Nutzer saehe sekundenlang nichts (TTFT-Anforderung < 2 s)
-            json={"model": model, "prompt": prompt, "stream": True, "think": False},
+            "POST", f"{ollama_base_url}/api/generate", json=payload,
         ) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
