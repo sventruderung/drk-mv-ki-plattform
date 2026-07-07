@@ -54,7 +54,7 @@ EXT_TYPES = {
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
 }
-ZIP_MAX_MEMBERS = 200
+ZIP_MAX_MEMBERS = 600
 ZIP_MAX_MEMBER_BYTES = 100 * 1024 * 1024  # 100 MB pro Datei
 
 
