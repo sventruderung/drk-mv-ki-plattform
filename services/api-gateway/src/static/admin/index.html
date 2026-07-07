@@ -491,7 +491,7 @@
         Strg+F5 wegen Browser-Cache</li>
     </ul>
     <p style="margin:0 0 6px"><strong>Auf Standard zurücksetzen</strong> →
-      stellt das kv-brain-Logo wieder her.</p>
+      stellt das Standard-Logo wieder her.</p>
     <p class="muted" style="margin:0">Jeder Logo-Wechsel wird im Protokoll vermerkt.</p>
     <div style="display:flex; justify-content:flex-end; margin-top:14px">
       <button class="primary"
@@ -1414,14 +1414,12 @@ const GW_PREFIX = location.port ? "" : "/drk-gw";
 function refreshLogos() {
   const ts = "?ts=" + Date.now();
   const preview = document.getElementById("logo-preview");
-  // Fallback: nie ein kaputtes Bild-Symbol zeigen — Standard-Datei einsetzen
-  preview.onerror = () => {
-    preview.onerror = null;
-    preview.src = "/admin/" + (C.brandLogo || "logo.svg");
-  };
+  // Kein Logo hinterlegt → Vorschau ausblenden statt kaputtes Bild zeigen
+  preview.onerror = () => { preview.onerror = null; preview.style.display = "none"; };
+  preview.style.display = "";
   preview.src = GW_PREFIX + "/api/v1/branding/logo" + ts;
-  document.getElementById("brand-logo").src =
-    GW_PREFIX + "/api/v1/branding/logo" + ts;
+  const bl = document.getElementById("brand-logo");
+  if (bl) bl.src = GW_PREFIX + "/api/v1/branding/logo" + ts;
 }
 document.getElementById("logo-file").addEventListener("change", async (ev) => {
   const f = ev.target.files[0];
