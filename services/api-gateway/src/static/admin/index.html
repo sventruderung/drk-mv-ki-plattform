@@ -640,6 +640,41 @@ async function api(path, opts = {}) {
   return resp.json();
 }
 
+// ZIP-Upload mit Live-Fortschritt: liest den NDJSON-Stream des Servers
+// (eine Zeile pro verarbeiteter Datei) und ruft onProgress(done,total,name).
+// Rückgabe = Ergebniszeile ({documents, skipped, ...}).
+async function uploadZip(fd, onProgress) {
+  await kc.updateToken(30).catch(() => kc.login());
+  const resp = await fetch(GW + "/api/v1/documents", {
+    method: "POST", body: fd,
+    headers: { Authorization: "Bearer " + kc.token },
+  });
+  if (!resp.ok) {
+    let detail = "HTTP " + resp.status;
+    try { detail = (await resp.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", result = null;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      const ev = JSON.parse(line);
+      if (ev.type === "progress") onProgress(ev.done, ev.total, ev.name);
+      else if (ev.type === "result") result = ev;
+    }
+  }
+  if (!result) throw new Error("Unerwartete Antwort vom Server (kein Ergebnis).");
+  return result;
+}
+
 function msg(text, isError) {
   const el = document.getElementById("message");
   el.textContent = text;
@@ -733,16 +768,33 @@ document.getElementById("uploadbtn").onclick = async () => {
   document.getElementById("uploadbtn").disabled = true;
   let okDocs = 0, failed = [], skippedZip = [];
 
+  const qi = document.getElementById("queueinfo");
+  const setProgress = (head, done, total) => {
+    const pct = total ? Math.round(done / total * 100) : 0;
+    qi.innerHTML = `${esc(head)}`
+      + `<div style="margin-top:6px;height:8px;background:var(--grau);`
+      + `border-radius:4px;overflow:hidden">`
+      + `<div style="height:100%;width:${pct}%;background:var(--drk-rot);`
+      + `transition:width .2s"></div></div>`;
+  };
+
   for (let i = 0; i < queue.length; i++) {
     const f = queue[i];
-    document.getElementById("queueinfo").textContent =
-      `⏳ ${i + 1}/${queue.length}: ${f.name} wird verarbeitet …`;
+    const isZip = f.name.toLowerCase().endsWith(".zip");
+    setProgress(`⏳ ${i + 1}/${queue.length}: ${f.name} wird verarbeitet …`, 0, 1);
     const fd = new FormData();
     fd.append("file", f);
     fd.append("acl_groups", acl.join(","));
     fd.append("kb_id", document.getElementById("kbselect").value);
     try {
-      const r = await api("/api/v1/documents", { method: "POST", body: fd });
+      let r;
+      if (isZip) {
+        r = await uploadZip(fd, (done, total, name) =>
+          setProgress(`⏳ ${f.name}: ${done}/${total} Dateien verarbeitet — ${name}`,
+            done, total));
+      } else {
+        r = await api("/api/v1/documents", { method: "POST", body: fd });
+      }
       okDocs += r.documents ? r.documents.length : 1;   // ZIP liefert Liste
       if (r.skipped) skippedZip.push(...r.skipped);
     } catch (e) {
