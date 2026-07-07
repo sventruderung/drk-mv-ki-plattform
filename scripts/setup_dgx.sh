@@ -54,6 +54,12 @@ python3 -c "import httpx" 2>/dev/null || sudo apt install -y python3-httpx
 command -v smbclient >/dev/null 2>&1 || sudo apt install -y smbclient
 python3 scripts/smoke_test.py
 
+# 6. Automatischer Host-Sync: passt Keycloak-URL + Redirect-URIs bei jedem
+# Boot und bei jedem IP-/Netzwechsel selbstständig an (systemd + NM-Hook) —
+# vor Ort ist danach kein Handgriff mehr nötig, wenn sich die IP ändert.
+echo "→ Richte automatischen Host-Sync ein ..."
+sudo python3 scripts/set_host.py --install-auto
+
 cat <<'EOF'
 
 === Nächste Schritte ===
@@ -63,4 +69,8 @@ cat <<'EOF'
 2. Open WebUI (http://<host>:3000): Admin-Konto anlegen,
    Pipes installieren (docs/runbooks/openwebui-rag-pipe.md)
 3. Verwaltungs-UI (http://<host>:8000/admin): Dokumente, Nutzer, Status
+
+Hinweis: Der automatische Host-Sync ist eingerichtet — bei einem IP-Wechsel
+ist KEIN Befehl mehr nötig, die Plattform passt sich beim Boot/DHCP-Wechsel
+selbst an. (Manuell weiterhin: python3 scripts/set_host.py [<ip>|<host> --https])
 EOF
