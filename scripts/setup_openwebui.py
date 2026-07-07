@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
-"""Open-WebUI-Ersteinrichtung: installiert und aktiviert die drei DRK-Pipes.
+"""Open-WebUI-Pipes installieren — auth-unabhängig, direkt in die Datenbank.
 
-- Legt bei Bedarf das Open-WebUI-Admin-Konto an (erstes Konto = Admin)
-- Installiert/aktualisiert die Pipes aus infra/openwebui/pipes/
-- Aktiviert sie, sodass sie sofort in der Modellauswahl erscheinen
+Warum nicht über die Web-API (signin/signup)?
+Open WebUI läuft hier im OAuth-only-Modus (ENABLE_LOGIN_FORM=false). Das Image
+ist an den rollenden Tag ':main' gebunden; neuere Builds sperren die
+signin/signup-Endpunkte in diesem Modus komplett (HTTP 403 ACCESS_PROHIBITED).
+Eine API-basierte Installation ist damit nicht mehr zuverlässig.
+
+Deshalb schreibt dieses Skript die Pipes direkt in die SQLite-Tabelle 'function'
+im open_webui_data-Volume — unabhängig davon, was Open WebUI an der Anmeldung
+ändert. Es installiert nur die Pipe-Dateien, die tatsächlich vorhanden sind,
+und läuft so unverändert auf allen Branches (main / white-label).
 
 Auf dem Server im Repo-Root ausführen:  python3 scripts/setup_openwebui.py
-Abhängigkeit: sudo apt install python3-httpx
+Voraussetzung: docker compose ist verfügbar und der open-webui-Container läuft.
 """
 
-import getpass
+import subprocess
 import sys
-import time
 from pathlib import Path
 
-import httpx
-
-BASE = "http://localhost:3000"
 PIPES_DIR = Path("infra/openwebui/pipes")
+SERVICE = "open-webui"
+
+# Bekannte Pipes mit Anzeigename (erscheint im Modell-Dropdown).
+# Nur vorhandene Dateien werden installiert — dasselbe Skript läuft damit
+# auf main (mit content-/elo-Pipe) wie auf white-label (ohne diese).
 PIPES = [
     ("drk_rag_pipe", "DRK Wissensbasis (RAG)", "drk_rag_pipe.py"),
     ("drk_content_pipe", "DRK Social Media (P02)", "drk_content_pipe.py"),
@@ -25,87 +33,92 @@ PIPES = [
     ("drk_elo_pipe", "DRK Dokumentensystem (ELO)", "drk_elo_pipe.py"),
 ]
 
+# Läuft INNERHALB des Containers: liest /tmp/pipes, schreibt in webui.db.
+# Die Pipe-Liste wird als repr() vorangestellt (siehe build_snippet()).
+INSTALLER_BODY = r'''
+import sqlite3, json, time, os
+DB = "/app/backend/data/webui.db"
+db = sqlite3.connect(DB)
+row = db.execute("select id from \"user\" where role='admin' order by created_at limit 1").fetchone()
+uid = row[0] if row else "system"
+cols = {r[1]: r for r in db.execute("PRAGMA table_info(function)")}
+now = int(time.time())
+for fid, name, fn in PIPES:
+    path = "/tmp/pipes/" + fn
+    if not os.path.exists(path):
+        continue
+    content = open(path, encoding="utf-8").read()
+    vals = {"id": fid, "user_id": uid, "name": name, "type": "pipe", "content": content,
+            "meta": json.dumps({"description": "DRK-Pipe aus " + fn, "manifest": {}}),
+            "valves": json.dumps({}), "is_active": 1, "is_global": 0,
+            "created_at": now, "updated_at": now}
+    for nm, info in cols.items():          # verbleibende NOT-NULL-Spalten auffuellen
+        if info[3] and info[4] is None and nm not in vals:
+            vals[nm] = 0 if any(x in (info[2] or "").upper() for x in ("INT", "REAL", "BOOL")) else ""
+    keys = [k for k in vals if k in cols]
+    db.execute("INSERT OR REPLACE INTO function (%s) VALUES (%s)"
+               % (",".join(keys), ",".join("?" * len(keys))), [vals[k] for k in keys])
+    print("OK\t%s\t%s" % (fid, name))
+db.commit()
+'''
+
 
 def fail(text: str) -> None:
     sys.exit(f"❌ {text}")
 
 
-def get_token(client: httpx.Client) -> str:
-    email = input("Open-WebUI-Admin-E-Mail: ").strip()
-    password = getpass.getpass("Open-WebUI-Admin-Passwort: ")
+def compose(*args: str, **kwargs) -> subprocess.CompletedProcess:
+    """docker compose ... im Repo-Root ausführen."""
+    return subprocess.run(["docker", "compose", *args], **kwargs)
 
-    resp = client.post("/api/v1/auths/signin", json={"email": email, "password": password})
-    if resp.status_code == 200:
-        print("✅ Angemeldet.")
-        return resp.json()["token"]
 
-    # Noch kein Konto? Erstes Konto wird automatisch Admin.
-    answer = input("Anmeldung fehlgeschlagen. Konto neu anlegen (erstes Konto = Admin)? [j/N] ")
-    if answer.strip().lower() != "j":
-        fail("Abgebrochen.")
-    resp = client.post(
-        "/api/v1/auths/signup",
-        json={"name": "Administrator", "email": email, "password": password},
-    )
-    if resp.status_code != 200:
-        fail(f"Konto anlegen fehlgeschlagen (HTTP {resp.status_code}): {resp.text[:200]}")
-    print("✅ Admin-Konto angelegt.")
-    return resp.json()["token"]
+def build_snippet(present: list[tuple[str, str, str]]) -> str:
+    return "PIPES = " + repr(present) + "\n" + INSTALLER_BODY
 
 
 def main() -> None:
-    print("=== DRK KI-Plattform — Open-WebUI-Pipes installieren ===\n")
+    print("=== DRK KI-Plattform — Open-WebUI-Pipes installieren (direkt in die DB) ===\n")
     if not PIPES_DIR.is_dir():
         fail("infra/openwebui/pipes nicht gefunden — bitte im Repo-Root ausführen.")
 
-    with httpx.Client(base_url=BASE, timeout=30) as client:
-        # Open WebUI braucht nach dem (Neu-)Start bis zu einer Minute
-        for attempt in range(30):
-            try:
-                client.get("/health").raise_for_status()
-                break
-            except httpx.HTTPError:
-                if attempt == 0:
-                    print("⏳ Warte auf Open WebUI (startet noch) ...")
-                time.sleep(3)
-        else:
-            fail(f"Open WebUI nach 90 s nicht erreichbar unter {BASE} — "
-                 "Container prüfen: docker compose logs open-webui")
+    present = [(fid, name, fn) for fid, name, fn in PIPES if (PIPES_DIR / fn).is_file()]
+    if not present:
+        fail("Keine Pipe-Dateien in infra/openwebui/pipes gefunden.")
 
-        headers = {"Authorization": f"Bearer {get_token(client)}"}
+    # Läuft der Container?
+    ps = compose("ps", "-q", SERVICE, capture_output=True, text=True)
+    if ps.returncode != 0 or not ps.stdout.strip():
+        fail(f"Container '{SERVICE}' läuft nicht — zuerst 'docker compose up -d' ausführen.")
 
-        existing = {
-            f["id"] for f in client.get("/api/v1/functions/", headers=headers).json()
-        }
+    # 1. Alte Kopie entfernen (Idempotenz) + Pipes frisch in den Container kopieren
+    print("→ Kopiere Pipe-Dateien in den Container ...")
+    compose("exec", "-T", SERVICE, "rm", "-rf", "/tmp/pipes")
+    if compose("cp", str(PIPES_DIR), f"{SERVICE}:/tmp/pipes").returncode != 0:
+        fail("Kopieren der Pipe-Dateien fehlgeschlagen (docker compose cp).")
 
-        for func_id, name, filename in PIPES:
-            content = (PIPES_DIR / filename).read_text(encoding="utf-8")
-            payload = {
-                "id": func_id,
-                "name": name,
-                "content": content,
-                "meta": {"description": f"DRK-Pipe aus {filename}", "manifest": {}},
-            }
-            if func_id in existing:
-                resp = client.post(
-                    f"/api/v1/functions/id/{func_id}/update", headers=headers, json=payload
-                )
-                action = "aktualisiert"
-            else:
-                resp = client.post("/api/v1/functions/create", headers=headers, json=payload)
-                action = "installiert"
-            if resp.status_code != 200:
-                fail(f"{filename}: HTTP {resp.status_code} — {resp.text[:200]}")
+    # 2. Installer im Container ausführen
+    print("→ Trage Pipes in die Datenbank ein ...")
+    proc = compose("exec", "-T", SERVICE, "python3", "-",
+                   input=build_snippet(present), text=True, capture_output=True)
+    if proc.returncode != 0:
+        fail(f"DB-Installation fehlgeschlagen:\n{proc.stderr.strip() or proc.stdout.strip()}")
 
-            # Aktivieren (Toggle nur, wenn noch inaktiv)
-            state = client.get(f"/api/v1/functions/id/{func_id}", headers=headers).json()
-            if not state.get("is_active", False):
-                client.post(f"/api/v1/functions/id/{func_id}/toggle", headers=headers)
-            print(f"✅ {name} {action} und aktiviert.")
+    installed = []
+    for line in proc.stdout.splitlines():
+        if line.startswith("OK\t"):
+            _, fid, name = line.split("\t", 2)
+            installed.append((fid, name))
+            print(f"✅ {name} installiert und aktiviert.")
+    if not installed:
+        fail(f"Keine Pipe wurde eingetragen — Ausgabe:\n{proc.stdout}\n{proc.stderr}")
+
+    # 3. Neu starten, damit die Pipes als Modelle registriert werden
+    print("→ Starte Open WebUI neu, damit die Pipes als Modelle erscheinen ...")
+    compose("restart", SERVICE)
 
     print("\n=== Fertig. Die Pipes erscheinen jetzt in der Modellauswahl. ===")
     print("Hinweis: Nutzer müssen über 'DRK Login' (Keycloak) angemeldet sein,")
-    print("damit Wissensbasis und Social Media funktionieren.")
+    print("damit Wissensbasis, ELO und Social Media funktionieren.")
 
 
 if __name__ == "__main__":
