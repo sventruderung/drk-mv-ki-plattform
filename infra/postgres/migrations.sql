@@ -54,7 +54,8 @@ INSERT INTO system_settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed) VALUES
-    ('qwen3:32b', 'local', 'Qwen3 32B (lokal)', true, true)
+    ('qwen3:32b', 'local', 'Qwen3 32B (lokal)', true, true),
+    ('mistral-small:24b', 'local', 'Mistral Small 24B (lokal)', false, false)
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Härtung: RLS auch für Tabellen-Eigentümer erzwingen ─────────────────────
