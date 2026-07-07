@@ -221,6 +221,11 @@ services:
       ADMIN_SERVICE_URL: http://admin-service:${ADMIN_SERVICE_PORT}
       CONTENT_SERVICE_URL: http://content-service:${CONTENT_SERVICE_PORT:-8005}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      # Konfigurierte Modelle — der Systemstatus prüft genau diese (kein fester
+      # qwen3-Zwang mehr; auf einem llama3.3-Server bleibt der Status grün)
+      OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL}
+      OLLAMA_ELO_MODEL: ${OLLAMA_ELO_MODEL:-qwen3:8b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${API_GATEWAY_PORT:-8000}:8000"
