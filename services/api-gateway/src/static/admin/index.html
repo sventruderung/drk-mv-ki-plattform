@@ -104,6 +104,7 @@
         <button class="small" id="newkb">＋ Neue anlegen</button>
         <button class="small" id="renamekb">✏️ Umbenennen</button>
         <button class="small" id="kbaclbtn">🔐 Zugriff</button>
+        <button class="small no" id="deletekb">🗑️ Löschen</button>
       </div>
       <div class="acl-row" id="upload-acl">
         <strong>Sichtbar für:</strong>
@@ -897,6 +898,23 @@ document.getElementById("renamekb").onclick = async () => {
     });
     await loadKbs(); loadDocs();
     msg(`✅ Umbenannt in "${name.trim()}".`);
+    if (hasRole("kv-admin")) loadAudit();
+  } catch (e) { msg(e.message, true); }
+};
+
+document.getElementById("deletekb").onclick = async () => {
+  const sel = document.getElementById("kbselect");
+  if (!sel.value) return msg("'Allgemein' ist die Sammelablage und kann nicht gelöscht werden — bitte eine eigene Wissensdatenbank wählen.", true);
+  const label = sel.options[sel.selectedIndex].text;          // "Name (n)"
+  const name = label.replace(/ \(\d+\)$/, "");
+  const docs = parseInt((label.match(/\((\d+)\)$/) || [])[1] || "0", 10);
+  if (docs > 0)
+    return msg(`"${name}" enthält noch ${docs} Dokument(e). Bitte zuerst im Tab unten verschieben oder löschen — leere Wissensdatenbanken lassen sich löschen.`, true);
+  if (!confirm(`Wissensdatenbank "${name}" wirklich löschen?`)) return;
+  try {
+    await api("/api/v1/kbs/" + sel.value, { method: "DELETE" });
+    await loadKbs(); loadDocs();
+    msg(`✅ Wissensdatenbank "${name}" gelöscht.`);
     if (hasRole("kv-admin")) loadAudit();
   } catch (e) { msg(e.message, true); }
 };
