@@ -70,6 +70,12 @@ services:
     volumes:
       - ./infra/keycloak/config:/opt/keycloak/data/import:ro
       - ./infra/keycloak/truststore:/opt/keycloak/conf/truststore:ro
+      # Optionales DRK-Login-Theme (Logo auf der Anmeldeseite). Verfügbar, aber
+      # INAKTIV, bis im Realm bewusst "Login theme = drk" gesetzt wird — die
+      # produktive Anmeldung bleibt sonst unverändert. Logo kommt aus
+      # data/branding (dasselbe Bild wie im Verwaltungs-UI hochgeladen).
+      - ./infra/keycloak/themes:/opt/keycloak/themes:ro
+      - ./data/branding:/opt/keycloak/themes/drk/login/resources/img:ro
     # Domänencontroller-Name dauerhaft auflösen (AD/LDAP-Federation) — sonst
     # scheitern AD-Logins UND das Anlegen lokaler Nutzer (Duplikat-Prüfung
     # fragt das AD). IP in .env pflegen: AD_SERVER_HOST + AD_SERVER_IP.

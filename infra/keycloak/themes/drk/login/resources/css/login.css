@@ -1,0 +1,38 @@
+/* DRK-Login-Theme — Logo + Akzentfarbe auf der Keycloak-Anmeldeseite.
+ *
+ * OPT-IN: wird erst wirksam, wenn im Realm bewusst "Login theme = drk"
+ * gesetzt wird (Keycloak-Konsole → Realm settings → Themes). Ohne diese
+ * Umstellung bleibt die Standard-Anmeldeseite unverändert.
+ *
+ * Das Logo kommt aus data/branding/logo.png (per Compose-Mount) — dasselbe
+ * Bild, das im Verwaltungs-UI hochgeladen wird.
+ */
+
+#kc-header-wrapper {
+  font-size: 0;                 /* Keycloak-Schriftzug ausblenden */
+  padding: 24px 0;
+  background-image: url("../img/logo.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  height: 56px;
+}
+
+.card-pf {
+  border-top: 4px solid #e2001a;   /* DRK-Rot */
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.btn-primary {
+  background-color: #e2001a;
+  border-color: #e2001a;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #b8000f;
+  border-color: #b8000f;
+}
+
+a { color: #e2001a; }
