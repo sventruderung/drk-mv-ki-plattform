@@ -226,7 +226,7 @@
         (RAG) und Social-Media-Texte nutzen immer das lokale Modell —
         Dokumenteninhalte verlassen das System nie.
       </div>
-      <table><thead><tr><th>Modell</th><th>Anbieter</th><th>Installiert</th><th>Aktiv</th><th>Für alle Nutzer</th></tr></thead>
+      <table><thead><tr><th>Modell</th><th>Anbieter</th><th>Installiert</th><th>Aktiv</th><th>Für alle Nutzer</th><th>Antwortmodell</th></tr></thead>
       <tbody id="modellist"></tbody></table>
     </div>
     <div class="card">
@@ -1327,8 +1327,24 @@ async function loadModels() {
            onchange='setModel("${m.id}", this.checked, ${m.default_allowed})'></td>
       <td><input type="checkbox" ${m.default_allowed ? "checked" : ""}
            onchange='setModel("${m.id}", ${m.enabled}, this.checked)'></td>
+      <td>${m.provider !== "local"
+        ? '<span class="muted">–</span>'
+        : m.is_default
+          ? '<span class="badge b-freigegeben">★ Standard</span>'
+          : (m.installed && m.enabled)
+            ? `<button class="small" onclick='setDefaultModel("${m.id}")'>Als Standard</button>`
+            : '<span class="muted">—</span>'}</td>
     </tr>`).join("");
   } catch (e) { msg("Modelle laden fehlgeschlagen: " + e.message, true); }
+}
+
+// Standard-Antwortmodell für Chat/Wissensbasis setzen (wirkt ohne Neustart)
+async function setDefaultModel(id) {
+  try {
+    await api("/api/v1/models/default/" + encodeURIComponent(id), { method: "PUT" });
+    msg(`★ „${id}" ist jetzt das Standard-Antwortmodell (Chat & Wissensbasis).`);
+    loadModels(); loadAudit();
+  } catch (e) { msg(e.message, true); }
 }
 
 // Ein lokales Katalog-Modell nachinstallieren (nutzt dieselbe Pull-Mechanik

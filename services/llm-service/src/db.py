@@ -41,3 +41,13 @@ async def get_api_key(provider: str) -> str:
         "SELECT value FROM system_settings WHERE key = $1", f"{provider}_api_key"
     )
     return row["value"] if row else ""
+
+
+async def get_default_model() -> str | None:
+    """Im Verwaltungs-UI gesetztes Standard-Antwortmodell (system_settings) —
+    hat Vorrang vor OLLAMA_DEFAULT_MODEL, sodass der Wechsel ohne Neustart wirkt."""
+    assert _pool is not None
+    row = await _pool.fetchrow(
+        "SELECT value FROM system_settings WHERE key = 'default_model'"
+    )
+    return row["value"] if row and row["value"] else None

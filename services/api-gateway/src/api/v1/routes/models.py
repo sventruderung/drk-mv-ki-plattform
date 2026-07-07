@@ -101,6 +101,12 @@ async def list_all_models(request: Request):
             "FROM ai_models ORDER BY provider = 'local' DESC, display_name"
         )
     installed = await _ollama_names(request.app.state.settings.ollama_base_url)
+    async with plain_connection() as conn:
+        default_model = await conn.fetchval(
+            "SELECT value FROM system_settings WHERE key = 'default_model'"
+        )
+    if not default_model:
+        default_model = request.app.state.settings.ollama_default_model
     out = []
     for r in rows:
         d = dict(r)
@@ -110,8 +116,52 @@ async def list_all_models(request: Request):
             d["installed"] = d["id"] in installed or f"{d['id']}:latest" in installed
         else:
             d["installed"] = None  # extern: nicht zutreffend
+        d["is_default"] = d["id"] == default_model
         out.append(d)
     return out
+
+
+@router.put("/models/default/{model_id}")
+async def set_default_model(model_id: str, request: Request):
+    """Standard-Antwortmodell für Chat/Wissensbasis setzen (kv-admin, auditiert).
+    Wirkt ohne Neustart — der llm-service liest den Wert je Anfrage aus der DB."""
+    require_kv_admin(request)
+    async with plain_connection() as conn:
+        row = await conn.fetchrow(
+            "SELECT provider, enabled FROM ai_models WHERE id = $1", model_id
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Modell nicht gefunden.")
+        if row["provider"] != "local":
+            raise HTTPException(
+                status_code=422,
+                detail="Nur lokale Modelle können Standard-Antwortmodell sein "
+                "(Wissensbasis/ELO nutzen nie externe Modelle).",
+            )
+        if not row["enabled"]:
+            raise HTTPException(status_code=422, detail="Modell ist nicht aktiv.")
+        # Muss auch in Ollama installiert sein, sonst käme später 'keine Antwort'
+        names = await _ollama_names(request.app.state.settings.ollama_base_url)
+        if not (model_id in names or f"{model_id}:latest" in names):
+            raise HTTPException(status_code=422, detail="Modell ist nicht installiert.")
+        await conn.execute(
+            """
+            INSERT INTO system_settings (key, value, updated_at, updated_by)
+            VALUES ('default_model', $1, now(), $2)
+            ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = now(), updated_by = $2
+            """,
+            model_id, request.state.user_id or "",
+        )
+    async with tenant_connection(request.state.tenant_id) as conn:
+        await conn.execute(
+            """
+            INSERT INTO audit_log (tenant_id, actor, action, object_type, object_id, info)
+            VALUES ($1, $2, 'model.default', 'model', $3, $4)
+            """,
+            request.state.tenant_id, request.state.user_id or "", model_id,
+            f"Standard-Antwortmodell: {model_id}",
+        )
+    return {"default_model": model_id}
 
 
 class ModelUpdateRequest(BaseModel):
