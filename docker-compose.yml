@@ -87,6 +87,11 @@ services:
     environment:
       # Modell dauerhaft im Speicher halten — Neuladen kostet sonst ~10 s TTFT
       OLLAMA_KEEP_ALIVE: "-1"
+      # Höchstens 2 Modelle gleichzeitig geladen = EIN großes Sprachmodell +
+      # das kleine Embedding-Modell. Verhindert, dass mehrere große LLMs den
+      # (unified) Speicher füllen und Modelle auf die CPU ausweichen (langsam).
+      # Beim Wechsel des Standardmodells wird das alte automatisch verdrängt.
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
     volumes:
       - ollama_data:/root/.ollama
     ports:
