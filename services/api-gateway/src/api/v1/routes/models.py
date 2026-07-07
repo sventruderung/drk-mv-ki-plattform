@@ -81,6 +81,17 @@ async def list_enabled_models():
     return [dict(r) for r in rows]
 
 
+async def _ollama_names(base: str) -> set[str]:
+    """Namen der in Ollama installierten Modelle (leer bei Nichterreichbarkeit)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"{base}/api/tags")
+        resp.raise_for_status()
+        return {m["name"] for m in resp.json().get("models", [])}
+    except httpx.HTTPError:
+        return set()
+
+
 @router.get("/models/admin")
 async def list_all_models(request: Request):
     require_kv_admin(request)
@@ -89,7 +100,18 @@ async def list_all_models(request: Request):
             "SELECT id, provider, display_name, enabled, default_allowed "
             "FROM ai_models ORDER BY provider = 'local' DESC, display_name"
         )
-    return [dict(r) for r in rows]
+    installed = await _ollama_names(request.app.state.settings.ollama_base_url)
+    out = []
+    for r in rows:
+        d = dict(r)
+        if d["provider"] == "local":
+            # Katalog-ID vs. Ollama-Tag: 'llama3.3' passt auf 'llama3.3:latest',
+            # 'qwen3:32b' passt exakt.
+            d["installed"] = d["id"] in installed or f"{d['id']}:latest" in installed
+        else:
+            d["installed"] = None  # extern: nicht zutreffend
+        out.append(d)
+    return out
 
 
 class ModelUpdateRequest(BaseModel):

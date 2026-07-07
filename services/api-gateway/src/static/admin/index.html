@@ -226,7 +226,7 @@
         (RAG) und Social-Media-Texte nutzen immer das lokale Modell —
         Dokumenteninhalte verlassen das System nie.
       </div>
-      <table><thead><tr><th>Modell</th><th>Anbieter</th><th>Aktiv</th><th>Für alle Nutzer</th></tr></thead>
+      <table><thead><tr><th>Modell</th><th>Anbieter</th><th>Installiert</th><th>Aktiv</th><th>Für alle Nutzer</th></tr></thead>
       <tbody id="modellist"></tbody></table>
     </div>
     <div class="card">
@@ -1317,12 +1317,31 @@ async function loadModels() {
       <td>${m.provider === "local"
         ? '<span class="badge b-freigegeben">lokal</span>'
         : `<span class="badge b-abgelehnt">extern: ${esc(m.provider)}</span>`}</td>
+      <td>${m.installed === null
+        ? '<span class="muted">–</span>'
+        : m.installed
+          ? '<span class="badge b-freigegeben">✓ installiert</span>'
+          : `<button class="small" onclick='installModel("${m.id}")'>⬇ Installieren</button>`}</td>
       <td><input type="checkbox" ${m.enabled ? "checked" : ""}
+           ${m.installed === false ? "disabled title='Erst installieren'" : ""}
            onchange='setModel("${m.id}", this.checked, ${m.default_allowed})'></td>
       <td><input type="checkbox" ${m.default_allowed ? "checked" : ""}
            onchange='setModel("${m.id}", ${m.enabled}, this.checked)'></td>
     </tr>`).join("");
   } catch (e) { msg("Modelle laden fehlgeschlagen: " + e.message, true); }
+}
+
+// Ein lokales Katalog-Modell nachinstallieren (nutzt dieselbe Pull-Mechanik
+// wie die Download-Karte; Fortschritt erscheint dort, danach wird alles neu geladen)
+async function installModel(id) {
+  try {
+    await api("/api/v1/models/ollama/pull", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: id }),
+    });
+    msg(`⬇ Download von ${id} gestartet — Fortschritt unter „Lokales Modell herunterladen".`);
+    pollPull();
+  } catch (e) { msg(e.message, true); }
 }
 
 // ---------- Backup auf NAS ----------
