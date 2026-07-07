@@ -25,6 +25,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ai_models, user_model_access TO drk_app;
 -- Katalog: lokales Modell aktiv und für alle; externe deaktiviert
 INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed) VALUES
     ('qwen3:32b',          'local',     'Qwen3 32B (lokal)',                true,  true),
+    ('mistral-small:24b',  'local',     'Mistral Small 24B (lokal)',        false, false),
     ('gpt-5.2',            'openai',    'GPT-5.2 (OpenAI, extern!)',        false, false),
     ('gpt-5-mini',         'openai',    'GPT-5 Mini (OpenAI, extern!)',     false, false),
     ('claude-opus-4-8',    'anthropic', 'Claude Opus 4.8 (extern!)',        false, false),
