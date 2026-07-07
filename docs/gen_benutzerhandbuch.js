@@ -244,7 +244,9 @@ C.push(h1("4  Dokumente und Wissensbasis"));
 C.push(h2("4.1  Wissensdatenbanken anlegen"));
 C.push(bullet("Im Tab Dokumente lassen sich beliebig benannte Wissensdatenbanken anlegen (z.B. Verwaltung, ESF BRB, Rehapro)."));
 C.push(bullet("Über Zugriff legen Sie je Wissensdatenbank fest, welche Sichtbarkeitsgruppen sie sehen dürfen."));
+C.push(bullet("Über Umbenennen ändern Sie den Namen; über Löschen entfernen Sie eine Wissensdatenbank."));
 C.push(bullet("Eine Person sieht und durchsucht nur Wissensdatenbanken, für die ihre Gruppe freigeschaltet ist."));
+C.push(para("Gelöscht werden kann nur eine LEERE Wissensdatenbank — enthält sie noch Dokumente, verschieben oder löschen Sie diese zuerst (Schutz vor versehentlichem Datenverlust). Die Sammelablage „Allgemein\" lässt sich nicht löschen."));
 C.push(spacer(40, 40));
 C.push(h2("4.2  Dokumente hochladen"));
 C.push(para("Dokumente werden per Drag-and-Drop, als Ordner oder als ZIP-Archiv hochgeladen. Beim Hochladen wählen Sie die Ziel-Wissensdatenbank und die Sichtbarkeitsgruppe."));
@@ -283,17 +285,35 @@ C.push(tip("Empfehlung", [
 
 // 6 KI-Modelle
 C.push(h1("6  KI-Modelle"));
-C.push(h2("6.1  Modell-Katalog (Tab Einstellungen)"));
-C.push(bullet("Aktiv: schaltet ein Modell grundsätzlich nutzbar."));
-C.push(bullet("Für alle Nutzer: gibt ein aktives Modell für alle frei (sonst nur individuell pro Nutzer)."));
-C.push(bullet("Das lokale Modell (Qwen3 32B) ist standardmäßig aktiv und für alle freigegeben."));
+C.push(h2("6.1  Die Modell-Tabelle (Tab Einstellungen → KI-Modelle)"));
+C.push(para("Die Tabelle zeigt je Modell fünf Spalten:"));
+C.push(table(["Spalte", "Bedeutung"], [
+  ["Anbieter", "lokal (läuft auf dem Server) oder extern (OpenAI/Anthropic)"],
+  ["Installiert", "✓ installiert = liegt in Ollama; sonst Schaltfläche ⬇ Installieren"],
+  ["Aktiv", "Modell grundsätzlich nutzbar (bei nicht installierten Modellen gesperrt)"],
+  ["Für alle Nutzer", "aktives Modell für alle freigeben (sonst nur individuell pro Nutzer)"],
+  ["Antwortmodell", "★ Standard = dieses Modell beantwortet Chat und Wissensbasis; per „Als Standard\" umschaltbar"],
+], [2600, Math.floor(CW - 2600)]));
 C.push(spacer(40, 40));
-C.push(h2("6.2  Lokales Modell herunterladen"));
-C.push(para("Unter Lokales Modell herunterladen kann ein weiteres Ollama-Modell auf den Server geladen werden."));
-C.push(numbered("Modellnamen eintragen (z.B. qwen3:14b, gemma3, llama3.3) — Namen siehe ollama.com/library"));
-C.push(numbered("Herunterladen klicken; der Fortschritt wird angezeigt (große Modelle dauern einige Minuten)"));
-C.push(numbered("Nach Abschluss erscheint das Modell oben in der Liste und kann dort aktiviert/freigegeben werden"));
-C.push(para("Neu geladene Modelle sind zunächst deaktiviert — die Freigabe ist ein bewusster Schritt. Es läuft immer nur ein Download gleichzeitig."));
+C.push(h2("6.2  Ein Modell einrichten — installieren, aktivieren, als Standard"));
+C.push(para("Der komplette Modellwechsel ist im Verwaltungs-UI klickbar, ohne Kommandozeile:"));
+C.push(numbered("⬇ Installieren in der Modellzeile (oder unter „Lokales Modell herunterladen\" einen beliebigen Namen von ollama.com/library eintragen). Der Download läuft mit Fortschritt; große Modelle dauern einige Minuten."));
+C.push(numbered("Nach „✓ installiert\" das Häkchen Aktiv setzen (ggf. Für alle Nutzer)."));
+C.push(numbered("Als Standard klicken → dieses Modell beantwortet ab sofort Chat und Wissensbasis — ohne Neustart."));
+C.push(spacer(30, 30));
+C.push(info("Nur ein großes Modell gleichzeitig", [
+  "Es ist immer nur EIN großes Sprachmodell geladen (plus das kleine",
+  "Embedding-Modell). Beim Umschalten des Standard-Antwortmodells wird das alte",
+  "automatisch aus dem Speicher verdrängt — so bleibt die volle GPU-Leistung",
+  "erhalten und Antworten bleiben flüssig.",
+]));
+C.push(spacer(30, 30));
+C.push(warn("Drei Dinge müssen zusammenpassen", [
+  "Sonst kommt „keine Antwort\": (1) Modell installiert (⬇), (2) im Katalog aktiv,",
+  "(3) als Standard-Antwortmodell gesetzt. Die Tabelle sperrt daher den Aktiv-Haken",
+  "bei nicht installierten Modellen und bietet „Als Standard\" nur bei installierten,",
+  "aktiven, lokalen Modellen an.",
+]));
 C.push(spacer(40, 40));
 C.push(h2("6.3  Externe Modelle und API-Keys"));
 C.push(para("Externe Modelle (OpenAI/Anthropic) sind standardmäßig deaktiviert. Zur Nutzung werden unter API-Keys die Schlüssel hinterlegt (verschlüsselt gespeichert, nie wieder angezeigt) und das gewünschte Modell aktiviert."));
@@ -317,8 +337,9 @@ C.push(spacer(40, 40));
 C.push(h2("7.3  Letzte Ereignisse"));
 C.push(para("Eine Liste der jüngsten Status-Änderungen und Fehler (z.B. Dienst kurz nicht erreichbar, Backup fehlgeschlagen) — ohne Inhalte, nur Metadaten."));
 
-// 8 System steuern
-C.push(h1("8  System steuern"));
+// 8 System und Erscheinungsbild
+C.push(h1("8  System und Erscheinungsbild"));
+C.push(h2("8.1  System steuern"));
 C.push(para("Im Tab Einstellungen unter System steuern lassen sich direkt aus dem Browser ausführen:"));
 C.push(bullet("Dienste neu starten — startet die Plattform-Container neu (z.B. nach Konfigurationsänderungen)."));
 C.push(bullet("Server neu starten / herunterfahren — steuert den gesamten DGX."));
@@ -326,6 +347,22 @@ C.push(warn("Mit Bedacht verwenden", [
   "Diese Aktionen sind root-äquivalent, daher nur für kv-admin verfügbar und",
   "werden im Audit-Protokoll vermerkt. Nach 'Server herunterfahren' ist die",
   "Plattform erst nach physischem/Remote-Einschalten wieder erreichbar.",
+]));
+C.push(spacer(40, 40));
+C.push(h2("8.2  Eigenes Logo"));
+C.push(para("Unter Einstellungen → Eigenes Logo lässt sich das Logo der Plattform austauschen. Ein einziger Upload versorgt alle Stellen:"));
+C.push(bullet("die Kopfzeile im Verwaltungs-UI (mit Sofort-Vorschau in der Karte),"));
+C.push(bullet("die Anmeldeseite (Login),"));
+C.push(bullet("das Startbild und Favicon im Chat (Open WebUI)."));
+C.push(spacer(30, 30));
+C.push(numbered("PNG auswählen (transparenter Hintergrund empfohlen, mindestens 500 px breit, max. 2 MB)."));
+C.push(numbered("Das Logo wird verschlüsselt gespeichert und ist sofort im Verwaltungs-UI und auf der Anmeldeseite aktiv."));
+C.push(numbered("Im Chat und beim Favicon ggf. die Seite neu laden (Strg+F5) — Browser-Cache."));
+C.push(para("Mit „Auf Standard zurücksetzen\" wird wieder das mitgelieferte Standard-Logo gesetzt. Jeder Logo-Wechsel wird im Audit-Protokoll vermerkt."));
+C.push(info("Robust hinterlegt", [
+  "Das eigene Logo liegt außerhalb der Programmdateien und übersteht Updates,",
+  "Container-Neubauten und Neustarts. Es wird zudem in die Sicherung aufgenommen",
+  "und beim Restore mit wiederhergestellt.",
 ]));
 
 // 9 Backup & Restore
@@ -442,9 +479,21 @@ C.push(warn("Wichtig", [
 ]));
 
 C.push(h1("15  Nach Netz- oder IP-Wechsel"));
-C.push(para("Bei fester IP ist nach einer einmaligen Änderung nichts weiter nötig. Falls sich die IP doch ändert, genügt ein Befehl — er erkennt die neue IP, korrigiert KEYCLOAK_PUBLIC_URL und die Redirect-URIs und startet die betroffenen Dienste neu:"));
+C.push(para("Die Plattform passt sich bei einem IP-Wechsel selbstständig an — beim Booten und bei jeder Adressänderung (DHCP). Vor Ort genügt es, dem Server die neue IP zu geben; kein Befehl nötig. Ein Automatik-Dienst gleicht KEYCLOAK_PUBLIC_URL und die Keycloak-Redirect-URIs ab und startet die betroffenen Dienste neu (nur wenn sich etwas geändert hat)."));
+C.push(spacer(30, 30));
+C.push(h2("15.1  Automatik einrichten (einmalig)"));
+C.push(para("Bei einer Neuinstallation über setup_dgx.sh ist das bereits eingerichtet. Auf bestehenden Servern einmalig als root nachrüsten:"));
+C.push(codeBlock([
+  "sudo python3 scripts/set_host.py --install-auto",
+  "# installiert einen systemd-Dienst (läuft bei jedem Boot) und einen",
+  "# NetworkManager-Hook (läuft bei jedem IP-Wechsel)",
+]));
+C.push(spacer(30, 30));
+C.push(h2("15.2  Manuell (Sonderfälle)"));
+C.push(para("Der manuelle Aufruf bleibt möglich, z.B. für den Umstieg auf einen öffentlichen Hostnamen mit HTTPS:"));
 C.push(codeBlock([
   "python3 scripts/set_host.py                     # interne IP automatisch",
+  "python3 scripts/set_host.py 192.168.50.7        # IP explizit",
   "python3 scripts/set_host.py <hostname> --https  # öffentlicher Hostname (HTTPS)",
 ]));
 
