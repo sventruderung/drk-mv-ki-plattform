@@ -6,11 +6,13 @@ X-User-Roles) — der rag-service ist nicht direkt von außen erreichbar.
 
 import hashlib
 import io
+import json
 import uuid
 import zipfile
 from pathlib import PurePosixPath
 
 from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from drk_shared.logging import get_logger
@@ -181,47 +183,56 @@ async def upload_document(
     except zipfile.BadZipFile:
         raise HTTPException(status_code=422, detail="ZIP-Datei ist beschädigt.")
 
-    documents: list[dict] = []
-    skipped: list[str] = []
     members = [m for m in archive.infolist() if not m.is_dir()]
     if len(members) > ZIP_MAX_MEMBERS:
         raise HTTPException(
             status_code=422,
             detail=f"ZIP enthält {len(members)} Dateien — Maximum: {ZIP_MAX_MEMBERS}.",
         )
-    for member in members:
-        name = PurePosixPath(member.filename).name  # Pfade entschärfen
-        ext = PurePosixPath(name).suffix.lower()
-        if name.startswith(".") or name.startswith("~"):
-            continue  # Systemdateien (.DS_Store, Office-Lockfiles) still überspringen
-        if ext not in EXT_TYPES:
-            skipped.append(f"{name} (Format)")
-            continue
-        if member.file_size > ZIP_MAX_MEMBER_BYTES:
-            skipped.append(f"{name} (zu groß)")
-            continue
-        try:
-            result = await _ingest(
-                archive.read(member), name, EXT_TYPES[ext],
-                groups, x_tenant_id, x_user_id, kb_uuid,
-            )
-            documents.append(result)
-        except HTTPException as e:
-            skipped.append(f"{name} ({e.detail})")
 
-    if not documents:
-        raise HTTPException(
-            status_code=422,
-            detail="ZIP enthielt keine verarbeitbaren Dokumente "
-            f"({len(skipped)} übersprungen).",
-        )
-    return {
-        "zip": file.filename,
-        "documents": documents,
-        "skipped": skipped,
-        "acl_groups": groups,
-        "status": "ready",
-    }
+    async def progress_stream():
+        """NDJSON-Stream: je verarbeiteter Datei eine Fortschrittszeile,
+        am Ende eine Ergebniszeile. So kann das Frontend live mitzählen.
+        Fehler einzelner Dateien landen als 'übersprungen' im Ergebnis —
+        der Stream läuft weiter (kein Abbruch mitten in der Antwort)."""
+        documents: list[dict] = []
+        skipped: list[str] = []
+        total = len(members)
+        for done, member in enumerate(members, start=1):
+            name = PurePosixPath(member.filename).name  # Pfade entschärfen
+            ext = PurePosixPath(name).suffix.lower()
+            status = "ok"
+            if name.startswith(".") or name.startswith("~"):
+                status = "skip"  # Systemdateien (.DS_Store, Office-Lockfiles)
+            elif ext not in EXT_TYPES:
+                skipped.append(f"{name} (Format)")
+                status = "skip"
+            elif member.file_size > ZIP_MAX_MEMBER_BYTES:
+                skipped.append(f"{name} (zu groß)")
+                status = "skip"
+            else:
+                try:
+                    documents.append(await _ingest(
+                        archive.read(member), name, EXT_TYPES[ext],
+                        groups, x_tenant_id, x_user_id, kb_uuid,
+                    ))
+                except HTTPException as e:
+                    skipped.append(f"{name} ({e.detail})")
+                    status = "skip"
+            yield json.dumps({
+                "type": "progress", "done": done, "total": total,
+                "name": name, "status": status,
+            }) + "\n"
+        yield json.dumps({
+            "type": "result",
+            "zip": file.filename,
+            "documents": documents,
+            "skipped": skipped,
+            "acl_groups": groups,
+            "status": "ready",
+        }) + "\n"
+
+    return StreamingResponse(progress_stream(), media_type="application/x-ndjson")
 
 
 @router.get("/")

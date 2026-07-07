@@ -36,17 +36,33 @@ async def upload_document(
     request: Request, file: UploadFile,
     acl_groups: str = Form("kv-alle"), kb_id: str = Form(""),
 ):
-    # ZIP-Archive können viele Dokumente enthalten — großzügiger Timeout
-    async with httpx.AsyncClient(timeout=1800) as client:
-        resp = await client.post(
-            f"{_rag_url(request)}/api/v1/documents/",
-            files={"file": (file.filename, await file.read(), file.content_type)},
-            data={"acl_groups": acl_groups, "kb_id": kb_id},
-            headers=_identity_headers(request),
-        )
-    if resp.status_code != 200:
-        raise HTTPException(status_code=resp.status_code, detail=resp.json().get("detail"))
-    return resp.json()
+    # Antwort unverändert durchreichen: Einzeldatei = JSON, ZIP = NDJSON-
+    # Fortschritts-Stream (eine Zeile pro Datei). Deshalb streamen wir die
+    # Upstream-Antwort, statt sie zu puffern. Großzügiger Timeout für große ZIPs.
+    content = await file.read()
+    client = httpx.AsyncClient(timeout=1800)
+    req = client.build_request(
+        "POST",
+        f"{_rag_url(request)}/api/v1/documents/",
+        files={"file": (file.filename, content, file.content_type)},
+        data={"acl_groups": acl_groups, "kb_id": kb_id},
+        headers=_identity_headers(request),
+    )
+    resp = await client.send(req, stream=True)
+
+    async def body():
+        try:
+            async for chunk in resp.aiter_raw():
+                yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        body(),
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type", "application/json"),
+    )
 
 
 @router.get("/documents")
