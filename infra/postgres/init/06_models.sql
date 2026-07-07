@@ -24,13 +24,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ai_models, user_model_access TO drk_app;
 
 -- Katalog: lokales Modell aktiv und für alle; externe deaktiviert
 INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed) VALUES
-    ('qwen3:32b',          'local',     'Qwen3 32B (lokal)',                true,  true),
-    ('mistral-small:24b',  'local',     'Mistral Small 24B (lokal)',        false, false),
-    ('gpt-5.2',            'openai',    'GPT-5.2 (OpenAI, extern!)',        false, false),
-    ('gpt-5-mini',         'openai',    'GPT-5 Mini (OpenAI, extern!)',     false, false),
-    ('claude-opus-4-8',    'anthropic', 'Claude Opus 4.8 (extern!)',        false, false),
-    ('claude-sonnet-4-6',  'anthropic', 'Claude Sonnet 4.6 (extern!)',      false, false),
-    ('claude-haiku-4-5',   'anthropic', 'Claude Haiku 4.5 (extern!)',       false, false);
+    ('qwen3:32b',          'local',     'Qwen3 32B (lokal)',                                true,  true),
+    ('mistral-small:24b',  'local',     'Mistral Small 24B (lokal)',                        false, false),
+    -- OpenAI: neuestes Flaggschiff + günstige Stufen
+    ('gpt-5.2',            'openai',    'GPT-5.2 – neuestes Flaggschiff (OpenAI, extern!)', false, false),
+    ('gpt-5-mini',         'openai',    'GPT-5 Mini – günstig (OpenAI, extern!)',           false, false),
+    ('gpt-5-nano',         'openai',    'GPT-5 Nano – günstigstes (OpenAI, extern!)',       false, false),
+    -- Anthropic: leistungsstärkstes, neuestes ausgewogenes, günstigstes
+    ('claude-opus-4-8',    'anthropic', 'Claude Opus 4.8 – leistungsstärkstes (extern!)',   false, false),
+    ('claude-sonnet-5',    'anthropic', 'Claude Sonnet 5 – neuestes (extern!)',             false, false),
+    ('claude-haiku-4-5',   'anthropic', 'Claude Haiku 4.5 – günstigstes (extern!)',         false, false);
 
 -- API-Keys (werden über das Verwaltungs-UI gesetzt, nie im Code/Git)
 INSERT INTO system_settings (key, value) VALUES

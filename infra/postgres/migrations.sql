@@ -58,6 +58,14 @@ INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed) VAL
     ('mistral-small:24b', 'local', 'Mistral Small 24B (lokal)', false, false)
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Aktuellste/ökonomischste externe Modelle nachziehen ─────────────────────
+-- COMPLIANCE: bleiben deaktiviert; Aktivierung nur bewusst durch kv-admin
+-- (DSB-Freigabe). Bestehende Zeilen werden NICHT verändert (DO NOTHING).
+INSERT INTO ai_models (id, provider, display_name, enabled, default_allowed) VALUES
+    ('claude-sonnet-5', 'anthropic', 'Claude Sonnet 5 – neuestes (extern!)', false, false),
+    ('gpt-5-nano', 'openai', 'GPT-5 Nano – günstigstes (OpenAI, extern!)', false, false)
+ON CONFLICT (id) DO NOTHING;
+
 -- ── Härtung: RLS auch für Tabellen-Eigentümer erzwingen ─────────────────────
 -- (Wirkt nur, wenn drk_app KEIN Superuser ist — siehe Hinweis im Runbook;
 --  für die Multi-Tenant-Phase relevant, im Mono-Betrieb unkritisch.)
