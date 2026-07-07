@@ -42,7 +42,9 @@ async def health():
 
 @app.post("/api/v1/generate")
 async def generate(body: GenerateRequest) -> StreamingResponse:
-    model_id = body.model or settings.ollama_default_model
+    # Vorrang: explizit angefragtes Modell → im UI gesetztes Standardmodell
+    # (DB, ohne Neustart wirksam) → Env-Vorgabe.
+    model_id = body.model or await db.get_default_model() or settings.ollama_default_model
     model = await db.get_model(model_id)
     if model is None or not model["enabled"]:
         raise HTTPException(
