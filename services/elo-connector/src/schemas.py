@@ -34,6 +34,9 @@ class StatsParams(BaseModel):
 
     felder: dict[str, str] = Field(..., min_length=1, description="Indexfeld -> Wert")
     aelter_als_tage: int | None = Field(default=None, ge=0, le=3650)
+    # Optionaler Zeitraumfilter (ISO YYYY-MM-DD) auf das Ablage-/Änderungsdatum
+    datum_von: str | None = Field(default=None, description="Untere Datumsgrenze, ISO YYYY-MM-DD")
+    datum_bis: str | None = Field(default=None, description="Obere Datumsgrenze, ISO YYYY-MM-DD")
 
 
 class InvokeRequest(BaseModel):

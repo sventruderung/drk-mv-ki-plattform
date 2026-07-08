@@ -41,6 +41,16 @@ def _date(item: dict[str, Any]) -> str | None:
         return None
 
 
+def _iso_date(value: str | None):
+    """ISO-Datumsstring (YYYY-MM-DD) -> date, sonst None (defensiv)."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value)[:10]).date()
+    except ValueError:
+        return None
+
+
 async def dokument_suchen(
     client: EloClient, params: SearchParams, repo_hint: str
 ) -> dict[str, Any]:
@@ -76,6 +86,23 @@ async def statistik_dokumente_zaehlen(
     felder = {k: _fuzzy(v) for k, v in params.felder.items()}
     items = await client.search_keywording(felder)
     docs = [it for it in items if not it.get("isDir", False)]
+
+    # Optionaler Zeitraumfilter (client-seitig, auf das Ablage-/Änderungsdatum).
+    # Ergänzt die serverseitige Feldsuche — die Keywording-Suche kann keine
+    # Datumsbereiche (nur exakte Feldwerte / das Jahresfeld INVOICE_FIN_YEAR).
+    von, bis = _iso_date(params.datum_von), _iso_date(params.datum_bis)
+    if von or bis:
+        im_bereich = []
+        for it in docs:
+            d = _date(it)
+            if not d:
+                continue
+            dd = datetime.fromisoformat(d).date()
+            if (von and dd < von) or (bis and dd > bis):
+                continue
+            im_bereich.append(it)
+        docs = im_bereich
+
     result: dict[str, Any] = {"gesamt": len(docs)}
     if params.aelter_als_tage is not None:
         today = datetime.now(timezone.utc).date()
@@ -87,6 +114,8 @@ async def statistik_dokumente_zaehlen(
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
 
     label = "Keywording-Suche: " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
+    if von or bis:
+        label += f" | Zeitraum {params.datum_von or '…'}–{params.datum_bis or '…'}"
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
     # Beispiel-Treffer mitgeben, damit "finde …" auch eine Liste zeigen kann
     # (nicht nur eine Zahl). Begrenzt, um das Kontextfenster zu schonen.
