@@ -9,11 +9,12 @@ X-Tenant-ID; produktiv aus validiertem JWT.
 """
 
 import logging
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, Path
+from fastapi import FastAPI, Header, HTTPException, Path, Response
 from pydantic import ValidationError
 
 from . import db
@@ -169,4 +170,58 @@ async def invoke(
     return InvokeResponse(
         data=data,
         meta=Meta(tenant_id=x_tenant_id, connector_id=CONNECTOR_ID, request_id=request_id),
+    )
+
+
+@app.get("/api/v1/connectors/{connector_id}/file/{file_id}")
+async def get_file(
+    connector_id: str = Path(...),
+    file_id: str = Path(...),
+    x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
+) -> Response:
+    """Dokumentinhalt (read-only) ausliefern — PDFs inline, sonst als Download.
+
+    Wird über das Gateway von einem anklickbaren Link im DMS-Chat aufgerufen.
+    COMPLIANCE: nur Metadaten werden protokolliert, nie der Inhalt.
+    """
+    if connector_id != CONNECTOR_ID:
+        raise HTTPException(status_code=404, detail="Unbekannter Connector")
+
+    request_id = str(uuid.uuid4())
+    try:
+        conn = await get_elo_connection()
+        async with EloClient(conn.base_url, conn.user, conn.password, REQUEST_TIMEOUT_S) as client:
+            raw = await client.download(file_id)
+            try:
+                info = await client.file_info(file_id)
+                name = info.get("name") or f"dokument-{file_id}"
+            except EloError:
+                name = f"dokument-{file_id}"
+    except EloNotConfigured:
+        raise HTTPException(status_code=503, detail="ELO-Verbindung nicht konfiguriert")
+    except EloError as e:
+        logger.warning(
+            "elo_error",
+            extra={"request_id": request_id, "error_type": type(e).__name__,
+                   "error": str(e)[:300]},
+        )
+        raise HTTPException(status_code=502, detail="DMS derzeit nicht verfügbar")
+
+    is_pdf = raw[:5] == b"%PDF-"
+    media = "application/pdf" if is_pdf else "application/octet-stream"
+    # Dateiname ASCII-sicher für den Content-Disposition-Header
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_")[:80] or f"dokument-{file_id}"
+    if is_pdf and not safe.lower().endswith(".pdf"):
+        safe += ".pdf"
+    disposition = "inline" if is_pdf else "attachment"
+
+    logger.info(
+        "file",
+        extra={"tenant_id": x_tenant_id, "request_id": request_id,
+               "file_id": str(file_id), "size_bytes": len(raw), "pdf": is_pdf},
+    )
+    return Response(
+        content=raw,
+        media_type=media,
+        headers={"Content-Disposition": f'{disposition}; filename="{safe}"'},
     )
