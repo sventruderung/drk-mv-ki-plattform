@@ -49,8 +49,9 @@ _ELO_CONNECTOR = ConnectorIn(
             name="statistik.dokumente_zaehlen",
             description=(
                 "Zählt/filtert Rechnungen. belegdatum (JJJJMM oder JJJJ) sucht nach "
-                "Rechnungs-/Belegdatum in BEIDEN Rechnungsarten; felder filtert über "
-                "echte Indexfelder; datum_von/datum_bis filtert über das Ablagedatum."
+                "Rechnungs-/Belegdatum; rechnungsart wählt Eingang/Ausgang/beide; "
+                "felder filtert über echte Indexfelder; datum_von/datum_bis über das "
+                "Ablagedatum."
             ),
             params_schema={
                 "type": "object",
@@ -58,7 +59,14 @@ _ELO_CONNECTOR = ConnectorIn(
                     "belegdatum": {
                         "type": "string",
                         "description": "Belegdatum-Präfix JJJJMM (Monat) oder JJJJ (Jahr), "
-                                       "z.B. '202606' oder '2021' — sucht Ein- und Ausgang.",
+                                       "z.B. '202606' oder '2021'.",
+                    },
+                    "rechnungsart": {
+                        "type": "string",
+                        "enum": ["eingang", "ausgang", "beide"],
+                        "description": "eingang=Eingangsrechnungen (Lieferanten/Kreditoren), "
+                                       "ausgang=Ausgangsrechnungen (Kunden/Debitoren), "
+                                       "beide=zusammen. Bei belegdatum immer passend setzen.",
                     },
                     "felder": {
                         "type": "object",

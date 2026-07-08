@@ -34,8 +34,11 @@ class StatsParams(BaseModel):
 
     felder: dict[str, str] = Field(default_factory=dict, description="Indexfeld -> Wert")
     # Belegdatum-Präfix JJJJMM (Monat) oder JJJJ (Jahr): sucht das Rechnungs-/
-    # Belegdatum in BEIDEN Masken (INVOICE_DATE + E4S_BELEG_DATE) serverseitig.
+    # Belegdatum serverseitig (INVOICE_DATE und/oder E4S_BELEG_DATE, je rechnungsart).
     belegdatum: str | None = Field(default=None, description="Belegdatum-Präfix JJJJMM oder JJJJ")
+    # Rechnungsart steuert Maske/Feld: eingang=Incoming Invoice (INVOICE_*),
+    # ausgang=Sage Verkaufsbeleg (E4S_*), beide/leer=beide.
+    rechnungsart: str | None = Field(default=None, description="eingang | ausgang | beide")
     aelter_als_tage: int | None = Field(default=None, ge=0, le=3650)
     # Optionaler Zeitraumfilter (ISO YYYY-MM-DD) auf das ABLAGE-/Importdatum
     datum_von: str | None = Field(default=None, description="Ablagedatum untere Grenze, ISO YYYY-MM-DD")
