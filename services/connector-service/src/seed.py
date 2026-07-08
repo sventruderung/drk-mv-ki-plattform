@@ -73,6 +73,11 @@ _ELO_CONNECTOR = ConnectorIn(
                         "description": "True = Detail-Tabelle ausgeben (bei 'zeige/liste/"
                                        "welche/alle'); False = nur die Anzahl (bei 'wie viele').",
                     },
+                    "summe": {
+                        "type": "boolean",
+                        "description": "True = Beträge der Treffer aufsummieren (bei "
+                                       "'Gesamtsumme/Summe/wie hoch ist der Betrag').",
+                    },
                     "felder": {
                         "type": "object",
                         "additionalProperties": {"type": "string"},
