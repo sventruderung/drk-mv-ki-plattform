@@ -13,7 +13,6 @@ nur Metadaten geloggt, nie Frage- oder Dokumentinhalte.
 """
 
 import json
-import re
 from datetime import datetime, timedelta
 
 import httpx
@@ -276,27 +275,10 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
                    "Textantwort erzeugen." if sources else
                    "Dazu konnte ich im Dokumentensystem nichts finden.").encode()
 
-        # Vollständige Tabelle anhängen (enthält bereits die PDF-Links pro Zeile);
-        # die separate Quellenliste ist dann überflüssig.
+        # Vollständige Tabelle anhängen — die PDF-Links stehen bereits pro Zeile;
+        # eine separate Quellenliste ist damit überflüssig.
         if table_md:
             yield table_md.encode()
-        elif sources:
-            seen, lines = set(), []
-            for s in sources:
-                ref = s.get("ref", "")
-                if ref in seen:
-                    continue
-                seen.add(ref)
-                title = s.get("title", "Dokument")
-                m = re.search(r"/files/(\d+)", ref)
-                if m:
-                    url = f"{doc_prefix}/api/v1/elo/document/{m.group(1)}"
-                    lines.append(f"- [{title}]({url})")
-                else:
-                    lines.append(f"- {title} ({ref})")
-            if lines:
-                yield ("\n\n---\n📂 Quellen aus dem DMS (zum Öffnen anklicken):\n"
-                       + "\n".join(lines)).encode()
 
     return StreamingResponse(stream(), media_type="text/plain; charset=utf-8")
 
