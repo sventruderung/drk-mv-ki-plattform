@@ -32,7 +32,9 @@ def _fuzzy(value: str) -> str:
 
 
 def _date(item: dict[str, Any]) -> str | None:
-    raw = item.get("dateArchived") or item.get("dateModified")
+    # dateCustom = ELO-Dokumentdatum (bei Rechnungen das Beleg-/Rechnungsdatum) —
+    # aussagekräftiger als dateModified (oft Bulk-Reindex). Fallback: Ablagedatum.
+    raw = item.get("dateCustom") or item.get("dateArchived") or item.get("dateModified")
     if not raw:
         return None
     try:
