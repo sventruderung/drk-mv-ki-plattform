@@ -131,6 +131,8 @@ DATE_FIELDS = ("INVOICE_DATE", "E4S_BELEG_DATE")  # Eingang / Ausgang (Sage)
 SHARED_FIELDS = {"COMPANY_NAME", "COMPANY_CODE"}
 # Obergrenze für die Detail-Liste (Schutz vor Extremfällen; Suche deckelt bei 1000).
 MAX_BEISPIELE = 300
+# Obergrenze für die Betrags-Summierung (liest pro Beleg die Verschlagwortung).
+SUM_CAP = 5000
 # Gleichzeitige /keywording-Abrufe begrenzen, um den ELO-Server nicht zu fluten.
 _DETAIL_CONCURRENCY = 20
 
@@ -163,6 +165,7 @@ async def statistik_dokumente_zaehlen(
             "sources": [{"title": "Hinweis", "ref": f"elo://{repo_hint}/hinweis"}],
         }
 
+    monat_gedeckelt = False
     if params.belegdatum:
         # Zeitraum über das Belegdatum. rechnungsart bestimmt Maske/Feld:
         # eingang=INVOICE_DATE, ausgang=E4S_BELEG_DATE, sonst beide.
@@ -174,15 +177,20 @@ async def statistik_dokumente_zaehlen(
         else:
             date_fields = DATE_FIELDS
         pref = params.belegdatum.strip()
+        # Jahr (JJJJ) in 12 Monate zerlegen — jede Monatsabfrage bleibt unter dem
+        # 1000er-Suchdeckel, die Vereinigung ist damit vollständig/exakt.
+        monate = [f"{pref}{m:02d}" for m in range(1, 13)] if len(pref) == 4 else [pref]
         merged: dict[Any, dict] = {}
         for date_field in date_fields:
-            query = {date_field: pref + "*"}
-            for k, v in params.felder.items():
-                if _fits_mask(k, date_field):
-                    query[k] = _fuzzy(v)
-            for it in await client.search_keywording(query):
-                if not it.get("isDir", False):
-                    merged[it.get("id")] = it
+            feld_maske = {k: _fuzzy(v) for k, v in params.felder.items()
+                          if _fits_mask(k, date_field)}
+            for mp in monate:
+                treffer = await client.search_keywording({date_field: mp + "*", **feld_maske})
+                if len(treffer) >= 1000:
+                    monat_gedeckelt = True   # ein einzelner Monat sprengt den Cap
+                for it in treffer:
+                    if not it.get("isDir", False):
+                        merged[it.get("id")] = it
         docs = list(merged.values())
         label = f"Belegdatum {pref}*"
         if params.felder:
@@ -216,6 +224,9 @@ async def statistik_dokumente_zaehlen(
         label += f" | Ablage {params.datum_von or '…'}–{params.datum_bis or '…'}"
 
     result: dict[str, Any] = {"gesamt": len(docs)}
+    if monat_gedeckelt:
+        result["hinweis"] = ("Mindestens ein Monat überschritt 1000 Treffer — Zahl/"
+                             "Summe evtl. unvollständig; Zeitraum enger fassen.")
     if params.aelter_als_tage is not None:
         today = datetime.now(timezone.utc).date()
         aelter = 0
@@ -237,13 +248,13 @@ async def statistik_dokumente_zaehlen(
                     return None
             return _parse_amount(f.get("INVOICE_TOTAL_AMOUNT") or f.get("E4S_BRUTTO"))
 
-        betraege = await asyncio.gather(*(_amount(it) for it in docs[:MAX_BEISPIELE]))
+        betraege = await asyncio.gather(*(_amount(it) for it in docs[:SUM_CAP]))
         gueltig = [b for b in betraege if b is not None]
         result["summe"] = _fmt_amount(sum(gueltig))
         result["summe_waehrung"] = "EUR"
         result["summe_anzahl"] = len(gueltig)
-        if len(docs) > MAX_BEISPIELE:
-            result["hinweis"] = (f"Summe über {MAX_BEISPIELE} von {len(docs)} Treffern "
+        if len(docs) > SUM_CAP:
+            result["hinweis"] = (f"Summe über {SUM_CAP} von {len(docs)} Treffern "
                                  "— bitte enger filtern.")
 
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
