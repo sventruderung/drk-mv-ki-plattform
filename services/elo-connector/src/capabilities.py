@@ -70,6 +70,23 @@ def _clean_status(value: str | None) -> str:
     return s
 
 
+def _parse_amount(value: str | None) -> float | None:
+    """Deutscher Betrag '1.648,15' -> 1648.15 (defensiv)."""
+    s = (str(value) if value else "").strip()
+    if not s:
+        return None
+    s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _fmt_amount(value: float) -> str:
+    """1648.15 -> '1.648,15' (deutsche Schreibweise)."""
+    return f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _bezahlt(status: str | None) -> str:
     """INVOICE_STATUS -> bezahlt. Beim Kunden gilt 'Gebucht' (Status 7) als
     bezahlt; leer -> unbekannt, alle anderen Stände -> nein."""
@@ -207,6 +224,27 @@ async def statistik_dokumente_zaehlen(
             if d and (today - datetime.fromisoformat(d).date()).days > params.aelter_als_tage:
                 aelter += 1
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
+
+    # Optional: Beträge der Treffer summieren (für 'Gesamtsumme/wie hoch').
+    if params.summe:
+        sem_s = asyncio.Semaphore(_DETAIL_CONCURRENCY)
+
+        async def _amount(it: dict) -> float | None:
+            async with sem_s:
+                try:
+                    f = (await client.keywording(it.get("id"))).get("fields", {})
+                except EloError:
+                    return None
+            return _parse_amount(f.get("INVOICE_TOTAL_AMOUNT") or f.get("E4S_BRUTTO"))
+
+        betraege = await asyncio.gather(*(_amount(it) for it in docs[:MAX_BEISPIELE]))
+        gueltig = [b for b in betraege if b is not None]
+        result["summe"] = _fmt_amount(sum(gueltig))
+        result["summe_waehrung"] = "EUR"
+        result["summe_anzahl"] = len(gueltig)
+        if len(docs) > MAX_BEISPIELE:
+            result["hinweis"] = (f"Summe über {MAX_BEISPIELE} von {len(docs)} Treffern "
+                                 "— bitte enger filtern.")
 
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
 

@@ -41,6 +41,8 @@ class StatsParams(BaseModel):
     rechnungsart: str | None = Field(default=None, description="eingang | ausgang | beide")
     # liste=True: Detail-Tabelle (zeige/liste/welche). False: nur Anzahl (wie viele).
     liste: bool = Field(default=False, description="True=Detailliste, False=nur Anzahl")
+    # summe=True: Beträge der Treffer aufsummieren (für 'Gesamtsumme/wie hoch').
+    summe: bool = Field(default=False, description="True=Beträge summieren")
     aelter_als_tage: int | None = Field(default=None, ge=0, le=3650)
     # Optionaler Zeitraumfilter (ISO YYYY-MM-DD) auf das ABLAGE-/Importdatum
     datum_von: str | None = Field(default=None, description="Ablagedatum untere Grenze, ISO YYYY-MM-DD")
