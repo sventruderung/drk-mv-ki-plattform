@@ -71,12 +71,12 @@ def _clean_status(value: str | None) -> str:
 
 
 def _bezahlt(status: str | None) -> str:
-    """Best-effort aus dem INVOICE_STATUS-Text: 'bezahlt/gezahlt' -> ja,
-    leer -> unbekannt, sonst nein (Workflow-Stand noch nicht = bezahlt)."""
+    """INVOICE_STATUS -> bezahlt. Beim Kunden gilt 'Gebucht' (Status 7) als
+    bezahlt; leer -> unbekannt, alle anderen Stände -> nein."""
     s = (str(status) if status else "").strip().lower()
     if not s:
         return "unbekannt"
-    if "bezahl" in s or "gezahl" in s:
+    if "gebucht" in s or "bezahl" in s or "gezahl" in s:
         return "ja"
     return "nein"
 
