@@ -133,10 +133,18 @@ async def statistik_dokumente_zaehlen(
         }
 
     if params.belegdatum:
-        # Zeitraum über das Belegdatum: beide Masken abfragen und zusammenführen.
+        # Zeitraum über das Belegdatum. rechnungsart bestimmt Maske/Feld:
+        # eingang=INVOICE_DATE, ausgang=E4S_BELEG_DATE, sonst beide.
+        art = (params.rechnungsart or "").strip().lower()
+        if art.startswith("eing"):
+            date_fields = ("INVOICE_DATE",)
+        elif art.startswith("ausg"):
+            date_fields = ("E4S_BELEG_DATE",)
+        else:
+            date_fields = DATE_FIELDS
         pref = params.belegdatum.strip()
         merged: dict[Any, dict] = {}
-        for date_field in DATE_FIELDS:
+        for date_field in date_fields:
             query = {date_field: pref + "*"}
             for k, v in params.felder.items():
                 if _fits_mask(k, date_field):
