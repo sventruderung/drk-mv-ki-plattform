@@ -208,11 +208,17 @@ async def statistik_dokumente_zaehlen(
                 aelter += 1
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
 
+    sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
+
+    # Detail-Tabelle NUR bei Auflistungswunsch (liste=True). Reine Zählfragen
+    # ('wie viele …') liefern nur 'gesamt' — keine (teure) Detailliste.
+    if not params.liste:
+        return {"result": result, "sources": sources}
+
     if len(docs) > MAX_BEISPIELE:
         result["hinweis"] = (f"Es werden {MAX_BEISPIELE} von {len(docs)} Treffern "
                              "aufgelistet — bitte den Zeitraum/Filter enger fassen.")
 
-    sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
     # Alle Treffer (bis MAX_BEISPIELE) mit Details anreichern (von, Datum, Betrag,
     # Status). Pro-Dokument-Abfragen laufen parallel, aber gedrosselt.
     sem = asyncio.Semaphore(_DETAIL_CONCURRENCY)
