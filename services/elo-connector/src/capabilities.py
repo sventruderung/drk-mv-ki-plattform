@@ -80,18 +80,64 @@ async def dokument_zusammenfassen(
     }
 
 
+# Belegdatum-Feld je Rechnungsart (beide Format JJJJMMTT) und maskenübergreifend
+# nutzbare Felder. Für Belegdatum-Zeiträume werden BEIDE Felder durchsucht.
+DATE_FIELDS = ("INVOICE_DATE", "E4S_BELEG_DATE")  # Eingang / Ausgang (Sage)
+SHARED_FIELDS = {"COMPANY_NAME", "COMPANY_CODE"}
+
+
+def _fits_mask(feld: str, date_field: str) -> bool:
+    """Gehört ein felder-Schlüssel zur Maske des jeweiligen Datumsfeldes?"""
+    if feld in SHARED_FIELDS:
+        return True
+    if date_field.startswith("INVOICE"):
+        return feld.startswith(("INVOICE", "VENDOR"))
+    return feld.startswith("E4S")
+
+
 async def statistik_dokumente_zaehlen(
     client: EloClient, params: StatsParams, repo_hint: str
 ) -> dict[str, Any]:
-    """`statistik.dokumente_zaehlen` -> POST /api/search/keywording + Zählung."""
-    # Text-/Namensfelder unscharf machen (verschiedene Schreibweisen), Zahlen exakt.
-    felder = {k: _fuzzy(v) for k, v in params.felder.items()}
-    items = await client.search_keywording(felder)
-    docs = [it for it in items if not it.get("isDir", False)]
+    """`statistik.dokumente_zaehlen` -> POST /api/search/keywording + Zählung.
 
-    # Optionaler Zeitraumfilter (client-seitig, auf das Ablage-/Änderungsdatum).
-    # Ergänzt die serverseitige Feldsuche — die Keywording-Suche kann keine
-    # Datumsbereiche (nur exakte Feldwerte / das Jahresfeld INVOICE_FIN_YEAR).
+    belegdatum (JJJJMM/JJJJ) durchsucht beide Rechnungsarten serverseitig über
+    ihr Belegdatum-Feld; felder filtert direkt; datum_von/-bis filtert zusätzlich
+    client-seitig über das Ablagedatum.
+    """
+    if not params.felder and not params.belegdatum \
+            and not params.datum_von and not params.datum_bis \
+            and params.aelter_als_tage is None:
+        return {
+            "result": {"hinweis": "Bitte ein Filterkriterium angeben: ein Feld "
+                       "(z.B. Kreditor/Kunde), einen Belegzeitraum (belegdatum) "
+                       "oder ein Ablagedatum (datum_von/datum_bis)."},
+            "sources": [{"title": "Hinweis", "ref": f"elo://{repo_hint}/hinweis"}],
+        }
+
+    if params.belegdatum:
+        # Zeitraum über das Belegdatum: beide Masken abfragen und zusammenführen.
+        pref = params.belegdatum.strip()
+        merged: dict[Any, dict] = {}
+        for date_field in DATE_FIELDS:
+            query = {date_field: pref + "*"}
+            for k, v in params.felder.items():
+                if _fits_mask(k, date_field):
+                    query[k] = _fuzzy(v)
+            for it in await client.search_keywording(query):
+                if not it.get("isDir", False):
+                    merged[it.get("id")] = it
+        docs = list(merged.values())
+        label = f"Belegdatum {pref}*"
+        if params.felder:
+            label += " | " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
+    else:
+        # Reine Feldsuche (unscharf für Text, exakt für Zahlen/Datum).
+        felder = {k: _fuzzy(v) for k, v in params.felder.items()}
+        items = await client.search_keywording(felder)
+        docs = [it for it in items if not it.get("isDir", False)]
+        label = "Keywording: " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
+
+    # Zusätzlicher Zeitraumfilter auf das ABLAGE-/Importdatum (client-seitig).
     von, bis = _iso_date(params.datum_von), _iso_date(params.datum_bis)
     if von or bis:
         im_bereich = []
@@ -104,6 +150,7 @@ async def statistik_dokumente_zaehlen(
                 continue
             im_bereich.append(it)
         docs = im_bereich
+        label += f" | Ablage {params.datum_von or '…'}–{params.datum_bis or '…'}"
 
     result: dict[str, Any] = {"gesamt": len(docs)}
     if params.aelter_als_tage is not None:
@@ -115,9 +162,6 @@ async def statistik_dokumente_zaehlen(
                 aelter += 1
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
 
-    label = "Keywording-Suche: " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
-    if von or bis:
-        label += f" | Zeitraum {params.datum_von or '…'}–{params.datum_bis or '…'}"
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
     # Beispiel-Treffer mitgeben, damit "finde …" auch eine Liste zeigen kann
     # (nicht nur eine Zahl). Begrenzt, um das Kontextfenster zu schonen.

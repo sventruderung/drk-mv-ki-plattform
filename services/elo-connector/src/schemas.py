@@ -32,11 +32,14 @@ class StatsParams(BaseModel):
     `felder` ist ein Indexfeld-Filter (Keywording), z.B. {"INVOICE_STATUS": "offen"}.
     """
 
-    felder: dict[str, str] = Field(..., min_length=1, description="Indexfeld -> Wert")
+    felder: dict[str, str] = Field(default_factory=dict, description="Indexfeld -> Wert")
+    # Belegdatum-Präfix JJJJMM (Monat) oder JJJJ (Jahr): sucht das Rechnungs-/
+    # Belegdatum in BEIDEN Masken (INVOICE_DATE + E4S_BELEG_DATE) serverseitig.
+    belegdatum: str | None = Field(default=None, description="Belegdatum-Präfix JJJJMM oder JJJJ")
     aelter_als_tage: int | None = Field(default=None, ge=0, le=3650)
-    # Optionaler Zeitraumfilter (ISO YYYY-MM-DD) auf das Ablage-/Änderungsdatum
-    datum_von: str | None = Field(default=None, description="Untere Datumsgrenze, ISO YYYY-MM-DD")
-    datum_bis: str | None = Field(default=None, description="Obere Datumsgrenze, ISO YYYY-MM-DD")
+    # Optionaler Zeitraumfilter (ISO YYYY-MM-DD) auf das ABLAGE-/Importdatum
+    datum_von: str | None = Field(default=None, description="Ablagedatum untere Grenze, ISO YYYY-MM-DD")
+    datum_bis: str | None = Field(default=None, description="Ablagedatum obere Grenze, ISO YYYY-MM-DD")
 
 
 class InvokeRequest(BaseModel):

@@ -48,28 +48,34 @@ _ELO_CONNECTOR = ConnectorIn(
         Capability(
             name="statistik.dokumente_zaehlen",
             description=(
-                "Zählt Dokumente nach Indexfeld-Filter (Keywording), optional nach "
-                "Alter oder Zeitraum (datum_von/datum_bis auf das Rechnungs-/Ablagedatum)."
+                "Zählt/filtert Rechnungen. belegdatum (JJJJMM oder JJJJ) sucht nach "
+                "Rechnungs-/Belegdatum in BEIDEN Rechnungsarten; felder filtert über "
+                "echte Indexfelder; datum_von/datum_bis filtert über das Ablagedatum."
             ),
             params_schema={
                 "type": "object",
                 "properties": {
+                    "belegdatum": {
+                        "type": "string",
+                        "description": "Belegdatum-Präfix JJJJMM (Monat) oder JJJJ (Jahr), "
+                                       "z.B. '202606' oder '2021' — sucht Ein- und Ausgang.",
+                    },
                     "felder": {
                         "type": "object",
                         "additionalProperties": {"type": "string"},
-                        "description": 'Indexfeld -> Wert, z.B. {"INVOICE_STATUS":"offen"}',
+                        "description": 'Indexfeld -> Wert, z.B. {"VENDOR_NAME":"Firma X"} '
+                                       'oder {"E4S_KUNDEN_NAME":"Kunde Y"}',
                     },
                     "aelter_als_tage": {"type": "integer", "minimum": 0, "maximum": 3650},
                     "datum_von": {
                         "type": "string",
-                        "description": "Untere Datumsgrenze, ISO YYYY-MM-DD (z.B. Monatsanfang)",
+                        "description": "Ablagedatum untere Grenze, ISO YYYY-MM-DD",
                     },
                     "datum_bis": {
                         "type": "string",
-                        "description": "Obere Datumsgrenze, ISO YYYY-MM-DD (z.B. Monatsende)",
+                        "description": "Ablagedatum obere Grenze, ISO YYYY-MM-DD",
                     },
                 },
-                "required": ["felder"],
             },
         ),
     ],
