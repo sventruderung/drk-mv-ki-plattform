@@ -65,8 +65,13 @@ _ELO_CONNECTOR = ConnectorIn(
                         "type": "string",
                         "enum": ["eingang", "ausgang", "beide"],
                         "description": "eingang=Eingangsrechnungen (Lieferanten/Kreditoren), "
-                                       "ausgang=Ausgangsrechnungen (Kunden/Debitoren), "
+                                       "ausgang=Ausgangsrechnungen (Kunden/Debitoren, Sage), "
                                        "beide=zusammen. Bei belegdatum immer passend setzen.",
+                    },
+                    "liste": {
+                        "type": "boolean",
+                        "description": "True = Detail-Tabelle ausgeben (bei 'zeige/liste/"
+                                       "welche/alle'); False = nur die Anzahl (bei 'wie viele').",
                     },
                     "felder": {
                         "type": "object",
