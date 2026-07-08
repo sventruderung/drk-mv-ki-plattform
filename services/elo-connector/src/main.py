@@ -14,6 +14,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Path
+from pydantic import ValidationError
 
 from . import db
 from .capabilities import (
@@ -98,15 +99,40 @@ async def invoke(
     try:
         conn = await get_elo_connection()
         async with EloClient(conn.base_url, conn.user, conn.password, REQUEST_TIMEOUT_S) as client:
-            if req.capability == "dokument.suchen":
-                data = await dokument_suchen(client, SearchParams(**req.params), CONNECTOR_ID)
-            elif req.capability == "dokument.zusammenfassen":
-                data = await dokument_zusammenfassen(
-                    client, SummarizeParams(**req.params), CONNECTOR_ID
-                )
-            else:  # statistik.dokumente_zaehlen
-                data = await statistik_dokumente_zaehlen(
-                    client, StatsParams(**req.params), CONNECTOR_ID
+            try:
+                if req.capability == "dokument.suchen":
+                    data = await dokument_suchen(client, SearchParams(**req.params), CONNECTOR_ID)
+                elif req.capability == "dokument.zusammenfassen":
+                    data = await dokument_zusammenfassen(
+                        client, SummarizeParams(**req.params), CONNECTOR_ID
+                    )
+                else:  # statistik.dokumente_zaehlen
+                    data = await statistik_dokumente_zaehlen(
+                        client, StatsParams(**req.params), CONNECTOR_ID
+                    )
+            except ValidationError as e:
+                # Ungültige/fehlende Tool-Argumente (z.B. leerer Filter felder={})
+                # NICHT als 500 durchreichen — sonst kippt der gesamte Chat auf
+                # "Dokumentensystem nicht verfügbar". Stattdessen einen Klartext-
+                # Hinweis an das Modell zurückgeben, damit es sinnvoll nachfragen kann.
+                status = "invalid_params"
+                felder = ", ".join(str(err.get("loc", ["?"])[0]) for err in e.errors())
+                return InvokeResponse(
+                    data={
+                        "result": {
+                            "hinweis": (
+                                "Der Werkzeugaufruf hatte ungültige oder fehlende "
+                                f"Parameter ({felder}). Für eine Zählung wird mindestens "
+                                "ein Filterkriterium benötigt (z.B. Jahr, Status, "
+                                "Lieferant). Bitte den Nutzer nach einem Kriterium fragen "
+                                "oder die Freitextsuche 'dokument.suchen' verwenden."
+                            )
+                        },
+                        "sources": [],
+                    },
+                    meta=Meta(
+                        tenant_id=x_tenant_id, connector_id=CONNECTOR_ID, request_id=request_id
+                    ),
                 )
     except EloNotConfigured:
         status = "not_configured"
