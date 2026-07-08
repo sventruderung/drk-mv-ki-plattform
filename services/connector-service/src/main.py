@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Path
+from fastapi.responses import StreamingResponse
 
 from .logging_conf import configure_logging
 from .models import (
@@ -156,3 +157,48 @@ async def invoke(
         extra={"connector_id": c.id, "tenant_id": x_tenant_id, "capability": req.capability, "status": "ok"},
     )
     return resp.json()
+
+
+@app.get("/api/v1/connectors/{connector_id}/file/{file_id}")
+async def get_file(
+    connector_id: str = Path(...),
+    file_id: str = Path(...),
+    x_tenant_id: str = Header(..., alias="X-Tenant-ID"),
+) -> StreamingResponse:
+    """Dokumentinhalt tenant-geprüft vom Adapter durchreichen (read-only, Stream)."""
+    try:
+        c = registry.get(connector_id)
+    except ConnectorNotFound:
+        raise HTTPException(status_code=404, detail="Unbekannter Connector")
+    if x_tenant_id not in c.tenants:
+        raise HTTPException(status_code=404, detail="Unbekannter Connector")
+
+    url = c.invoke_base_url.rstrip("/") + f"/api/v1/connectors/{connector_id}/file/{file_id}"
+    client = httpx.AsyncClient(timeout=120.0)
+    try:
+        req = client.build_request("GET", url, headers={"X-Tenant-ID": x_tenant_id})
+        resp = await client.send(req, stream=True)
+    except httpx.HTTPError:
+        await client.aclose()
+        logger.info("file", extra={"connector_id": c.id, "tenant_id": x_tenant_id, "status": "adapter_error"})
+        raise HTTPException(status_code=502, detail="Connector derzeit nicht verfügbar")
+    if resp.status_code != 200:
+        code = resp.status_code
+        await resp.aclose()
+        await client.aclose()
+        raise HTTPException(status_code=code, detail="Dokument nicht abrufbar")
+
+    async def body():
+        try:
+            async for chunk in resp.aiter_raw():
+                yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
+
+    logger.info("file", extra={"connector_id": c.id, "tenant_id": x_tenant_id, "status": "ok"})
+    return StreamingResponse(
+        body(),
+        media_type=resp.headers.get("content-type", "application/octet-stream"),
+        headers={"Content-Disposition": resp.headers.get("content-disposition", "inline")},
+    )

@@ -32,5 +32,9 @@ class Settings(BaseSettings):
     # Embedding-Modell für die RAG-Suche (muss zum Index passen)
     embedding_model: str = "nomic-embed-text"
     minio_health_url: str = "http://minio:9000/minio/health/live"
+    # Öffentliches Pfad-Präfix, unter dem das Gateway hinter Caddy erreichbar ist
+    # (die Plattform-API liegt dort unter /drk-gw, weil /api Open WebUI gehört).
+    # Wird für die anklickbaren DMS-Dokument-Links im Chat vorangestellt.
+    elo_doc_url_prefix: str = "/drk-gw"
 
     cors_origins: list[str] = ["http://localhost:3000"]

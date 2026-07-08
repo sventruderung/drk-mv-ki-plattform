@@ -16,7 +16,7 @@ import json
 import re
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -24,6 +24,9 @@ from drk_shared.logging import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["elo"])
+
+# ID des ELO-Connectors in der Registry (siehe connector-service/seed.py).
+ELO_CONNECTOR_ID = "dms-elo-01"
 
 
 class EloChatRequest(BaseModel):
@@ -204,14 +207,60 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
         yield answer.encode()
 
         if sources:
+            prefix = request.app.state.settings.elo_doc_url_prefix.rstrip("/")
             seen, lines = set(), []
             for s in sources:
                 ref = s.get("ref", "")
                 if ref in seen:
                     continue
                 seen.add(ref)
-                lines.append(f"- {s.get('title', 'Dokument')} ({ref})")
+                title = s.get("title", "Dokument")
+                # ref = elo://<connector>/files/<id> -> anklickbarer Öffnen-Link
+                m = re.search(r"/files/(\d+)", ref)
+                if m:
+                    url = f"{prefix}/api/v1/elo/document/{m.group(1)}"
+                    lines.append(f"- [{title}]({url})")
+                else:
+                    lines.append(f"- {title} ({ref})")
             if lines:
-                yield ("\n\n---\n📂 Quellen aus dem DMS:\n" + "\n".join(lines)).encode()
+                yield ("\n\n---\n📂 Quellen aus dem DMS (zum Öffnen anklicken):\n"
+                       + "\n".join(lines)).encode()
 
     return StreamingResponse(stream(), media_type="text/plain; charset=utf-8")
+
+
+@router.get("/elo/document/{file_id}")
+async def elo_document(file_id: str, request: Request) -> StreamingResponse:
+    """Ein ELO-Dokument (read-only) ausliefern — für die anklickbaren Quellen-Links
+    im DMS-Chat. Auth via OIDC-Cookie (JWTMiddleware lässt genau diesen GET-Pfad
+    per Cookie zu); tenant_id stammt aus dem Token. PDFs kommen inline zurück."""
+    tenant_id = request.state.tenant_id
+    logger.info("elo_document.request", tenant_id=tenant_id)  # nur Metadaten
+
+    url = f"{_connector_url(request)}/api/v1/connectors/{ELO_CONNECTOR_ID}/file/{file_id}"
+    client = httpx.AsyncClient(timeout=120)
+    try:
+        req = client.build_request("GET", url, headers={"X-Tenant-ID": tenant_id})
+        resp = await client.send(req, stream=True)
+    except httpx.HTTPError:
+        await client.aclose()
+        raise HTTPException(status_code=502, detail="Dokument nicht abrufbar")
+    if resp.status_code != 200:
+        code = resp.status_code
+        await resp.aclose()
+        await client.aclose()
+        raise HTTPException(status_code=code, detail="Dokument nicht abrufbar")
+
+    async def body():
+        try:
+            async for chunk in resp.aiter_raw():
+                yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        body(),
+        media_type=resp.headers.get("content-type", "application/octet-stream"),
+        headers={"Content-Disposition": resp.headers.get("content-disposition", "inline")},
+    )
