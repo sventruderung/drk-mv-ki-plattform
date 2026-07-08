@@ -133,9 +133,12 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
 
             for round_no in range(4):
                 use_tools = round_no < 3   # letzte Runde erzwingt Textantwort
-                # think=false: qwen3 ohne langes "Nachdenken" -> deutlich schneller
-                payload = {"model": model, "messages": messages, "stream": False,
-                           "think": False}
+                payload = {"model": model, "messages": messages, "stream": False}
+                # 'think' ist qwen3-spezifisch (schaltet das lange "Nachdenken" ab).
+                # Andere Modelle (Mistral, llama3.3) brechen mit dem Parameter ab —
+                # daher nur für qwen3 setzen.
+                if "qwen3" in model.lower():
+                    payload["think"] = False
                 if use_tools:
                     payload["tools"] = tools
                 resp = await client.post(f"{ollama}/api/chat", json=payload)
