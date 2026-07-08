@@ -112,6 +112,10 @@ async def dokument_zusammenfassen(
 # nutzbare Felder. Für Belegdatum-Zeiträume werden BEIDE Felder durchsucht.
 DATE_FIELDS = ("INVOICE_DATE", "E4S_BELEG_DATE")  # Eingang / Ausgang (Sage)
 SHARED_FIELDS = {"COMPANY_NAME", "COMPANY_CODE"}
+# Obergrenze für die Detail-Liste (Schutz vor Extremfällen; Suche deckelt bei 1000).
+MAX_BEISPIELE = 300
+# Gleichzeitige /keywording-Abrufe begrenzen, um den ELO-Server nicht zu fluten.
+_DETAIL_CONCURRENCY = 20
 
 
 def _fits_mask(feld: str, date_field: str) -> bool:
@@ -204,14 +208,21 @@ async def statistik_dokumente_zaehlen(
                 aelter += 1
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
 
+    if len(docs) > MAX_BEISPIELE:
+        result["hinweis"] = (f"Es werden {MAX_BEISPIELE} von {len(docs)} Treffern "
+                             "aufgelistet — bitte den Zeitraum/Filter enger fassen.")
+
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
-    # Beispiel-Treffer mit Details anreichern (von wem, Datum, Betrag, Status).
-    # Die Pro-Dokument-Abfragen laufen PARALLEL (spart bei 10 Treffern ~1-2 s).
+    # Alle Treffer (bis MAX_BEISPIELE) mit Details anreichern (von, Datum, Betrag,
+    # Status). Pro-Dokument-Abfragen laufen parallel, aber gedrosselt.
+    sem = asyncio.Semaphore(_DETAIL_CONCURRENCY)
+
     async def _detail(it: dict) -> dict:
         fid, name = it.get("id"), it.get("name", "")
         eintrag = {"id": fid, "name": name}
         try:
-            f = (await client.keywording(fid)).get("fields", {})
+            async with sem:
+                f = (await client.keywording(fid)).get("fields", {})
             if any(k.startswith("E4S") for k in f):   # Ausgangsrechnung (Sage)
                 eintrag.update({
                     "von": f.get("E4S_KUNDEN_NAME") or "",
@@ -234,7 +245,7 @@ async def statistik_dokumente_zaehlen(
             eintrag["datum"] = _date(it)
         return eintrag
 
-    beispiele = await asyncio.gather(*(_detail(it) for it in docs[:10]))
+    beispiele = await asyncio.gather(*(_detail(it) for it in docs[:MAX_BEISPIELE]))
     for eintrag in beispiele:
         sources.append({"title": eintrag.get("name", ""),
                         "ref": _ref(repo_hint, eintrag.get("id"))})
