@@ -5,6 +5,7 @@ Die Zusammenfassung erzeugt das Modell im LLM-Service; der Connector liefert
 nur den extrahierten Text als Datenbasis.
 """
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
@@ -204,16 +205,13 @@ async def statistik_dokumente_zaehlen(
         result[f"aelter_als_{params.aelter_als_tage}_tage"] = aelter
 
     sources = [{"title": label, "ref": f"elo://{repo_hint}/search"}]
-    # Beispiel-Treffer mitgeben, damit "finde …" auch eine Liste zeigen kann
-    # (nicht nur eine Zahl). Begrenzt, um das Kontextfenster zu schonen.
-    beispiele = []
-    for it in docs[:10]:
+    # Beispiel-Treffer mit Details anreichern (von wem, Datum, Betrag, Status).
+    # Die Pro-Dokument-Abfragen laufen PARALLEL (spart bei 10 Treffern ~1-2 s).
+    async def _detail(it: dict) -> dict:
         fid, name = it.get("id"), it.get("name", "")
         eintrag = {"id": fid, "name": name}
-        # Details (von wem, Rechnungsdatum, Betrag, bezahlt) je Maske nachladen.
         try:
-            kw = await client.keywording(fid)
-            f = kw.get("fields", {})
+            f = (await client.keywording(fid)).get("fields", {})
             if any(k.startswith("E4S") for k in f):   # Ausgangsrechnung (Sage)
                 eintrag.update({
                     "von": f.get("E4S_KUNDEN_NAME") or "",
@@ -223,8 +221,7 @@ async def statistik_dokumente_zaehlen(
                     "bezahlt": "unbekannt",
                 })
             else:                                      # Eingangsrechnung
-                # INVOICE_PAYED ist leer; der Bearbeitungsstand steckt in
-                # INVOICE_STATUS (z.B. "7 - Gebucht", "9 - Abgewiesen").
+                # INVOICE_PAYED ist leer; Stand steckt in INVOICE_STATUS.
                 status = _clean_status(f.get("INVOICE_STATUS"))
                 eintrag.update({
                     "von": f.get("VENDOR_NAME") or "",
@@ -235,9 +232,13 @@ async def statistik_dokumente_zaehlen(
                 })
         except EloError:
             eintrag["datum"] = _date(it)
-        beispiele.append(eintrag)
-        sources.append({"title": name, "ref": _ref(repo_hint, fid)})
-    result["beispiele"] = beispiele
+        return eintrag
+
+    beispiele = await asyncio.gather(*(_detail(it) for it in docs[:10]))
+    for eintrag in beispiele:
+        sources.append({"title": eintrag.get("name", ""),
+                        "ref": _ref(repo_hint, eintrag.get("id"))})
+    result["beispiele"] = list(beispiele)
     return {"result": result, "sources": sources}
 
 

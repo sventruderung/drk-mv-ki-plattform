@@ -108,14 +108,6 @@ def _date_context() -> str:
     )
 
 
-_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
-
-
-def _strip_think(text: str) -> str:
-    """qwen3 liefert teils <think>…</think> im Inhalt — entfernen."""
-    return _THINK_RE.sub("", text or "")
-
-
 async def _available_tools(client: httpx.AsyncClient, base: str, tenant_id: str):
     """Freigegebene Capabilities holen und als Ollama-Tools aufbereiten.
 
@@ -153,102 +145,110 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
     model = _model(request)
     doc_prefix = request.app.state.settings.elo_doc_url_prefix.rstrip("/")
 
-    async def run() -> tuple[str, list[dict]]:
-        """Agentischer Ablauf: Modell darf bis zu 3x Werkzeuge nutzen, danach wird
-        eine Textantwort erzwungen. Gibt (Antworttext, Quellen) zurück."""
-        async with httpx.AsyncClient(timeout=300) as client:
-            tools, name_map = await _available_tools(client, connector, tenant_id)
-            if not tools:
-                return ("Für Ihren Kreisverband ist aktuell kein Dokumentensystem "
-                        "freigeschaltet.", [])
-
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT + _date_context()},
-                {"role": "user", "content": body.message},
-            ]
-            sources: list[dict] = []
-            answer = ""
-
-            for round_no in range(4):
-                use_tools = round_no < 3   # letzte Runde erzwingt Textantwort
-                payload = {"model": model, "messages": messages, "stream": False}
-                # 'think' ist qwen3-spezifisch (schaltet das lange "Nachdenken" ab).
-                # Andere Modelle (Mistral, llama3.3) brechen mit dem Parameter ab —
-                # daher nur für qwen3 setzen.
-                if "qwen3" in model.lower():
-                    payload["think"] = False
-                if use_tools:
-                    payload["tools"] = tools
-                resp = await client.post(f"{ollama}/api/chat", json=payload)
-                resp.raise_for_status()
-                msg = resp.json().get("message", {})
-                tool_calls = (msg.get("tool_calls") or []) if use_tools else []
-
-                if not tool_calls:
-                    answer = msg.get("content", "") or ""
-                    break
-
-                messages.append(msg)
-                for tc in tool_calls:
-                    fn = tc.get("function", {}).get("name", "")
-                    args = tc.get("function", {}).get("arguments", {})
-                    if isinstance(args, str):
-                        try:
-                            args = json.loads(args)
-                        except ValueError:
-                            args = {}
-                    if fn not in name_map:
-                        messages.append({"role": "tool", "content": "Unbekanntes Werkzeug."})
-                        continue
-                    connector_id, capability = name_map[fn]
-                    try:
-                        inv = await client.post(
-                            f"{connector}/api/v1/connectors/{connector_id}/invoke",
-                            json={"capability": capability, "params": args},
-                            headers={"X-Tenant-ID": tenant_id},
-                        )
-                        if inv.status_code != 200:
-                            result: object = {"fehler": "Dokumentensystem nicht verfügbar."}
-                        else:
-                            d = inv.json().get("data", {})
-                            result = d.get("result")
-                            # Beispiel-Treffer mit anklickbarer PDF-URL anreichern,
-                            # damit das Modell die Tabellenzeilen direkt verlinkt.
-                            if isinstance(result, dict):
-                                for b in result.get("beispiele") or []:
-                                    if b.get("id") is not None:
-                                        b["url"] = f"{doc_prefix}/api/v1/elo/document/{b['id']}"
-                            sources.extend(d.get("sources", []))
-                    except httpx.HTTPError:
-                        result = {"fehler": "Dokumentensystem nicht verfügbar."}
-                    messages.append(
-                        {"role": "tool", "content": json.dumps(result, ensure_ascii=False)}
-                    )
-
-            return _strip_think(answer).strip(), sources
-
     async def stream():
+        """Agentischer Ablauf mit Streaming: In den Werkzeug-Runden ruft das Modell
+        Tools (Inhalt bleibt dabei leer); die finale Textantwort wird live Token für
+        Token an den Client gestreamt — die Tabelle baut sich sofort auf."""
+        sources: list[dict] = []
+        answered = False
         try:
-            answer, sources = await run()
+            async with httpx.AsyncClient(timeout=300) as client:
+                tools, name_map = await _available_tools(client, connector, tenant_id)
+                if not tools:
+                    yield ("Für Ihren Kreisverband ist aktuell kein Dokumentensystem "
+                           "freigeschaltet.").encode()
+                    return
+
+                messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT + _date_context()},
+                    {"role": "user", "content": body.message},
+                ]
+
+                for round_no in range(4):
+                    use_tools = round_no < 3   # letzte Runde erzwingt Textantwort
+                    payload = {"model": model, "messages": messages, "stream": True}
+                    # 'think' ist qwen3-spezifisch; andere Modelle brechen damit ab.
+                    if "qwen3" in model.lower():
+                        payload["think"] = False
+                    if use_tools:
+                        payload["tools"] = tools
+
+                    content_parts: list[str] = []
+                    tool_calls: list[dict] = []
+                    async with client.stream(
+                        "POST", f"{ollama}/api/chat", json=payload
+                    ) as resp:
+                        resp.raise_for_status()
+                        async for line in resp.aiter_lines():
+                            if not line.strip():
+                                continue
+                            m = json.loads(line).get("message", {})
+                            chunk = m.get("content")
+                            if chunk:
+                                content_parts.append(chunk)
+                                yield chunk.encode()          # Antwort live streamen
+                            if m.get("tool_calls"):
+                                tool_calls.extend(m["tool_calls"])
+
+                    if not tool_calls:
+                        answered = bool("".join(content_parts).strip())
+                        break
+
+                    # Werkzeuge ausführen, Ergebnisse an den Verlauf anhängen.
+                    messages.append({"role": "assistant",
+                                     "content": "".join(content_parts),
+                                     "tool_calls": tool_calls})
+                    for tc in tool_calls:
+                        fn = tc.get("function", {}).get("name", "")
+                        args = tc.get("function", {}).get("arguments", {})
+                        if isinstance(args, str):
+                            try:
+                                args = json.loads(args)
+                            except ValueError:
+                                args = {}
+                        if fn not in name_map:
+                            messages.append({"role": "tool", "content": "Unbekanntes Werkzeug."})
+                            continue
+                        connector_id, capability = name_map[fn]
+                        try:
+                            inv = await client.post(
+                                f"{connector}/api/v1/connectors/{connector_id}/invoke",
+                                json={"capability": capability, "params": args},
+                                headers={"X-Tenant-ID": tenant_id},
+                            )
+                            if inv.status_code != 200:
+                                result: object = {"fehler": "Dokumentensystem nicht verfügbar."}
+                            else:
+                                d = inv.json().get("data", {})
+                                result = d.get("result")
+                                # Beispiel-Treffer mit anklickbarer PDF-URL anreichern.
+                                if isinstance(result, dict):
+                                    for b in result.get("beispiele") or []:
+                                        if b.get("id") is not None:
+                                            b["url"] = f"{doc_prefix}/api/v1/elo/document/{b['id']}"
+                                sources.extend(d.get("sources", []))
+                        except httpx.HTTPError:
+                            result = {"fehler": "Dokumentensystem nicht verfügbar."}
+                        messages.append(
+                            {"role": "tool", "content": json.dumps(result, ensure_ascii=False)}
+                        )
         except httpx.HTTPError as e:
             logger.info("elo_chat.upstream_error", error=type(e).__name__)
-            yield "⚠️ Dokumentensystem oder Sprachmodell ist nicht erreichbar.".encode()
+            yield "\n⚠️ Dokumentensystem oder Sprachmodell ist nicht erreichbar.".encode()
             return
         except Exception as e:  # noqa: BLE001 — letzte Sicherung; Grund wird geloggt
             logger.info("elo_chat.error", error=f"{type(e).__name__}: {e}")
-            yield "⚠️ Bei der Verarbeitung ist ein Fehler aufgetreten.".encode()
+            yield "\n⚠️ Bei der Verarbeitung ist ein Fehler aufgetreten.".encode()
             return
 
-        logger.info("elo_chat.done", sources=len(sources), answer_len=len(answer))
+        logger.info("elo_chat.done", sources=len(sources))
 
-        if not answer:
-            answer = ("Ich habe das Dokumentensystem abgefragt, konnte aber keine "
-                      "Textantwort erzeugen." if sources else
-                      "Dazu konnte ich im Dokumentensystem nichts finden.")
-        yield answer.encode()
+        if not answered:
+            yield ("Ich habe das Dokumentensystem abgefragt, konnte aber keine "
+                   "Textantwort erzeugen." if sources else
+                   "Dazu konnte ich im Dokumentensystem nichts finden.").encode()
 
         if sources:
-            prefix = request.app.state.settings.elo_doc_url_prefix.rstrip("/")
             seen, lines = set(), []
             for s in sources:
                 ref = s.get("ref", "")
@@ -256,10 +256,9 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
                     continue
                 seen.add(ref)
                 title = s.get("title", "Dokument")
-                # ref = elo://<connector>/files/<id> -> anklickbarer Öffnen-Link
                 m = re.search(r"/files/(\d+)", ref)
                 if m:
-                    url = f"{prefix}/api/v1/elo/document/{m.group(1)}"
+                    url = f"{doc_prefix}/api/v1/elo/document/{m.group(1)}"
                     lines.append(f"- [{title}]({url})")
                 else:
                     lines.append(f"- {title} ({ref})")
