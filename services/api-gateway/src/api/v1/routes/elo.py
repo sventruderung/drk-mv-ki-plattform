@@ -235,6 +235,17 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
                             messages.append({"role": "tool", "content": "Unbekanntes Werkzeug."})
                             continue
                         connector_id, capability = name_map[fn]
+                        # Diagnose: nur Struktur-Parameter + Feld-NAMEN (keine Werte).
+                        if isinstance(args, dict):
+                            logger.info(
+                                "elo_chat.tool", capability=capability,
+                                belegdatum=args.get("belegdatum"),
+                                rechnungsart=args.get("rechnungsart"),
+                                liste=args.get("liste"),
+                                felder=list((args.get("felder") or {}).keys()),
+                                datum_von=args.get("datum_von"),
+                                datum_bis=args.get("datum_bis"),
+                            )
                         try:
                             inv = await client.post(
                                 f"{connector}/api/v1/connectors/{connector_id}/invoke",
