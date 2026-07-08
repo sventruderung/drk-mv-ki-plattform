@@ -8,7 +8,7 @@ nur den extrahierten Text als Datenbasis.
 from datetime import datetime, timezone
 from typing import Any
 
-from .elo_client import EloClient
+from .elo_client import EloClient, EloError
 from .schemas import SearchParams, StatsParams, SummarizeParams
 
 
@@ -51,6 +51,24 @@ def _iso_date(value: str | None):
         return datetime.fromisoformat(str(value)[:10]).date()
     except ValueError:
         return None
+
+
+def _fmt_date(value: str | None) -> str:
+    """ELO-Datum JJJJMMTT -> TT.MM.JJJJ (für die Anzeige)."""
+    v = (str(value) if value else "")[:8]
+    if len(v) == 8 and v.isdigit():
+        return f"{v[6:8]}.{v[4:6]}.{v[0:4]}"
+    return v
+
+
+def _bezahlt(value: str | None) -> str:
+    """INVOICE_PAYED -> 'ja'/'nein'/'unbekannt' (Feld ist oft leer)."""
+    s = (str(value) if value else "").strip().lower()
+    if s in ("true", "1", "ja", "yes", "x"):
+        return "ja"
+    if s in ("false", "0", "nein", "no"):
+        return "nein"
+    return "unbekannt"
 
 
 async def dokument_suchen(
@@ -174,7 +192,28 @@ async def statistik_dokumente_zaehlen(
     beispiele = []
     for it in docs[:10]:
         fid, name = it.get("id"), it.get("name", "")
-        beispiele.append({"id": fid, "name": name, "datum": _date(it)})
+        eintrag = {"id": fid, "name": name}
+        # Details (von wem, Rechnungsdatum, Betrag, bezahlt) je Maske nachladen.
+        try:
+            kw = await client.keywording(fid)
+            f = kw.get("fields", {})
+            if any(k.startswith("E4S") for k in f):   # Ausgangsrechnung (Sage)
+                eintrag.update({
+                    "von": f.get("E4S_KUNDEN_NAME") or "",
+                    "rechnungsdatum": _fmt_date(f.get("E4S_BELEG_DATE")),
+                    "betrag": f.get("E4S_BRUTTO") or "",
+                    "bezahlt": "unbekannt",
+                })
+            else:                                      # Eingangsrechnung
+                eintrag.update({
+                    "von": f.get("VENDOR_NAME") or "",
+                    "rechnungsdatum": _fmt_date(f.get("INVOICE_DATE")),
+                    "betrag": f.get("INVOICE_TOTAL_AMOUNT") or "",
+                    "bezahlt": _bezahlt(f.get("INVOICE_PAYED")),
+                })
+        except EloError:
+            eintrag["datum"] = _date(it)
+        beispiele.append(eintrag)
         sources.append({"title": name, "ref": _ref(repo_hint, fid)})
     result["beispiele"] = beispiele
     return {"result": result, "sources": sources}
