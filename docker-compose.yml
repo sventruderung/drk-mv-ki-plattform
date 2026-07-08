@@ -169,6 +169,9 @@ services:
       # Nur DRK Login anzeigen — lokales E-Mail/Passwort-Formular ausblenden
       # (das technische Admin-Konto meldet sich via API an, setup_openwebui.py)
       ENABLE_LOGIN_FORM: "false"
+      # Automatische Folgefragen-Vorschläge aus — das Task-Modell kennt die
+      # ELO-/Rechnungslogik nicht und erzeugt sonst fachlich unsinnige Fragen.
+      ENABLE_FOLLOW_UP_GENERATION: "false"
       # Interne Caddy-CA (CADDY_CONFIG=Caddyfile-internal): httpx im Container
       # nutzt sonst nur das certifi-Bündel und lehnt die interne CA ab →
       # OIDC-Token-Tausch scheitert mit CERTIFICATE_VERIFY_FAILED.
