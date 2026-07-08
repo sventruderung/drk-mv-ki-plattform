@@ -218,6 +218,10 @@ services:
       BRAND_COLOR: ${BRAND_COLOR:-#235FA6}
       BRAND_LOGO: ${BRAND_LOGO:-logo.svg}
       ACL_GROUPS: ${ACL_GROUPS:-}
+      # Öffentliches Präfix für die anklickbaren DMS-Dokument-Links.
+      # Hinter Caddy: /drk-gw. Bei Direktzugriff (Open WebUI :3000, Gateway :8000)
+      # die absolute Gateway-URL setzen, z.B. http://<host-ip>:8000
+      ELO_DOC_URL_PREFIX: ${ELO_DOC_URL_PREFIX:-/drk-gw}
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${API_GATEWAY_PORT:-8000}:8000"
