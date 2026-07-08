@@ -47,7 +47,10 @@ _ELO_CONNECTOR = ConnectorIn(
         ),
         Capability(
             name="statistik.dokumente_zaehlen",
-            description="Zählt Dokumente nach Indexfeld-Filter (Keywording), optional nach Alter.",
+            description=(
+                "Zählt Dokumente nach Indexfeld-Filter (Keywording), optional nach "
+                "Alter oder Zeitraum (datum_von/datum_bis auf das Rechnungs-/Ablagedatum)."
+            ),
             params_schema={
                 "type": "object",
                 "properties": {
@@ -57,6 +60,14 @@ _ELO_CONNECTOR = ConnectorIn(
                         "description": 'Indexfeld -> Wert, z.B. {"INVOICE_STATUS":"offen"}',
                     },
                     "aelter_als_tage": {"type": "integer", "minimum": 0, "maximum": 3650},
+                    "datum_von": {
+                        "type": "string",
+                        "description": "Untere Datumsgrenze, ISO YYYY-MM-DD (z.B. Monatsanfang)",
+                    },
+                    "datum_bis": {
+                        "type": "string",
+                        "description": "Obere Datumsgrenze, ISO YYYY-MM-DD (z.B. Monatsende)",
+                    },
                 },
                 "required": ["felder"],
             },

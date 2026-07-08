@@ -12,8 +12,10 @@ tool-Nachricht übergeben (ADR-008), getrennt von der Systemanweisung. Es wird
 nur Metadaten geloggt, nie Frage- oder Dokumentinhalte.
 """
 
+import calendar
 import json
 import re
+from datetime import datetime
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
@@ -44,7 +46,8 @@ SYSTEM_PROMPT = (
     "- 'statistik.dokumente_zaehlen': filtert und zählt Dokumente über echte "
     "INDEXFELDER (Keywording) und liefert Anzahl + Beispiel-Treffer. Nutze es für "
     "Fragen, die sich auf Eigenschaften beziehen (Jahr, Status, Lieferant, bezahlt, "
-    "Betrag …) — auch bei 'finde/zeige Rechnungen …'.\n"
+    "Betrag …) — auch bei 'finde/zeige Rechnungen …'. Für Zeiträume zusätzlich "
+    "datum_von/datum_bis (ISO YYYY-MM-DD) setzen; aelter_als_tage für 'älter als N Tage'.\n"
     "- 'dokument.suchen': freie Stichwort-/Volltextsuche (where=ANYWHERE am "
     "breitesten) für allgemeine Begriffe ohne konkretes Indexfeld.\n"
     "- 'dokument.zusammenfassen': fasst ein Dokument anhand seiner ID zusammen.\n"
@@ -87,6 +90,23 @@ def _ollama_url(request: Request) -> str:
 
 def _model(request: Request) -> str:
     return request.app.state.settings.ollama_elo_model
+
+
+def _date_context() -> str:
+    """Aktuelles Datum in den Prompt geben, damit das Modell relative Angaben
+    ('dieser Monat', 'dieses Jahr', 'heute') zu konkreten Werten auflösen kann."""
+    today = datetime.now().date()
+    first = today.replace(day=1)
+    last = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    return (
+        f"\nZEITKONTEXT: Heute ist {today.isoformat()}. Aktueller Monat "
+        f"(datum_von={first.isoformat()}, datum_bis={last.isoformat()}), aktuelles "
+        f"Jahr {today.year}. Löse relative Angaben so auf: 'dieser Monat' -> "
+        "datum_von/datum_bis wie oben; 'dieses Jahr' -> INVOICE_FIN_YEAR=<Jahr>; "
+        "'heute' -> datum_von=datum_bis=heutiges Datum. Setze bei Zeitraumfragen "
+        "IMMER zusätzlich INVOICE_FIN_YEAR=<Jahr> in felder, damit die Suche "
+        "eingegrenzt bleibt (die Keywording-Suche selbst kennt keine Datumsbereiche)."
+    )
 
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -143,7 +163,7 @@ async def elo_chat(body: EloChatRequest, request: Request) -> StreamingResponse:
                         "freigeschaltet.", [])
 
             messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": SYSTEM_PROMPT + _date_context()},
                 {"role": "user", "content": body.message},
             ]
             sources: list[dict] = []
