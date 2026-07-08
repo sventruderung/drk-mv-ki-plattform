@@ -67,6 +67,10 @@ class EloClient:
         """GET /api/files/{id}/info — Basis-Infos eines Eintrags."""
         return await self._get_json(f"/api/files/{file_id}/info")
 
+    async def keywording(self, file_id: int | str) -> dict[str, Any]:
+        """GET /api/files/{id}/keywording — Maske + Indexfelder eines Eintrags."""
+        return await self._get_json(f"/api/files/{file_id}/keywording")
+
     async def download(self, file_id: int | str) -> bytes:
         """GET /api/files/{id}/download — Dokumentinhalt herunterladen."""
         try:
