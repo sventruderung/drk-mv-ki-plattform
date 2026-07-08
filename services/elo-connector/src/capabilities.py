@@ -61,14 +61,23 @@ def _fmt_date(value: str | None) -> str:
     return v
 
 
-def _bezahlt(value: str | None) -> str:
-    """INVOICE_PAYED -> 'ja'/'nein'/'unbekannt' (Feld ist oft leer)."""
-    s = (str(value) if value else "").strip().lower()
-    if s in ("true", "1", "ja", "yes", "x"):
+def _clean_status(value: str | None) -> str:
+    """INVOICE_STATUS aufräumen: '7 - Gebucht' -> 'Gebucht'."""
+    s = (str(value) if value else "").strip()
+    if " - " in s:
+        s = s.split(" - ", 1)[1].strip()
+    return s
+
+
+def _bezahlt(status: str | None) -> str:
+    """Best-effort aus dem INVOICE_STATUS-Text: 'bezahlt/gezahlt' -> ja,
+    leer -> unbekannt, sonst nein (Workflow-Stand noch nicht = bezahlt)."""
+    s = (str(status) if status else "").strip().lower()
+    if not s:
+        return "unbekannt"
+    if "bezahl" in s or "gezahl" in s:
         return "ja"
-    if s in ("false", "0", "nein", "no"):
-        return "nein"
-    return "unbekannt"
+    return "nein"
 
 
 async def dokument_suchen(
@@ -210,14 +219,19 @@ async def statistik_dokumente_zaehlen(
                     "von": f.get("E4S_KUNDEN_NAME") or "",
                     "rechnungsdatum": _fmt_date(f.get("E4S_BELEG_DATE")),
                     "betrag": f.get("E4S_BRUTTO") or "",
+                    "status": "",
                     "bezahlt": "unbekannt",
                 })
             else:                                      # Eingangsrechnung
+                # INVOICE_PAYED ist leer; der Bearbeitungsstand steckt in
+                # INVOICE_STATUS (z.B. "7 - Gebucht", "9 - Abgewiesen").
+                status = _clean_status(f.get("INVOICE_STATUS"))
                 eintrag.update({
                     "von": f.get("VENDOR_NAME") or "",
                     "rechnungsdatum": _fmt_date(f.get("INVOICE_DATE")),
                     "betrag": f.get("INVOICE_TOTAL_AMOUNT") or "",
-                    "bezahlt": _bezahlt(f.get("INVOICE_PAYED")),
+                    "status": status,
+                    "bezahlt": _bezahlt(status),
                 })
         except EloError:
             eintrag["datum"] = _date(it)
