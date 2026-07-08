@@ -130,12 +130,18 @@ async def statistik_dokumente_zaehlen(
         label = f"Belegdatum {pref}*"
         if params.felder:
             label += " | " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
-    else:
+    elif params.felder:
         # Reine Feldsuche (unscharf für Text, exakt für Zahlen/Datum).
         felder = {k: _fuzzy(v) for k, v in params.felder.items()}
         items = await client.search_keywording(felder)
         docs = [it for it in items if not it.get("isDir", False)]
         label = "Keywording: " + ", ".join(f"{k}={v}" for k, v in params.felder.items())
+    else:
+        # Kein Feldfilter (nur Ablagedatum/Alter): breite Volltextbasis holen,
+        # dann unten client-seitig über das Ablagedatum eingrenzen.
+        items = await client.search("*", "ANYWHERE", 10000)
+        docs = [it for it in items if not it.get("isDir", False)]
+        label = "Alle Dokumente"
 
     # Zusätzlicher Zeitraumfilter auf das ABLAGE-/Importdatum (client-seitig).
     von, bis = _iso_date(params.datum_von), _iso_date(params.datum_bis)
