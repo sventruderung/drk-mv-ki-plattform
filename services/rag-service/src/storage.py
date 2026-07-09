@@ -30,6 +30,16 @@ def put_object(key: str, data: bytes, content_type: str) -> None:
     )
 
 
+def get_object(key: str) -> bytes:
+    assert _client is not None
+    resp = _client.get_object(_bucket, key)
+    try:
+        return resp.read()
+    finally:
+        resp.close()
+        resp.release_conn()
+
+
 def delete_object(key: str) -> None:
     assert _client is not None
     _client.remove_object(_bucket, key)

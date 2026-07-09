@@ -28,6 +28,7 @@ class QueryRequest(BaseModel):
 
 
 class Citation(BaseModel):
+    document_id: str
     document_name: str
     page: int | None
     chunk_text: str
@@ -67,7 +68,8 @@ async def query(
         # RLS filtert zusätzlich auf tenant_id (Defense in Depth).
         rows = await conn.fetch(
             f"""
-            SELECT d.name AS document_name,
+            SELECT d.id AS document_id,
+                   d.name AS document_name,
                    dc.page,
                    dc.chunk_text,
                    1 - (dc.embedding <=> $1::vector) AS similarity
@@ -93,6 +95,7 @@ async def query(
 
     citations = [
         Citation(
+            document_id=str(r["document_id"]),
             document_name=r["document_name"],
             page=r["page"],
             chunk_text=r["chunk_text"],

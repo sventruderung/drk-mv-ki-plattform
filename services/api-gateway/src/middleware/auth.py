@@ -72,11 +72,15 @@ class JWTMiddleware(BaseHTTPMiddleware):
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             return auth[7:]
-        # Ausnahme für den Dokument-Download: Er wird per anklickbarem Browser-Link
-        # aus dem DMS-Chat aufgerufen — dabei ist kein Bearer-Header möglich, wohl
-        # aber das von Open WebUI gesetzte OIDC-Cookie. Nur für diesen rein LESENDEN
-        # Pfad akzeptieren; state-ändernde Endpunkte bleiben Bearer-only (CSRF-sicher).
-        if request.method == "GET" and request.url.path.startswith("/api/v1/elo/document/"):
+        # Ausnahme für Dokument-Öffnen-Links (ELO-PDF, RAG-Quelldokument): werden
+        # per anklickbarem Browser-Link aufgerufen (kein Bearer möglich), tragen aber
+        # das von Open WebUI gesetzte OIDC-Cookie. Nur diese rein LESENDEN Pfade;
+        # state-ändernde Endpunkte bleiben Bearer-only (CSRF-sicher).
+        p = request.url.path
+        if request.method == "GET" and (
+            p.startswith("/api/v1/elo/document/")
+            or (p.startswith("/api/v1/documents/") and p.endswith("/content"))
+        ):
             return request.cookies.get("oauth_id_token")
         return None
 
