@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request, UploadFile, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import httpx
+import json
 
 from drk_shared.logging import get_logger
 
@@ -181,5 +182,21 @@ async def rag_chat(body: RagChatRequest, request: Request) -> StreamingResponse:
             ) as resp:
                 async for chunk in resp.aiter_bytes():
                     yield chunk
+
+        # Quellen deterministisch anhängen (Dokumentname + Seite), damit sie
+        # sicher erscheinen — unabhängig davon, ob das Modell inline zitiert.
+        # Als NDJSON-'response'-Zeile, wie der Modell-Stream (Pipe extrahiert sie).
+        seen: set = set()
+        quellen: list[str] = []
+        for c in result["citations"]:
+            key = (c.get("document_name"), c.get("page"))
+            if key in seen:
+                continue
+            seen.add(key)
+            seite = f", Seite {c['page']}" if c.get("page") else ""
+            quellen.append(f"- {c.get('document_name', 'Dokument')}{seite}")
+        if quellen:
+            footer = "\n\n---\n📚 **Quellen:**\n" + "\n".join(quellen)
+            yield (json.dumps({"response": footer}) + "\n").encode()
 
     return StreamingResponse(stream(), media_type="text/event-stream")
