@@ -7,11 +7,12 @@ X-User-Roles) — der rag-service ist nicht direkt von außen erreichbar.
 import hashlib
 import io
 import json
+import re
 import uuid
 import zipfile
 from pathlib import PurePosixPath
 
-from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Form, Header, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -405,6 +406,47 @@ async def update_acl(
         )
     logger.info("document.acl", tenant_id=x_tenant_id, document_id=str(document_id))
     return {"id": str(document_id), "acl_groups": groups}
+
+
+@router.get("/{document_id}/content")
+async def document_content(
+    document_id: uuid.UUID,
+    x_tenant_id: str = Header(...),
+    x_user_roles: str = Header(""),
+) -> Response:
+    """Originaldokument (read-only) ausliefern — rechtegeprüft, aus MinIO.
+
+    ACL: Nutzer-Rollen müssen die ACL-Gruppen des Dokuments UND (falls in einer
+    Wissensbasis) der Wissensbasis überschneiden. RLS filtert zusätzlich Tenant.
+    """
+    roles = {r.strip() for r in x_user_roles.split(",") if r.strip()}
+    async with tenant_connection(x_tenant_id) as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT d.name, d.storage_key, d.content_type, d.acl_groups,
+                   kb.acl_groups AS kb_acl
+            FROM documents d
+            LEFT JOIN knowledge_bases kb ON kb.id = d.kb_id
+            WHERE d.id = $1 AND d.status = 'ready'
+            """,
+            document_id,
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+    if not (set(row["acl_groups"] or []) & roles):
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Dokument")
+    if row["kb_acl"] is not None and not (set(row["kb_acl"]) & roles):
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf diese Wissensbasis")
+
+    data = storage.get_object(row["storage_key"])
+    name = row["name"] or f"dokument-{document_id}"
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_")[:100] or "dokument"
+    logger.info("document.content", tenant_id=x_tenant_id, document_id=str(document_id))
+    return Response(
+        content=data,
+        media_type=row["content_type"] or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{safe}"'},
+    )
 
 
 @router.delete("/{document_id}")

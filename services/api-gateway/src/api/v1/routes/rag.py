@@ -78,6 +78,40 @@ async def list_documents(request: Request):
     return resp.json()
 
 
+@router.get("/documents/{document_id}/content")
+async def document_content(document_id: str, request: Request) -> StreamingResponse:
+    """RAG-Quelldokument (read-only) ausliefern — für anklickbare Quellen im
+    Wissensbasis-Chat. Auth via OIDC-Cookie (JWTMiddleware lässt diesen GET-Pfad
+    per Cookie zu); die ACL-Prüfung macht der rag-service anhand der Rollen."""
+    url = f"{_rag_url(request)}/api/v1/documents/{document_id}/content"
+    client = httpx.AsyncClient(timeout=120)
+    try:
+        req = client.build_request("GET", url, headers=_identity_headers(request))
+        resp = await client.send(req, stream=True)
+    except httpx.HTTPError:
+        await client.aclose()
+        raise HTTPException(status_code=502, detail="Dokument nicht abrufbar")
+    if resp.status_code != 200:
+        code = resp.status_code
+        await resp.aclose()
+        await client.aclose()
+        raise HTTPException(status_code=code, detail="Dokument nicht abrufbar")
+
+    async def body():
+        try:
+            async for chunk in resp.aiter_raw():
+                yield chunk
+        finally:
+            await resp.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        body(),
+        media_type=resp.headers.get("content-type", "application/octet-stream"),
+        headers={"Content-Disposition": resp.headers.get("content-disposition", "inline")},
+    )
+
+
 class BulkRequest(BaseModel):
     ids: list[str]
     action: str
@@ -183,18 +217,25 @@ async def rag_chat(body: RagChatRequest, request: Request) -> StreamingResponse:
                 async for chunk in resp.aiter_bytes():
                     yield chunk
 
-        # Quellen deterministisch anhängen (Dokumentname + Seite), damit sie
-        # sicher erscheinen — unabhängig davon, ob das Modell inline zitiert.
-        # Als NDJSON-'response'-Zeile, wie der Modell-Stream (Pipe extrahiert sie).
+        # Quellen deterministisch anhängen (anklickbar, öffnet das Quelldokument),
+        # unabhängig davon, ob das Modell inline zitiert. Als NDJSON-'response'-
+        # Zeile wie der Modell-Stream (Pipe extrahiert sie).
+        prefix = request.app.state.settings.elo_doc_url_prefix.rstrip("/")
         seen: set = set()
         quellen: list[str] = []
         for c in result["citations"]:
-            key = (c.get("document_name"), c.get("page"))
-            if key in seen:
+            did, page = c.get("document_id"), c.get("page")
+            if (did, page) in seen:
                 continue
-            seen.add(key)
-            seite = f", Seite {c['page']}" if c.get("page") else ""
-            quellen.append(f"- {c.get('document_name', 'Dokument')}{seite}")
+            seen.add((did, page))
+            name = c.get("document_name", "Dokument")
+            seite = f", Seite {page}" if page else ""
+            if did:
+                anchor = f"#page={page}" if page else ""
+                url = f"{prefix}/api/v1/documents/{did}/content{anchor}"
+                quellen.append(f"- [{name}{seite}]({url})")
+            else:
+                quellen.append(f"- {name}{seite}")
         if quellen:
             footer = "\n\n---\n📚 **Quellen:**\n" + "\n".join(quellen)
             yield (json.dumps({"response": footer}) + "\n").encode()
