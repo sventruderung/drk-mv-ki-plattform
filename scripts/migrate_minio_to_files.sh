@@ -30,9 +30,7 @@ done
 
 echo "→ Exportiere Bucket $BUCKET …"
 docker exec -e "MC_HOST_src=http://$KEY:$SECRET@localhost:9000" "$CT" sh -c \
-    "rm -rf /tmp/export && mkdir -p /tmp/export && mc mirror --quiet src/$BUCKET /tmp/export"
-N_SRC="$(docker exec "$CT" sh -c 'find /tmp/export -type f | wc -l')"
-echo "  $N_SRC Datei(en) exportiert"
+    "rm -rf /tmp/export && mkdir -p /tmp/export && mc mirror --quiet src/$BUCKET /tmp/export" >/dev/null
 
 echo "→ Kopiere in das Volume documents_data …"
 docker compose create rag-service >/dev/null 2>&1 || true   # legt das Volume an
@@ -42,6 +40,8 @@ docker cp "$CT:/tmp/export" - \
     | docker run -i --rm -v "$DOCS_VOL":/documents alpine \
         tar x -C /documents --strip-components=1
 docker exec "$CT" rm -rf /tmp/export
+N_FILES="$(docker run --rm -v "$DOCS_VOL":/documents:ro alpine sh -c 'find /documents -type f | wc -l')"
+echo "  $N_FILES Datei(en) in der Dateiablage"
 
 echo "→ Prüfe: jedes Dokument der Datenbank hat seine Datei …"
 PGUSER="$(env_get POSTGRES_USER)"; PGUSER="${PGUSER:-drk_app}"
