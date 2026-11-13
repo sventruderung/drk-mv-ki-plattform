@@ -36,8 +36,10 @@ https:// {
 		reverse_proxy api-gateway:8000
 	}
 
-	# Keycloak unter /auth
-	handle /auth* {
+	# Keycloak unter /auth/... — bewusst /auth/* und NICHT /auth*: der Pfad /auth (ohne
+	# Slash) ist die Login-Seite von Open WebUI. Mit /auth* landete jeder Aufruf der
+	# Login-Seite bei Keycloak, das auf die Admin-Konsole (Realm master) weiterleitet.
+	handle /auth/* {
 		reverse_proxy keycloak:8080
 	}
 

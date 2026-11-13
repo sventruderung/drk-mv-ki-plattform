@@ -108,11 +108,26 @@ Netz oder geroutet). Test: `docker compose exec elo-connector python3 -c
 ## Update-Prozedur (bei jedem neuen Stand)
 
 ```bash
+bash scripts/backup.sh                   # vorher sichern
 git pull origin main
-bash scripts/migrate.sh                  # DB-Schema nachziehen (idempotent)
+docker compose pull                      # neue Images (Ollama, Open WebUI, …)
 docker compose up -d --build             # geänderte Services neu bauen
+bash scripts/migrate.sh                  # DB-Schema nachziehen (idempotent)
 python3 scripts/setup_openwebui.py       # nur falls Pipes geändert wurden
+python3 scripts/smoke_test.py
 ```
+
+### Betriebssystem-Update
+
+```bash
+sudo apt update && sudo apt full-upgrade -y && sudo reboot
+```
+
+Kein `docker compose down` nötig. Nach dem Neustart fährt der Stack über den
+Autostart selbst hoch — einmalig einrichten mit `bash scripts/autostart.sh --install`
+(crontab `@reboot`, wartet auf Docker und die GPU-Geräte; Log `~/drk-autostart.log`).
+Danach prüfen: `nvidia-smi`, `docker compose ps`, `python3 scripts/smoke_test.py` und
+nach einer Chat-Frage `docker compose exec ollama ollama ps` → **100% GPU**.
 
 ## Offene Punkte nach Pilot (bewusst nicht im Scope)
 

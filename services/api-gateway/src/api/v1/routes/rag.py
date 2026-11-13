@@ -214,6 +214,19 @@ async def rag_chat(body: RagChatRequest, request: Request) -> StreamingResponse:
                 f"{_llm_url(request)}/api/v1/generate",
                 json={"message": prompt, "tenant_id": tenant_id},
             ) as resp:
+                if resp.status_code != 200:
+                    # Fehler des llm-service (z. B. 422 "Modell nicht verfügbar")
+                    # sichtbar machen statt einer leeren Antwort.
+                    body_bytes = await resp.aread()
+                    try:
+                        detail = json.loads(body_bytes).get("detail", "")
+                    except Exception:
+                        detail = body_bytes.decode(errors="replace")[:200]
+                    yield (
+                        f"Die Antwort konnte nicht erzeugt werden "
+                        f"(llm-service {resp.status_code}: {detail})."
+                    ).encode()
+                    return
                 async for chunk in resp.aiter_bytes():
                     yield chunk
 

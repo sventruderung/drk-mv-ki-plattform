@@ -102,6 +102,15 @@ services:
       - ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    # GPU-Geraete explizit durchreichen: ohne diese Eintraege verliert der Container
+    # bei einem "systemctl daemon-reload" (z. B. durch apt-Updates) den GPU-Zugriff
+    # und Ollama faellt unbemerkt auf CPU zurueck (NVIDIA Container Toolkit + systemd-cgroups).
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
     # COMPLIANCE: Kein externes Netz-Routing — Modelle bleiben lokal
     # DGX Spark: GPU-Zugriff fürs GB10 (NVIDIA Container Toolkit vorinstalliert)
     deploy:
