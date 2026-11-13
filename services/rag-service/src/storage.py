@@ -1,45 +1,63 @@
-"""MinIO-Ablage für Original-Dokumente (pro Tenant ein Prefix)."""
+"""Dateiablage für Original-Dokumente (pro Tenant ein Unterordner).
 
-import io
+Ersetzt den früheren MinIO-Objektspeicher: Die Originale liegen als normale
+Dateien im Docker-Volume ``documents_data`` (gemountet nach ``documents_dir``).
+Der Schlüssel bleibt unverändert ``<tenant_id>/<doc_id>/<dateiname>`` — die
+``storage_key``-Spalte in der Datenbank muss also nicht migriert werden.
+"""
 
-from minio import Minio
+import os
+import tempfile
+from pathlib import Path
 
 from .config import Settings
 
-_client: Minio | None = None
-_bucket: str = ""
+_root: Path | None = None
 
 
 def init_storage(settings: Settings) -> None:
-    global _client, _bucket
-    _client = Minio(
-        settings.minio_endpoint,
-        access_key=settings.minio_access_key,
-        secret_key=settings.minio_secret_key,
-        secure=False,  # interner Docker-Verkehr; TLS terminiert am Reverse Proxy
-    )
-    _bucket = settings.minio_bucket
-    if not _client.bucket_exists(_bucket):
-        _client.make_bucket(_bucket)
+    global _root
+    _root = Path(settings.documents_dir).resolve()
+    _root.mkdir(parents=True, exist_ok=True)
 
 
-def put_object(key: str, data: bytes, content_type: str) -> None:
-    assert _client is not None
-    _client.put_object(
-        _bucket, key, io.BytesIO(data), length=len(data), content_type=content_type
-    )
+def _path(key: str) -> Path:
+    """Schlüssel → Dateipfad. Verhindert Pfad-Ausbrüche (``..``, absolute Pfade)."""
+    assert _root is not None
+    path = (_root / key).resolve()
+    if not path.is_relative_to(_root) or path == _root:
+        raise ValueError(f"Ungültiger Speicher-Schlüssel: {key!r}")
+    return path
+
+
+def put_object(key: str, data: bytes, content_type: str) -> None:  # noqa: ARG001
+    path = _path(key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Atomar schreiben: erst Temp-Datei im Zielordner, dann umbenennen
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".upload-")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def get_object(key: str) -> bytes:
-    assert _client is not None
-    resp = _client.get_object(_bucket, key)
-    try:
-        return resp.read()
-    finally:
-        resp.close()
-        resp.release_conn()
+    return _path(key).read_bytes()
 
 
 def delete_object(key: str) -> None:
-    assert _client is not None
-    _client.remove_object(_bucket, key)
+    path = _path(key)
+    path.unlink(missing_ok=True)
+    # Leere Elternordner (Dokument-Ordner, ggf. Unterordner) aufräumen,
+    # aber nie den Tenant-Ordner oder die Wurzel selbst
+    assert _root is not None
+    parent = path.parent
+    while parent != _root and parent.parent != _root:
+        try:
+            parent.rmdir()
+        except OSError:
+            break
+        parent = parent.parent

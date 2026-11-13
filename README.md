@@ -20,7 +20,7 @@ Open WebUI (:3000) ──── Ollama (:11434, Qwen3 32B + nomic-embed-text)
      │ Pipes (OIDC-Token)
      ▼
 API-Gateway (:8000) ── JWT-Validierung, tenant_id + Rollen aus Token
-     ├── rag-service (:8001) ──── PostgreSQL + pgvector (RLS) / MinIO
+     ├── rag-service (:8001) ──── PostgreSQL + pgvector (RLS) / Dateiablage
      ├── llm-service (:8002) ──── Ollama
      └── content-service (:8005) ─ Freigabe-Workflow (P02)
 

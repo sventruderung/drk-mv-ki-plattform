@@ -15,8 +15,6 @@ if [ ! -f .env ]; then
     cp .env.example .env
     sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(gen_secret)|" .env
     sed -i "s|^KEYCLOAK_ADMIN_PASSWORD=.*|KEYCLOAK_ADMIN_PASSWORD=$(gen_secret)|" .env
-    sed -i "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=drk-$(openssl rand -hex 6)|" .env
-    sed -i "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$(gen_secret)|" .env
     # KEYCLOAK_CLIENT_SECRET wird von setup_keycloak.py gesetzt
     # Browser-erreichbare Keycloak-URL: Standard = Server-IP (der Wizard
     # stellt bei Angabe eines HTTPS-Hostnamens auf https://<host>/auth um)

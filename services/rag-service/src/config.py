@@ -15,10 +15,8 @@ class Settings(BaseSettings):
     # Embedding: nomic-embed-text → 768 Dimensionen (muss zu vector(768) im Schema passen)
     embedding_model: str = "nomic-embed-text"
 
-    minio_endpoint: str = "minio:9000"
-    minio_access_key: str
-    minio_secret_key: str
-    minio_bucket: str = "drk-docs"
+    # Original-Dokumente als Dateien (Docker-Volume documents_data)
+    documents_dir: str = "/data/documents"
 
     chunk_size: int = 1000          # Zeichen pro Chunk
     chunk_overlap: int = 200

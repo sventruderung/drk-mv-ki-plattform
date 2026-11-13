@@ -2,7 +2,7 @@
 # Voll-Restore der KI-Plattform aus einem Backup (NAS oder lokal).
 #
 # Stellt wieder her: PostgreSQL (inkl. Keycloak-Realm, Nutzer, Client-Secret),
-# MinIO-Dokumente und die .env. Danach wird der Host automatisch angepasst
+# Original-Dokumente und die .env. Danach wird der Host automatisch angepasst
 # (Keycloak-URL + Redirect-URIs auf die aktuelle IP) und ein Smoke-Test läuft.
 #
 #   Vom NAS (neuester Stand):
@@ -53,7 +53,7 @@ if [ -n "$NAS_URL" ]; then
     fi
     echo "→ Lade Stand $TS vom NAS …"
     smbclient "//$server/$share" -U "$NAS_USER%$NAS_PASS" -c \
-        "lcd \"$RESTORE_DIR\"; ${cdcmd}get db_$TS.sql.gz; get minio_$TS.tgz; get env_$TS"
+        "lcd \"$RESTORE_DIR\"; ${cdcmd}get db_$TS.sql.gz; get docs_$TS.tgz; get env_$TS"
     # Branding (eigenes Logo) — optional, ältere Sicherungen haben es nicht
     smbclient "//$server/$share" -U "$NAS_USER%$NAS_PASS" -c \
         "lcd \"$RESTORE_DIR\"; ${cdcmd}get branding_$TS.tgz" >/dev/null 2>&1 || true
@@ -63,23 +63,30 @@ else
         [ -n "$TS" ] || { echo "❌ Kein Backup in $LOCAL_DIR gefunden."; exit 1; }
     fi
     echo "→ Verwende lokalen Stand $TS aus $LOCAL_DIR"
-    cp "$LOCAL_DIR/db_$TS.sql.gz" "$LOCAL_DIR/minio_$TS.tgz" "$LOCAL_DIR/env_$TS" "$RESTORE_DIR/"
+    if [ ! -f "$LOCAL_DIR/docs_$TS.tgz" ] && [ -f "$LOCAL_DIR/minio_$TS.tgz" ]; then
+        echo "❌ Stand $TS stammt noch aus der MinIO-Zeit (minio_$TS.tgz)."
+        echo "   Diese Version liest nur Sicherungen mit docs_<stand>.tgz."
+        echo "   Älteren Stand mit der Plattform-Version vor dem Umbau einspielen."
+        exit 1
+    fi
+    cp "$LOCAL_DIR/db_$TS.sql.gz" "$LOCAL_DIR/docs_$TS.tgz" "$LOCAL_DIR/env_$TS" "$RESTORE_DIR/"
     [ -f "$LOCAL_DIR/branding_$TS.tgz" ] && cp "$LOCAL_DIR/branding_$TS.tgz" "$RESTORE_DIR/"
 fi
 
 # --- 2. Prüfen, dass alle drei Teile da und plausibel sind ------------------
-for f in "db_$TS.sql.gz" "minio_$TS.tgz" "env_$TS"; do
+for f in "db_$TS.sql.gz" "docs_$TS.tgz" "env_$TS"; do
     [ -s "$RESTORE_DIR/$f" ] || { echo "❌ Datei fehlt oder leer: $f"; exit 1; }
 done
 gzip -t "$RESTORE_DIR/db_$TS.sql.gz" || { echo "❌ DB-Dump beschädigt."; exit 1; }
-echo "✓ Backup-Satz $TS vollständig (DB, MinIO, .env)"
+gzip -t "$RESTORE_DIR/docs_$TS.tgz" || { echo "❌ Dokument-Archiv beschädigt."; exit 1; }
+echo "✓ Backup-Satz $TS vollständig (DB, Dokumente, .env)"
 
 # --- 3. Rückfrage (destruktiv!) ---------------------------------------------
 if [ "$ASSUME_YES" -ne 1 ]; then
     echo
     echo "⚠️  Dies überschreibt die laufende Installation:"
     echo "    • Datenbank drk_platform (inkl. Keycloak) wird neu aufgebaut"
-    echo "    • MinIO-Dokumente werden ersetzt"
+    echo "    • Original-Dokumente werden ersetzt"
     echo "    • .env wird ersetzt (Sicherung als .env.pre-restore.$TS)"
     read -rp "Wirklich aus Stand $TS wiederherstellen? (ja/NEIN): " ans
     [ "$ans" = "ja" ] || { echo "Abgebrochen."; exit 0; }
@@ -113,15 +120,14 @@ gunzip -c "$RESTORE_DIR/db_$TS.sql.gz" \
     | docker compose exec -T postgres psql -U "$PGUSER" -d "$PGDB" -v ON_ERROR_STOP=1 >/dev/null
 echo "✓ PostgreSQL wiederhergestellt (inkl. Keycloak-Realm, Nutzer, Secret)"
 
-# --- 6. MinIO-Dokumente wiederherstellen ------------------------------------
-echo "→ MinIO-Dokumente einspielen …"
-docker compose up -d minio >/dev/null
-docker compose stop minio >/dev/null
-MINIO_VOL="$(docker volume ls -q | grep -m1 'minio_data')"
-[ -n "$MINIO_VOL" ] || { echo "❌ MinIO-Volume nicht gefunden."; exit 1; }
-docker run --rm -v "$MINIO_VOL":/data -v "$RESTORE_DIR":/backup:ro alpine sh -c \
-    "find /data -mindepth 1 -delete && tar xzf /backup/minio_$TS.tgz -C /"
-echo "✓ MinIO wiederhergestellt"
+# --- 6. Original-Dokumente wiederherstellen ---------------------------------
+echo "→ Original-Dokumente einspielen …"
+docker compose create rag-service >/dev/null 2>&1 || true   # legt das Volume an
+DOCS_VOL="$(docker volume ls -q | grep -m1 'documents_data$' || true)"
+[ -n "$DOCS_VOL" ] || { echo "❌ Volume documents_data nicht gefunden."; exit 1; }
+docker run --rm -v "$DOCS_VOL":/documents -v "$RESTORE_DIR":/backup:ro alpine sh -c \
+    "find /documents -mindepth 1 -delete && tar xzf /backup/docs_$TS.tgz -C /"
+echo "✓ Original-Dokumente wiederhergestellt"
 
 # --- 6b. Branding (eigenes Logo) wiederherstellen ---------------------------
 # MUSS vor dem Start von open-webui liegen (Datei-Mounts aus data/branding).

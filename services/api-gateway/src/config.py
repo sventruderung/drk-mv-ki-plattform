@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     ollama_elo_model: str = "qwen3:8b"
     # Embedding-Modell für die RAG-Suche (muss zum Index passen)
     embedding_model: str = "nomic-embed-text"
-    minio_health_url: str = "http://minio:9000/minio/health/live"
     # Öffentliches Pfad-Präfix, unter dem das Gateway hinter Caddy erreichbar ist
     # (die Plattform-API liegt dort unter /drk-gw, weil /api Open WebUI gehört).
     # Wird für die anklickbaren DMS-Dokument-Links im Chat vorangestellt.

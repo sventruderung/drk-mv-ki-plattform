@@ -12,7 +12,7 @@ Gesichert wird nach `/var/backups/drk-ki` (änderbar via `BACKUP_DIR`):
 | Datei | Inhalt |
 |---|---|
 | `db_<datum>.sql.gz` | PostgreSQL: Dokumente-Index, Wissensdatenbanken, Embeddings, Drafts, Audit-Log, Einstellungen |
-| `minio_<datum>.tgz` | Original-Dokumente (MinIO-Volume) |
+| `docs_<datum>.tgz` | Original-Dokumente (Volume `documents_data`) |
 | `env_<datum>` | Secrets (`.env`) — Verzeichnis ist nur für den Besitzer lesbar |
 
 Aufbewahrung: 14 Tage (änderbar via `RETENTION_DAYS`). Fehlschläge erscheinen
@@ -35,17 +35,17 @@ cp /var/backups/drk-ki/env_<datum> .env && chmod 600 .env
 
 # 2. Volumes leeren und Stack starten (DB-Init läuft mit leerem Schema)
 docker volume rm $(docker volume ls -q | grep drk-mv | grep -vE 'ollama_data')
-docker compose up -d postgres minio
+docker compose up -d postgres && docker compose create rag-service
 sleep 15
 
 # 3. Datenbank einspielen (über das frisch initialisierte Schema)
 gunzip -c /var/backups/drk-ki/db_<datum>.sql.gz \
   | docker compose exec -T postgres psql -U drk_app -d drk_platform
 
-# 4. MinIO-Dokumente zurückspielen
-MINIO_VOL=$(docker volume ls -q | grep -m1 minio_data)
-docker run --rm -v "$MINIO_VOL":/data -v /var/backups/drk-ki:/backup alpine \
-  sh -c "rm -rf /data/* && tar xzf /backup/minio_<datum>.tgz -C /"
+# 4. Original-Dokumente zurückspielen
+DOCS_VOL=$(docker volume ls -q | grep -m1 'documents_data$')
+docker run --rm -v "$DOCS_VOL":/documents -v /var/backups/drk-ki:/backup alpine \
+  sh -c "rm -rf /documents/* && tar xzf /backup/docs_<datum>.tgz -C /"
 
 # 5. Alles starten und prüfen
 docker compose up -d

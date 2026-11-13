@@ -3,13 +3,13 @@
 -- ACL (§4.2 Lastenheft): acl_groups steuert Leseberechtigung auf Dokumentebene
 
 -- ---------------------------------------------------------------------------
--- Dokumente (Originale liegen in MinIO, hier nur Metadaten)
+-- Dokumente (Originale liegen als Dateien im Volume documents_data, hier nur Metadaten)
 -- ---------------------------------------------------------------------------
 CREATE TABLE documents (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id     TEXT NOT NULL,
     name          TEXT NOT NULL,
-    storage_key   TEXT NOT NULL,                 -- MinIO-Objekt-Key
+    storage_key   TEXT NOT NULL,                 -- Pfad in der Dateiablage: <tenant>/<doc_id>/<datei>
     content_type  TEXT,
     size_bytes    BIGINT,
     -- ACL-Gruppen laut §4.2: z.B. kv-vorstand, kv-pflege, kv-rettungsdienst, kv-alle

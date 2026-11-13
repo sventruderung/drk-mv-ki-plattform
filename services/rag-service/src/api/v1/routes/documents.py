@@ -414,7 +414,7 @@ async def document_content(
     x_tenant_id: str = Header(...),
     x_user_roles: str = Header(""),
 ) -> Response:
-    """Originaldokument (read-only) ausliefern — rechtegeprüft, aus MinIO.
+    """Originaldokument (read-only) ausliefern — rechtegeprüft, aus der Dateiablage.
 
     ACL: Nutzer-Rollen müssen die ACL-Gruppen des Dokuments UND (falls in einer
     Wissensbasis) der Wissensbasis überschneiden. RLS filtert zusätzlich Tenant.
@@ -438,7 +438,12 @@ async def document_content(
     if row["kb_acl"] is not None and not (set(row["kb_acl"]) & roles):
         raise HTTPException(status_code=403, detail="Kein Zugriff auf diese Wissensbasis")
 
-    data = storage.get_object(row["storage_key"])
+    try:
+        data = storage.get_object(row["storage_key"])
+    except FileNotFoundError:
+        logger.warning("document.content.missing", tenant_id=x_tenant_id,
+                       document_id=str(document_id))
+        raise HTTPException(status_code=404, detail="Originaldatei nicht vorhanden")
     name = row["name"] or f"dokument-{document_id}"
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_")[:100] or "dokument"
     logger.info("document.content", tenant_id=x_tenant_id, document_id=str(document_id))
