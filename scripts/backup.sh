@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nächtliches Backup der DRK KI-Plattform: PostgreSQL + MinIO + .env
+# Nächtliches Backup der DRK KI-Plattform: PostgreSQL + Original-Dokumente + .env
 #
 #   Einmalig als Cron einrichten:  sudo bash scripts/backup.sh --install
 #   Manuell ausführen:             bash scripts/backup.sh
@@ -95,7 +95,7 @@ upload_to_nas() {
     [ -f "$BACKUP_DIR/branding_$TS.tgz" ] && \
         branding_put="; put \"$BACKUP_DIR/branding_$TS.tgz\" \"branding_$TS.tgz\""
     smbclient "//$server/$share" -U "$user%$pass" -c \
-        "prompt OFF; ${cd_prefix}put \"$BACKUP_DIR/db_$TS.sql.gz\" \"db_$TS.sql.gz\"; put \"$BACKUP_DIR/minio_$TS.tgz\" \"minio_$TS.tgz\"; put \"$BACKUP_DIR/env_$TS\" \"env_$TS\"$branding_put"
+        "prompt OFF; ${cd_prefix}put \"$BACKUP_DIR/db_$TS.sql.gz\" \"db_$TS.sql.gz\"; put \"$BACKUP_DIR/docs_$TS.tgz\" \"docs_$TS.tgz\"; put \"$BACKUP_DIR/env_$TS\" \"env_$TS\"$branding_put"
 }
 
 umask 077   # Backups enthalten Dokumenttexte + Secrets — nur Besitzer liest
@@ -110,11 +110,12 @@ gzip -t "$BACKUP_DIR/db_$TS.sql.gz"
 [ "$(stat -c%s "$BACKUP_DIR/db_$TS.sql.gz")" -gt 1000 ] || { echo "DB-Dump verdächtig klein"; false; }
 echo "✓ PostgreSQL: $(du -h "$BACKUP_DIR/db_$TS.sql.gz" | cut -f1)"
 
-# 2. MinIO (Original-Dokumente)
-MINIO_VOL="$(docker volume ls -q | grep -m1 'minio_data')"
-docker run --rm -v "$MINIO_VOL":/data:ro -v "$BACKUP_DIR":/backup alpine \
-    tar czf "/backup/minio_$TS.tgz" -C / data
-echo "✓ MinIO: $(du -h "$BACKUP_DIR/minio_$TS.tgz" | cut -f1)"
+# 2. Original-Dokumente (Volume documents_data des rag-service)
+DOCS_VOL="$(docker volume ls -q | grep -m1 'documents_data$' || true)"
+[ -n "$DOCS_VOL" ] || { echo "Volume documents_data nicht gefunden"; false; }
+docker run --rm -v "$DOCS_VOL":/documents:ro -v "$BACKUP_DIR":/backup alpine \
+    tar czf "/backup/docs_$TS.tgz" -C / documents
+echo "✓ Dokumente: $(du -h "$BACKUP_DIR/docs_$TS.tgz" | cut -f1)"
 
 # 3. .env (enthält Secrets — Backup-Verzeichnis ist chmod 700)
 install -m 600 .env "$BACKUP_DIR/env_$TS"
@@ -127,7 +128,7 @@ if [ -d data/branding ]; then
 fi
 
 # 4. Aufbewahrung: alles älter als $RETENTION_DAYS Tage löschen
-find "$BACKUP_DIR" -maxdepth 1 \( -name 'db_*' -o -name 'minio_*' -o -name 'env_*' -o -name 'branding_*' \) \
+find "$BACKUP_DIR" -maxdepth 1 \( -name 'db_*' -o -name 'docs_*' -o -name 'minio_*' -o -name 'env_*' -o -name 'branding_*' \) \
     -mtime +"$RETENTION_DAYS" -delete
 
 # 5. Optional: auf NAS hochladen (Fehler hier kippt die lokale Sicherung nicht)

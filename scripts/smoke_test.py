@@ -17,7 +17,6 @@ CHECKS = [
     ("Ollama",           "http://localhost:11434/api/tags"),
     ("Keycloak (Realm)", "http://localhost:8080/auth/realms/drk-kv/.well-known/openid-configuration"),
     ("Open WebUI",       "http://localhost:3000/health"),
-    ("MinIO",            "http://localhost:9000/minio/health/live"),
 ]
 
 REQUIRED_MODELS = {"qwen3:32b", "nomic-embed-text"}

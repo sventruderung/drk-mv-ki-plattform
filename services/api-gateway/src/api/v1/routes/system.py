@@ -56,8 +56,6 @@ async def collect_checks(s) -> list[dict]:
         _check_http("Anmeldung (Keycloak)",
                     f"{s.keycloak_url}/realms/{s.keycloak_realm}/.well-known/openid-configuration",
                     "Keycloak-Container und Realm-Import prüfen"),
-        _check_http("Dokumentenspeicher (MinIO)", f"{s.minio_health_url}",
-                    "Container prüfen: docker compose ps minio"),
     ))
 
     # Ollama + Modelle

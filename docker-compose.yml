@@ -112,24 +112,6 @@ services:
               count: all
               capabilities: [gpu]
 
-  minio:
-    restart: unless-stopped
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   open-webui:
     restart: unless-stopped
     image: ghcr.io/open-webui/open-webui:main
@@ -279,17 +261,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL}
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_BUCKET: ${MINIO_BUCKET}
+      DOCUMENTS_DIR: /data/documents
       LOG_LEVEL: ${LOG_LEVEL}
     ports:
       - "${RAG_SERVICE_PORT:-8001}:8001"
+    volumes:
+      # Original-Dokumente (frueher MinIO) — pro Mandant ein Unterordner
+      - documents_data:/data/documents
     depends_on:
       postgres:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
   llm-service:
@@ -398,7 +378,7 @@ services:
 volumes:
   postgres_data:
   ollama_data:
-  minio_data:
+  documents_data:
   open_webui_data:
   caddy_data:
   caddy_config:
